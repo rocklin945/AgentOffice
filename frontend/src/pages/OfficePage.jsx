@@ -93,13 +93,12 @@ function WorkStation({ agent, position, onClick }) {
     if (groupRef.current) {
       groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2 + position[0]) * 0.02
 
-      // 敲键盘动画 - 坐着敲键盘
+      // 敲键盘动画 - 手臂上下敲击
       if (agent && agent.status === 'working') {
         const time = state.clock.elapsedTime
         if (leftArmRef.current && rightArmRef.current) {
-          // 手臂从肩膀向前伸，放在桌面上敲击
-          leftArmRef.current.rotation.x = Math.sin(time * 8) * 0.15 + 0.3
-          rightArmRef.current.rotation.x = Math.sin(time * 8 + Math.PI) * 0.15 + 0.3
+          leftArmRef.current.position.y = 0.35 + Math.sin(time * 12) * 0.05
+          rightArmRef.current.position.y = 0.35 + Math.sin(time * 12 + Math.PI) * 0.05
         }
       }
     }
@@ -228,45 +227,45 @@ function WorkStation({ agent, position, onClick }) {
           <meshStandardMaterial color="#1D1D1F" />
         </mesh>
 
-        {/* 手臂 - 向前伸敲键盘 */}
-        <group ref={leftArmRef} position={[-0.2, 0.28, 0.15]}>
+        {/* 手臂 - 往前伸放键盘上 */}
+        <group ref={leftArmRef} position={[-0.18, 0.35, 0.25]}>
           <mesh rotation={[0.5, 0, 0]}>
-            <boxGeometry args={[0.09, 0.22, 0.09]} />
+            <boxGeometry args={[0.08, 0.35, 0.08]} />
             <meshStandardMaterial color={agent.color} roughness={0.8} />
           </mesh>
-          <mesh position={[0, -0.14, 0.08]} rotation={[0.5, 0, 0]}>
+          <mesh position={[0, -0.22, 0.08]} rotation={[0.5, 0, 0]}>
             <boxGeometry args={[0.07, 0.07, 0.07]} />
             <meshStandardMaterial color="#FFCC99" roughness={0.9} />
           </mesh>
         </group>
 
-        <group ref={rightArmRef} position={[0.2, 0.28, 0.15]}>
+        <group ref={rightArmRef} position={[0.18, 0.35, 0.25]}>
           <mesh rotation={[0.5, 0, 0]}>
-            <boxGeometry args={[0.09, 0.22, 0.09]} />
+            <boxGeometry args={[0.08, 0.35, 0.08]} />
             <meshStandardMaterial color={agent.color} roughness={0.8} />
           </mesh>
-          <mesh position={[0, -0.14, 0.08]} rotation={[0.5, 0, 0]}>
+          <mesh position={[0, -0.22, 0.08]} rotation={[0.5, 0, 0]}>
             <boxGeometry args={[0.07, 0.07, 0.07]} />
             <meshStandardMaterial color="#FFCC99" roughness={0.9} />
           </mesh>
         </group>
 
-        {/* 腿 - 弯曲放在椅子下面 */}
-        <mesh position={[-0.1, 0, 0.05]} rotation={[0.3, 0, 0]}>
-          <boxGeometry args={[0.11, 0.22, 0.11]} />
+        {/* 腿 - 弯曲放椅子下，加长 */}
+        <mesh position={[-0.1, -0.08, 0.1]} rotation={[0.35, 0, 0]}>
+          <boxGeometry args={[0.11, 0.3, 0.11]} />
           <meshStandardMaterial color="#3D3D3D" roughness={0.9} />
         </mesh>
-        <mesh position={[0.1, 0, 0.05]} rotation={[0.3, 0, 0]}>
-          <boxGeometry args={[0.11, 0.22, 0.11]} />
+        <mesh position={[0.1, -0.08, 0.1]} rotation={[0.35, 0, 0]}>
+          <boxGeometry args={[0.11, 0.3, 0.11]} />
           <meshStandardMaterial color="#3D3D3D" roughness={0.9} />
         </mesh>
       </group>
 
       {/* 桌子 - 小人前面 */}
-      <group position={[0, 0, 0.45]}>
+      <group position={[0, 0, 0.42]}>
         {/* 桌面 */}
         <mesh position={[0, 0.72, 0]}>
-          <boxGeometry args={[1.3, 0.05, 0.65]} />
+          <boxGeometry args={[1.3, 0.05, 0.7]} />
           <meshStandardMaterial color="#F5F5F5" roughness={0.6} />
         </mesh>
         {/* 桌腿 */}
@@ -277,13 +276,13 @@ function WorkStation({ agent, position, onClick }) {
           </mesh>
         ))}
 
-        {/* 显示器 - 桌上 */}
-        <mesh position={[0, 1.0, -0.05]}>
+        {/* 显示器 - 往前放 */}
+        <mesh position={[0, 1.0, 0.15]}>
           <boxGeometry args={[0.5, 0.35, 0.04]} />
           <meshStandardMaterial color="#1D1D1F" roughness={0.5} />
         </mesh>
         {/* 屏幕 */}
-        <mesh position={[0, 1.0, -0.03]}>
+        <mesh position={[0, 1.0, 0.17]}>
           <boxGeometry args={[0.44, 0.28, 0.02]} />
           <meshStandardMaterial
             color={agent.status === 'working' ? '#007AFF' : '#1a1a2e'}
@@ -292,19 +291,24 @@ function WorkStation({ agent, position, onClick }) {
           />
         </mesh>
         {/* 支架 */}
-        <mesh position={[0, 0.8, -0.05]}>
+        <mesh position={[0, 0.8, 0.15]}>
           <boxGeometry args={[0.07, 0.1, 0.07]} />
           <meshStandardMaterial color="#86868B" roughness={0.6} />
         </mesh>
-        <mesh position={[0, 0.72, -0.02]}>
+        <mesh position={[0, 0.72, 0.17]}>
           <boxGeometry args={[0.2, 0.03, 0.14]} />
           <meshStandardMaterial color="#86868B" roughness={0.6} />
         </mesh>
 
-        {/* 键盘 - 在手边 */}
-        <mesh position={[0, 0.73, 0.22]}>
-          <boxGeometry args={[0.35, 0.02, 0.12]} />
-          <meshStandardMaterial color="#3D3D3D" roughness={0.7} />
+        {/* 键盘 - 往后放 */}
+        <mesh position={[0, 0.735, -0.12]}>
+          <boxGeometry args={[0.4, 0.025, 0.15]} />
+          <meshStandardMaterial color="#2D2D2D" roughness={0.6} />
+        </mesh>
+        {/* 键盘条纹 */}
+        <mesh position={[0, 0.75, -0.12]}>
+          <boxGeometry args={[0.35, 0.005, 0.11]} />
+          <meshStandardMaterial color="#4D4D4D" roughness={0.7} />
         </mesh>
       </group>
 
