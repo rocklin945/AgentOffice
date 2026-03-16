@@ -58,7 +58,7 @@ const initialAgents = [
     name: 'Lisa',
     role: '产品经理',
     roleColor: '#AF52DE',
-    status: 'completed',
+    status: 'idle',
     statusText: '已完成',
     task: '需求文档撰写',
     progress: 100,
@@ -85,6 +85,7 @@ function WorkStation({ agent, position, onClick }) {
   const groupRef = useRef()
   const leftArmRef = useRef()
   const rightArmRef = useRef()
+  const headRef = useRef()
   const [hovered, setHovered] = useState(false)
   const status = agent ? statusColors[agent.status] : statusColors.idle
 
@@ -93,12 +94,19 @@ function WorkStation({ agent, position, onClick }) {
     if (groupRef.current) {
       groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2 + position[0]) * 0.02
 
-      // 敲键盘动画 - 手臂上下敲击
+      // 敲键盘动画 - 工作中才敲
       if (agent && agent.status === 'working') {
         const time = state.clock.elapsedTime
         if (leftArmRef.current && rightArmRef.current) {
           leftArmRef.current.position.y = 0.35 + Math.sin(time * 12) * 0.05
           rightArmRef.current.position.y = 0.35 + Math.sin(time * 12 + Math.PI) * 0.05
+        }
+      }
+      // 睡觉动画 - 空闲时头用力点
+      if (agent && agent.status === 'idle') {
+        const time = state.clock.elapsedTime
+        if (headRef.current) {
+          headRef.current.rotation.x = Math.sin(time * 2) * 0.15
         }
       }
     }
@@ -206,26 +214,43 @@ function WorkStation({ agent, position, onClick }) {
         </mesh>
 
         {/* 头部 */}
-        <mesh position={[0, 0.55, 0.05]}>
-          <boxGeometry args={[0.26, 0.26, 0.24]} />
-          <meshStandardMaterial color="#FFCC99" roughness={0.9} />
-        </mesh>
+        <group ref={headRef}>
+          <mesh position={[0, 0.55, 0.05]}>
+            <boxGeometry args={[0.26, 0.26, 0.24]} />
+            <meshStandardMaterial color="#FFCC99" roughness={0.9} />
+          </mesh>
 
-        {/* 头发 */}
-        <mesh position={[0, 0.7, 0.03]}>
-          <boxGeometry args={[0.28, 0.1, 0.26]} />
-          <meshStandardMaterial color={agent.color} roughness={0.8} />
-        </mesh>
+          {/* 头发 */}
+          <mesh position={[0, 0.7, 0.03]}>
+            <boxGeometry args={[0.28, 0.1, 0.26]} />
+            <meshStandardMaterial color={agent.color} roughness={0.8} />
+          </mesh>
 
-        {/* 眼睛 */}
-        <mesh position={[-0.055, 0.55, 0.17]}>
-          <boxGeometry args={[0.035, 0.035, 0.015]} />
-          <meshStandardMaterial color="#1D1D1F" />
-        </mesh>
-        <mesh position={[0.055, 0.55, 0.17]}>
-          <boxGeometry args={[0.035, 0.035, 0.015]} />
-          <meshStandardMaterial color="#1D1D1F" />
-        </mesh>
+          {/* 眼睛 - 空闲时闭眼 */}
+          {agent.status === 'idle' ? (
+            <>
+              <mesh position={[-0.055, 0.55, 0.17]}>
+                <boxGeometry args={[0.04, 0.01, 0.015]} />
+                <meshStandardMaterial color="#1D1D1F" />
+              </mesh>
+              <mesh position={[0.055, 0.55, 0.17]}>
+                <boxGeometry args={[0.04, 0.01, 0.015]} />
+                <meshStandardMaterial color="#1D1D1F" />
+              </mesh>
+            </>
+          ) : (
+            <>
+              <mesh position={[-0.055, 0.55, 0.17]}>
+                <boxGeometry args={[0.035, 0.035, 0.015]} />
+                <meshStandardMaterial color="#1D1D1F" />
+              </mesh>
+              <mesh position={[0.055, 0.55, 0.17]}>
+                <boxGeometry args={[0.035, 0.035, 0.015]} />
+                <meshStandardMaterial color="#1D1D1F" />
+              </mesh>
+            </>
+          )}
+        </group>
 
         {/* 手臂 - 往前伸放键盘上 */}
         <group ref={leftArmRef} position={[-0.18, 0.35, 0.25]}>
@@ -318,6 +343,17 @@ function WorkStation({ agent, position, onClick }) {
           {agent.name}
         </Text>
       </Float>
+
+      {/* ZZZ 气泡 - 空闲时显示 */}
+      {agent.status === 'idle' && (
+        <group position={[0.4, 1.5, 0]}>
+          <Float speed={3} rotationIntensity={0} floatIntensity={0.5}>
+            <Text position={[0, 0, 0]} fontSize={0.18} color="#8E8E93" anchorX="center" anchorY="middle">
+              ZZZ
+            </Text>
+          </Float>
+        </group>
+      )}
 
       {/* 透明气泡 - 往上飘 */}
       <group position={[0, 1.75, 0]}>
