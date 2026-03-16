@@ -112,7 +112,7 @@ function WorkStation({ agent, position, onClick }) {
   if (!agent) {
     // 空工位 - 显示桌椅
     return (
-      <group position={position}>
+      <group position={[position[0], 0, position[2]]}>
         <group onClick={handleClick}>
           {/* 空桌子 */}
           <group position={[0, 0, 0.4]}>
@@ -162,7 +162,7 @@ function WorkStation({ agent, position, onClick }) {
   return (
     <group
       ref={groupRef}
-      position={position}
+      position={[position[0], 0, position[2]]}
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
       onClick={handleClick}
@@ -301,9 +301,9 @@ function WorkStation({ agent, position, onClick }) {
           <meshStandardMaterial color="#86868B" roughness={0.6} />
         </mesh>
 
-        {/* 键盘 - 小人面前 */}
-        <mesh position={[0, 0.74, 0.18]}>
-          <boxGeometry args={[0.4, 0.02, 0.13]} />
+        {/* 键盘 - 在手边 */}
+        <mesh position={[0, 0.73, 0.22]}>
+          <boxGeometry args={[0.35, 0.02, 0.12]} />
           <meshStandardMaterial color="#3D3D3D" roughness={0.7} />
         </mesh>
       </group>
@@ -340,7 +340,7 @@ function WorkStation({ agent, position, onClick }) {
 // 地板
 function Floor() {
   return (
-    <group position={[0, -0.35, 0]}>
+    <group position={[0, 0, 0]}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[14, 10]} />
         <meshStandardMaterial color="#FAFAFA" roughness={0.95} />
