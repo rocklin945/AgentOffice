@@ -6,16 +6,46 @@ const { Header, Content, Footer } = Layout
 function MainLayout() {
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ background: '#001529', padding: '0 20px' }}>
-        <div style={{ color: '#fff', fontSize: '18px', fontWeight: 'bold' }}>
-          AgentOffice - AI数字员工云端开发平台
+      <Header style={{
+        background: '#FFFFFF',
+        padding: '0 32px',
+        borderBottom: '1px solid #F0F0F0',
+        display: 'flex',
+        alignItems: 'center',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+      }}>
+        <div style={{
+          color: '#1D1D1F',
+          fontSize: '20px',
+          fontWeight: 600,
+          letterSpacing: '-0.5px',
+        }}>
+          AgentOffice
+        </div>
+        <div style={{
+          color: '#86868B',
+          fontSize: '14px',
+          marginLeft: '12px',
+          paddingLeft: '12px',
+          borderLeft: '1px solid #E5E5E5',
+        }}>
+          AI数字员工云端开发平台
         </div>
       </Header>
-      <Content style={{ padding: '20px' }}>
+      <Content style={{ background: '#F8F9FA' }}>
         <Outlet />
       </Content>
-      <Footer style={{ textAlign: 'center' }}>
-        AgentOffice ©2026 - AI数字员工云端开发与运维平台
+      <Footer style={{
+        textAlign: 'center',
+        background: '#F8F9FA',
+        color: '#86868B',
+        fontSize: '13px',
+        padding: '20px',
+        borderTop: '1px solid #F0F0F0',
+      }}>
+        AgentOffice — AI数字员工云端开发与运维平台
       </Footer>
     </Layout>
   )
