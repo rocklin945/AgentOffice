@@ -34,7 +34,7 @@
 
 ## 2 虚拟办公室展示模块
 
-系统通过 **2.5D 虚拟办公室界面**展示 AI 员工的工作状态。
+系统通过 **虚拟办公室界面** 展示 AI 员工的工作状态。
 
 功能包括：
 
@@ -209,7 +209,6 @@ Spring Boot 后端服务
 * React Router：路由管理
 * Axios：HTTP请求工具
 * ECharts：数据可视化
-* Three.js / Canvas：2.5D虚拟办公室
 * Redux / Zustand：状态管理
 
 ---
