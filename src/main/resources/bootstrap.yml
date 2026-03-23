@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: agent-office
+  cloud:
+    nacos:
+      config:
+        enabled: true
+        server-addr: 127.0.0.1:8848
+        namespace: public
+        group: DEFAULT_GROUP
+        file-extension: yml
+        refresh-enabled: true
+        import-check:
+          enabled: false
+        # 共享配置
+        shared-configs:
+          - data-id: common.yml
+            group: COMMON_GROUP
+            refresh: true

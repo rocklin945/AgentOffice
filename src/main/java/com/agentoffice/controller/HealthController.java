@@ -1,5 +1,6 @@
 package com.agentoffice.controller;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,6 +16,18 @@ import java.util.Map;
 public class HealthController {
 
     private final ApplicationContext applicationContext;
+
+    @Value("${spring.datasource.url:NOT_FOUND}")
+    private String datasourceUrl;
+
+    @Value("${spring.data.redis.host:NOT_FOUND}")
+    private String redisHost;
+
+    @Value("${spring.data.redis.port:NOT_FOUND}")
+    private String redisPort;
+
+    @Value("${spring.application.name:NOT_FOUND}")
+    private String appName;
 
     public HealthController(ApplicationContext applicationContext) {
         this.applicationContext = applicationContext;
@@ -52,5 +65,16 @@ public class HealthController {
         liveness.put("timestamp", Instant.now().toString());
 
         return ResponseEntity.ok(liveness);
+    }
+
+    @GetMapping("/config-test")
+    public ResponseEntity<Map<String, Object>> configTest() {
+        Map<String, Object> config = new HashMap<>();
+        config.put("appName", appName);
+        config.put("datasourceUrl", datasourceUrl);
+        config.put("redisHost", redisHost);
+        config.put("redisPort", redisPort);
+        config.put("source", "Nacos Config Center");
+        return ResponseEntity.ok(config);
     }
 }
