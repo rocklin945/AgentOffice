@@ -1,4 +1,4 @@
-package com.agentoffice.chat.dto;
+package com.agentoffice.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

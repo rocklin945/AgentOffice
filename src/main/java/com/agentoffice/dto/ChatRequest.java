@@ -1,4 +1,4 @@
-package com.agentoffice.chat.dto;
+package com.agentoffice.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -13,13 +13,10 @@ import java.util.Map;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class DirectChatRequest {
+public class ChatRequest {
 
     @NotBlank(message = "消息内容不能为空")
     private String message;
-
-    @NotBlank(message = "Agent slug 不能为空")
-    private String agentSlug;
 
     private String conversationId;
 

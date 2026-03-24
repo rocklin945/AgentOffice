@@ -1,12 +1,12 @@
-package com.agentoffice.chat;
+package com.agentoffice.service;
 
 import com.agentoffice.agent.AgentDefinition;
 import com.agentoffice.agent.AgentDispatcher;
 import com.agentoffice.agent.AgentRegistry;
 import com.agentoffice.agent.AgentRunner;
-import com.agentoffice.chat.dto.ChatRequest;
-import com.agentoffice.chat.dto.ChatResponse;
-import com.agentoffice.chat.dto.DirectChatRequest;
+import com.agentoffice.dto.ChatRequest;
+import com.agentoffice.dto.ChatResponse;
+import com.agentoffice.dto.DirectChatRequest;
 import com.agentoffice.llm.LlmMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
