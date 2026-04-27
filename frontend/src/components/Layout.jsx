@@ -37,7 +37,7 @@ export default function Layout() {
     : { title: 'AI数字员工', subtitle: '云端开发与运维平台' };
 
   return (
-    <div className="min-h-screen bg-[#f6f8fc]">
+    <div className="h-screen overflow-hidden bg-[#f6f8fc]">
       <aside className="fixed inset-y-0 left-0 z-30 w-[212px] border-r border-[#edf1f7] bg-white">
         <div className="flex h-[90px] items-center gap-3 px-6">
           <div className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[linear-gradient(180deg,#2f6bff_0%,#5c94ff_100%)] text-white shadow-[0_12px_24px_rgba(47,107,255,0.22)]">
@@ -94,8 +94,8 @@ export default function Layout() {
         ) : null}
       </aside>
 
-      <main className="ml-[212px] min-h-screen">
-        <div className="flex items-center justify-end gap-4 px-8 pt-6">
+      <main className="ml-[212px] flex h-screen flex-col overflow-hidden">
+        <div className="flex shrink-0 items-center justify-end gap-4 px-8 pt-6">
           <div className="relative w-[260px]">
             <SearchOutlined className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9aa5b8]" />
             <input
@@ -126,7 +126,7 @@ export default function Layout() {
           </button>
         </div>
 
-        <div className="px-8 pb-8 pt-5">
+        <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-8 pt-5">
           <Outlet />
         </div>
       </main>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   CheckCircleFilled,
   PlayCircleFilled,
@@ -294,6 +294,7 @@ function TaskWidget() {
 }
 
 function DevWidget() {
+  const [detailOpen, setDetailOpen] = useState(false);
   const code = [
     "const express = require('express');",
     "const router = express.Router();",
@@ -308,60 +309,130 @@ function DevWidget() {
   ];
 
   return (
-    <Panel className="overflow-hidden">
-      <div className="flex items-center justify-between border-b border-[#edf1f8] px-5 py-4">
-        <div>
-          <div className="text-[18px] font-semibold text-[#1d2740]">云端开发环境</div>
-          <div className="mt-1 text-[12px] text-[#98a3b7]">项目：user-service / 文件：controllers/auth.js</div>
-        </div>
-        <div className="flex gap-2">
-          <button type="button" className="rounded-[8px] bg-[#21b56b] px-3 py-1.5 text-[12px] text-white">运行</button>
-          <button type="button" className="rounded-[8px] border border-[#dfe7f5] px-3 py-1.5 text-[12px] text-[#5d6a82]">测试</button>
-          <button type="button" className="rounded-[8px] bg-[#2f6bff] px-3 py-1.5 text-[12px] text-white">提交</button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-[180px_minmax(0,1fr)_260px]">
-        <div className="border-r border-[#edf1f8] bg-[#fbfcff] px-4 py-4 text-[13px] text-[#66758f]">
-          <div className="mb-3 font-medium text-[#1d2740]">文件管理器</div>
-          {['user-service', 'controllers', 'auth.js', 'models', 'routes', 'services', 'utils', 'app.js', 'package.json'].map((file, index) => (
-            <div
-              key={file}
-              className={`mb-2 rounded-[8px] px-3 py-2 ${file === 'auth.js' ? 'bg-[#2f6bff] text-white' : index === 0 ? 'font-medium text-[#1d2740]' : ''}`}
+    <>
+      <Panel className="overflow-hidden">
+        <div className="flex items-center justify-between border-b border-[#edf1f8] px-5 py-4">
+          <div>
+            <div className="text-[18px] font-semibold text-[#1d2740]">云端开发环境</div>
+            <div className="mt-1 text-[12px] text-[#98a3b7]">项目：user-service / 文件：controllers/auth.js</div>
+          </div>
+          <div className="flex gap-2">
+            <button type="button" className="rounded-[8px] bg-[#21b56b] px-3 py-1.5 text-[12px] text-white">运行</button>
+            <button type="button" className="rounded-[8px] border border-[#dfe7f5] px-3 py-1.5 text-[12px] text-[#5d6a82]">测试</button>
+            <button
+              type="button"
+              onClick={() => setDetailOpen(true)}
+              className="rounded-[8px] bg-[#2f6bff] px-3 py-1.5 text-[12px] text-white"
             >
-              {file}
+              详情
+            </button>
+          </div>
+        </div>
+
+        <div className="p-5">
+          <div className="overflow-hidden rounded-[14px] bg-[linear-gradient(180deg,#111d30_0%,#0d1828_100%)] px-5 py-5 text-[13px] text-[#a9c0db]">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="text-[16px] font-semibold text-white">运行结果</div>
+              <button
+                type="button"
+                onClick={() => setDetailOpen(true)}
+                className="rounded-[8px] bg-white/10 px-3 py-1.5 text-[12px] text-white"
+              >
+                详情
+              </button>
             </div>
-          ))}
-        </div>
 
-        <div className="bg-[#09172a] px-5 py-4 font-mono text-[13px] leading-7 text-[#c8dcff]">
-          {code.map((line) => (
-            <div key={line}>{line}</div>
-          ))}
-        </div>
+            <div className="mb-4 text-[15px] font-medium text-[#29d08e]">编译运行成功</div>
 
-        <div className="bg-[#111d30] px-5 py-4 text-[13px] text-[#a9c0db]">
-          <div className="mb-4 flex items-center justify-between text-white">
-            <span className="text-[16px] font-semibold">运行结果</span>
-            <span className="text-[18px]">×</span>
-          </div>
-          <div className="mb-3 text-[#29d08e]">编译运行成功</div>
-          <div className="space-y-2">
-            <div>耗时：1.26s</div>
-            <div>测试总数：12</div>
-            <div>通过：11</div>
-            <div>失败：1</div>
-            <div className="text-[#3fd39e]">覆盖率：91.6%</div>
-          </div>
-          <div className="mt-4 border-t border-white/10 pt-4">
-            <div className="mb-2 text-white">输出日志</div>
-            <div>[INFO] 服务已启动成功</div>
-            <div>[INFO] 端口：3000</div>
-            <div>[ERROR] 测试用例失败：1</div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-[10px] bg-white/5 px-4 py-3">
+                <div className="text-[12px] text-[#7da0d0]">耗时</div>
+                <div className="mt-1 text-white">1.26s</div>
+              </div>
+              <div className="rounded-[10px] bg-white/5 px-4 py-3">
+                <div className="text-[12px] text-[#7da0d0]">测试总数</div>
+                <div className="mt-1 text-white">12</div>
+              </div>
+              <div className="rounded-[10px] bg-white/5 px-4 py-3">
+                <div className="text-[12px] text-[#7da0d0]">通过</div>
+                <div className="mt-1 text-[#29d08e]">11</div>
+              </div>
+              <div className="rounded-[10px] bg-white/5 px-4 py-3">
+                <div className="text-[12px] text-[#7da0d0]">失败</div>
+                <div className="mt-1 text-[#ff6a5f]">1</div>
+              </div>
+              <div className="rounded-[10px] bg-white/5 px-4 py-3 sm:col-span-2">
+                <div className="text-[12px] text-[#7da0d0]">覆盖率</div>
+                <div className="mt-1 text-[#3fd39e]">91.6%</div>
+              </div>
+            </div>
+
+            <div className="mt-4 border-t border-white/10 pt-4">
+              <div className="mb-2 text-white">输出日志</div>
+              <div>[INFO] 服务已启动成功</div>
+              <div>[INFO] 端口：3000</div>
+              <div>[ERROR] 测试用例失败：1</div>
+            </div>
           </div>
         </div>
-      </div>
-    </Panel>
+      </Panel>
+
+      {detailOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,16,28,0.34)] px-6">
+          <div className="flex max-h-[86vh] w-full max-w-[1280px] flex-col overflow-hidden rounded-[18px] bg-white shadow-[0_32px_80px_rgba(18,30,52,0.22)]">
+            <div className="flex items-center justify-between border-b border-[#edf1f8] px-5 py-4">
+              <div>
+                <div className="text-[18px] font-semibold text-[#1d2740]">云端开发环境</div>
+                <div className="mt-1 text-[12px] text-[#98a3b7]">项目：user-service / 文件：controllers/auth.js</div>
+              </div>
+              <button type="button" onClick={() => setDetailOpen(false)} className="text-[20px] text-[#8fa0b8]">
+                ×
+              </button>
+            </div>
+
+            <div className="flex min-h-0 flex-1">
+              <div className="w-[190px] shrink-0 overflow-y-auto border-r border-[#edf1f8] bg-[#fbfcff] px-4 py-5 text-[13px] text-[#66758f]">
+                <div className="mb-3 font-medium text-[#1d2740]">文件管理器</div>
+                {['user-service', 'controllers', 'auth.js', 'models', 'routes', 'services', 'utils', 'app.js', 'package.json'].map((file, index) => (
+                  <div
+                    key={`detail-${file}`}
+                    className={`mb-2 rounded-[8px] px-3 py-2 ${file === 'auth.js' ? 'bg-[#2f6bff] text-white' : index === 0 ? 'font-medium text-[#1d2740]' : ''}`}
+                  >
+                    {file}
+                  </div>
+                ))}
+              </div>
+
+              <div className="min-w-0 flex-1 overflow-auto bg-[#09172a] px-5 py-5 font-mono text-[13px] leading-7 text-[#c8dcff]">
+                <div className="min-w-[640px] whitespace-pre">
+                  {code.map((line) => (
+                    <div key={line}>{line}</div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="w-[260px] shrink-0 overflow-y-auto border-l border-[#1d2c44] bg-[#111d30] px-5 py-5 text-[13px] text-[#a9c0db]">
+                <div className="mb-4 text-[16px] font-semibold text-white">运行结果</div>
+                <div className="mb-3 text-[#29d08e]">编译运行成功</div>
+                <div className="space-y-2">
+                  <div>耗时：1.26s</div>
+                  <div>测试总数：12</div>
+                  <div>通过：11</div>
+                  <div>失败：1</div>
+                  <div className="text-[#3fd39e]">覆盖率：91.6%</div>
+                </div>
+                <div className="mt-4 border-t border-white/10 pt-4">
+                  <div className="mb-2 text-white">输出日志</div>
+                  <div>[INFO] 服务已启动成功</div>
+                  <div>[INFO] 端口：3000</div>
+                  <div>[ERROR] 测试用例失败：1</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 
