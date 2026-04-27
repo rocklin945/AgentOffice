@@ -32,9 +32,9 @@ management:
       show-details: always
   health:
     redis:
-      enabled: true
+      enabled: false
     db:
-      enabled: true
+      enabled: false
 
 # 日志配置
 logging:
