@@ -157,14 +157,15 @@ export function BarChart({ items, height = 210, color = '#2f6bff' }) {
 
 export function DonutChart({ items }) {
   const total = items.reduce((sum, item) => sum + item.value, 0);
-  let start = 0;
-
-  const segments = items.map((item) => {
-    const size = (item.value / total) * 360;
-    const current = { ...item, start, end: start + size };
-    start += size;
-    return current;
-  });
+  const segments = items.reduce(
+    (acc, item) => {
+      const size = (item.value / total) * 360;
+      acc.items.push({ ...item, start: acc.start, end: acc.start + size });
+      acc.start += size;
+      return acc;
+    },
+    { start: 0, items: [] },
+  ).items;
 
   const radius = 82;
   const strokeWidth = 34;

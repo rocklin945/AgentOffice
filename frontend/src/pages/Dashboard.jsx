@@ -5,6 +5,7 @@ import {
   TeamOutlined,
 } from '@ant-design/icons';
 import { BarChart, LineChart, Panel, ProgressTrack, StatusPill } from '../components/AppPrimitives';
+import HomeOfficeThreeScene from '../components/HomeOfficeThreeScene';
 
 const overviewStats = [
   { label: '员工总数', value: '5', color: 'bg-[#edf4ff] text-[#2f6bff]', icon: <TeamOutlined /> },
@@ -49,22 +50,15 @@ function AvatarCell({ name, tone }) {
 }
 
 function OverviewOfficeStage() {
-  const markers = [
-    { left: '20%', top: '52%', name: '调试工程师', status: '测试中', color: '#2bb36b' },
-    { left: '41%', top: '25%', name: '产品经理', status: '思考中', color: '#8792a7' },
-    { left: '67%', top: '29%', name: '开发工程师', status: '编码中', color: '#2bb36b' },
-    { left: '49%', top: '68%', name: '运维工程师', status: '部署中', color: '#6f65ff' },
-  ];
-
   return (
     <Panel className="overflow-hidden">
-      <div className="flex items-start justify-between px-6 pt-5">
+      <div className="flex flex-wrap items-start justify-between gap-5 px-6 pt-5">
         <div>
           <div className="text-[28px] font-semibold text-[#1e2840]">我的办公室</div>
           <div className="mt-3 text-[16px] font-medium text-[#1f2940]">上午好，张三！ 👋</div>
           <div className="mt-1 text-[12px] text-[#8c97ab]">今天是 2024年05月20日 星期一</div>
         </div>
-        <div className="grid min-w-[460px] grid-cols-4 gap-4">
+        <div className="grid min-w-[460px] grid-cols-2 gap-4 xl:grid-cols-4">
           {overviewStats.map((item) => (
             <div key={item.label} className="rounded-[16px] bg-[#fbfcff] px-4 py-3 shadow-[inset_0_0_0_1px_#eef2f8]">
               <div className="flex items-center gap-2">
@@ -79,105 +73,8 @@ function OverviewOfficeStage() {
         </div>
       </div>
 
-      <div className="relative m-6 h-[420px] overflow-hidden rounded-[18px] border border-[#edf1f8] bg-[linear-gradient(180deg,#f8fbff_0%,#eef4fb_100%)]">
-        <svg viewBox="0 0 1120 560" className="absolute inset-0 h-full w-full">
-          <defs>
-            <linearGradient id="home-wall" x1="0" x2="1" y1="0" y2="1">
-              <stop offset="0%" stopColor="#ded6d4" />
-              <stop offset="100%" stopColor="#b9acad" />
-            </linearGradient>
-            <linearGradient id="home-floor" x1="0" x2="1" y1="0" y2="1">
-              <stop offset="0%" stopColor="#7f8291" />
-              <stop offset="100%" stopColor="#4e5261" />
-            </linearGradient>
-            <linearGradient id="home-window" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#c5e3ff" />
-              <stop offset="100%" stopColor="#7eb0ea" />
-            </linearGradient>
-          </defs>
-          <polygon points="160,70 620,38 1020,176 570,230" fill="url(#home-wall)" />
-          <polygon points="160,70 46,132 46,402 168,478" fill="#d6cbca" />
-          <polygon points="1020,176 1020,422 898,498 898,246" fill="#d3c8c8" />
-          <polygon points="168,478 46,402 534,308 898,498" fill="#666c7d" />
-          <polygon points="160,70 620,38 1020,176 534,308 46,132" fill="url(#home-floor)" />
-
-          {[
-            [200, 102, 165, 112],
-            [400, 88, 180, 120],
-            [646, 110, 170, 112],
-          ].map(([x, y, w, h]) => (
-            <g key={`${x}-${y}`}>
-              <rect x={x} y={y} width={w} height={h} rx="6" fill="#30415a" />
-              <rect x={x + 6} y={y + 6} width={w - 12} height={h - 12} rx="4" fill="url(#home-window)" />
-            </g>
-          ))}
-
-          {[
-            [224, 284],
-            [470, 240],
-            [650, 318],
-            [432, 412],
-          ].map(([x, y]) => (
-            <g key={`${x}-${y}`} transform={`translate(${x} ${y})`}>
-              <polygon points="0,32 40,10 116,10 76,32" fill="#ebeff6" />
-              <polygon points="0,32 76,32 76,88 0,88" fill="#d4dae4" />
-              <polygon points="76,32 116,10 116,66 76,88" fill="#bcc5d4" />
-              <polygon points="12,24 46,8 104,8 70,24" fill="#f0e0d1" />
-              <polygon points="12,24 70,24 70,70 12,70" fill="#d7bea6" />
-              <polygon points="70,24 104,8 104,54 70,70" fill="#b99377" />
-            </g>
-          ))}
-
-          {[
-            [94, 154],
-            [120, 356],
-            [356, 108],
-            [560, 98],
-            [844, 196],
-            [760, 440],
-          ].map(([x, y]) => (
-            <g key={`${x}-${y}`} transform={`translate(${x} ${y})`}>
-              <rect x="0" y="12" width="18" height="14" rx="3" fill="#8f6b55" />
-              <path d="M9 0 C2 6 2 12 9 16 C16 12 16 6 9 0Z" fill="#4caf74" />
-            </g>
-          ))}
-        </svg>
-
-        {markers.map((item) => (
-          <div
-            key={item.name}
-            className="absolute rounded-[14px] bg-[rgba(18,22,32,0.88)] px-4 py-2 shadow-[0_14px_24px_rgba(15,23,42,0.22)]"
-            style={{ left: item.left, top: item.top }}
-          >
-            <div className="text-[13px] font-semibold text-white">{item.name}</div>
-            <div
-              className="mt-1 inline-flex rounded-full px-3 py-1 text-[11px] font-medium text-white"
-              style={{ backgroundColor: item.color }}
-            >
-              {item.status}
-            </div>
-          </div>
-        ))}
-
-        <div className="absolute right-[7%] top-[53%] rounded-[14px] bg-[rgba(18,22,32,0.82)] px-4 py-3 text-white">
-          <div className="text-[13px] font-semibold">空闲工位</div>
-          <button type="button" className="mt-2 rounded-full bg-white/10 px-3 py-2 text-[12px]">
-            + 创建员工
-          </button>
-        </div>
-
-        <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-3">
-          {['办公总览', '音乐: 开', '视角切换'].map((item) => (
-            <div key={item} className="rounded-full bg-white/90 px-4 py-2 text-[12px] text-[#596780] shadow-sm">
-              {item}
-            </div>
-          ))}
-        </div>
-
-        <div className="absolute bottom-3 right-4 h-[76px] w-[134px] rounded-[12px] border border-[#edf1f8] bg-white p-2 shadow-sm">
-          <div className="mb-2 text-[11px] text-[#7c88a0]">虚拟地图</div>
-          <div className="h-[44px] rounded-[8px] bg-[linear-gradient(180deg,#f3f6fb_0%,#e8edf6_100%)]" />
-        </div>
+      <div className="m-6">
+        <HomeOfficeThreeScene />
       </div>
     </Panel>
   );
@@ -573,7 +470,7 @@ function TaskDetailWidget() {
         <div className="text-[26px] font-semibold text-[#1d2740]">开发用户登录接口</div>
         <StatusPill color="blue">进行中</StatusPill>
       </div>
-      <div className="mt-3 text-[13px] text-[#8d99ae]">创建时间：2024-05-20 10:30　　优先级：高</div>
+      <div className="mt-3 text-[13px] text-[#8d99ae]">创建时间：2024-05-20 10:30 优先级：高</div>
 
       <div className="mt-5 flex gap-8 border-b border-[#edf1f8] pb-3 text-[13px]">
         {['任务概览', '执行过程', '成果展示', '相关文件'].map((tab, index) => (
@@ -613,11 +510,11 @@ function TaskDetailWidget() {
           <ProgressTrack value={75} className="mt-4" />
           <div className="mt-5 text-[15px] font-semibold text-[#1d2740]">执行日志</div>
           <div className="mt-4 space-y-3 text-[13px] text-[#6d7b92]">
-            <div>10:30　任务开始</div>
-            <div>10:35　需求分析完成</div>
-            <div>10:40　接口设计完成</div>
-            <div>10:45　开始编写代码</div>
-            <div>11:20　完成登录接口代码编写</div>
+            <div>10:30 任务开始</div>
+            <div>10:35 需求分析完成</div>
+            <div>10:40 接口设计完成</div>
+            <div>10:45 开始编写代码</div>
+            <div>11:20 完成登录接口代码编写</div>
           </div>
         </div>
       </div>

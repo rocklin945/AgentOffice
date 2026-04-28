@@ -134,7 +134,7 @@ export default function Tasks() {
             {selected.status}
           </StatusPill>
         </div>
-        <div className="mt-3 text-[13px] text-[#8d99ae]">创建时间：{selected.createdAt}　　优先级：{selected.level}</div>
+        <div className="mt-3 text-[13px] text-[#8d99ae]">创建时间：{selected.createdAt} 优先级：{selected.level}</div>
 
         <div className="mt-5 flex gap-8 border-b border-[#edf1f8] pb-3 text-[13px]">
           {['任务概览', '执行过程', '成果展示', '相关文件'].map((tab, index) => (
@@ -170,11 +170,11 @@ export default function Tasks() {
             <ProgressTrack value={selected.progress} className="mt-4" />
             <div className="mt-5 text-[15px] font-semibold text-[#1d2740]">执行日志</div>
             <div className="mt-4 space-y-3 text-[13px] text-[#6d7b92]">
-              <div>10:30　任务开始</div>
-              <div>10:35　需求分析完成</div>
-              <div>10:40　接口设计完成</div>
-              <div>10:45　开始编写代码</div>
-              <div>11:20　完成登录接口代码编写</div>
+              <div>10:30 任务开始</div>
+              <div>10:35 需求分析完成</div>
+              <div>10:40 接口设计完成</div>
+              <div>10:45 开始编写代码</div>
+              <div>11:20 完成登录接口代码编写</div>
             </div>
           </div>
         </div>

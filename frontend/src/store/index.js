@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 
 export const useAppStore = create(
   persist(
-    (set, get) => ({
+    (set) => ({
       // 用户信息
       user: null,
       token: null,
