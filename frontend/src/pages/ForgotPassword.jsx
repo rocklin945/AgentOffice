@@ -61,11 +61,14 @@ export default function ForgotPassword() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#07111f] px-6 py-10">
       <div className="relative flex min-h-[640px] w-full max-w-[1180px] overflow-hidden rounded-[24px] border border-white/5 bg-[radial-gradient(circle_at_20%_0%,rgba(25,51,120,0.35)_0%,rgba(7,17,31,0)_32%),linear-gradient(180deg,#08111f_0%,#06111e_100%)] shadow-[0_36px_90px_rgba(2,8,18,0.52)]">
-        <div className="flex w-[44%] flex-col px-12 py-16">
+        <div className="flex w-[40%] flex-col justify-center px-12">
           <div className="text-[52px] font-semibold tracking-tight text-white">AI数字员工</div>
           <div className="mt-3 text-[28px] font-semibold text-[#69a8ff]">云端开发与运维平台</div>
+        </div>
 
-          <div className="mt-12 rounded-[18px] border border-white/8 bg-[rgba(24,33,53,0.72)] px-6 py-7 shadow-[0_16px_48px_rgba(0,0,0,0.2)] backdrop-blur-sm">
+        <div className="relative flex flex-1 items-center justify-center">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_55%_45%,rgba(47,107,255,0.18)_0%,rgba(47,107,255,0)_42%)]" />
+          <div className="w-[360px] rounded-[18px] border border-white/8 bg-[rgba(24,33,53,0.72)] px-6 py-7 shadow-[0_16px_48px_rgba(0,0,0,0.2)] backdrop-blur-sm">
             <div className="text-[34px] font-semibold text-white">找回密码</div>
             <div className="mt-2 text-[14px] text-[#8f9bb1]">输入注册邮箱，重置密码</div>
 
@@ -109,15 +112,6 @@ export default function ForgotPassword() {
               <button type="button" onClick={() => navigate('/login')} className="ml-2 text-[#69a8ff] hover:text-[#8bbfff]">立即登录</button>
             </div>
           </div>
-
-          <div className="mt-auto text-center text-[12px] text-[#71809a]">
-            © 2024 AI DevOps Platform. All rights reserved.
-          </div>
-        </div>
-
-        <div className="relative flex flex-1 items-center justify-center">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_55%_45%,rgba(47,107,255,0.18)_0%,rgba(47,107,255,0)_42%)]" />
-          <CubeIllustration />
         </div>
       </div>
     </div>
