@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Panel, ProgressTrack, StatusPill } from '../components/AppPrimitives';
 
 const tasks = [
-  { id: 'login-api', name: '开发用户登录接口', level: '高', owner: 'Alex', role: '开发工程师', status: '进行中', progress: 75, createdAt: '2024-05-20 10:30' },
-  { id: 'login-test', name: '编写登录接口测试用例', level: '中', owner: 'TestBot', role: '测试工程师', status: '进行中', progress: 60, createdAt: '2024-05-20 10:35' },
+  { id: 'login-api', name: '开发用户登录接口', level: '高', owner: 'Alex', role: '开发工程师', status: '开发中', progress: 75, createdAt: '2024-05-20 10:30' },
+  { id: 'login-test', name: '编写登录接口测试用例', level: '中', owner: 'TestBot', role: '测试工程师', status: '开发中', progress: 60, createdAt: '2024-05-20 10:35' },
   { id: 'deploy-env', name: '部署登录服务到测试环境', level: '高', owner: 'OpsMaster', role: '运维工程师', status: '部署中', progress: 40, createdAt: '2024-05-20 10:40' },
   { id: 'analysis', name: '用户登录功能需求分析', level: '中', owner: 'ProductKing', role: '产品经理', status: '已完成', progress: 100, createdAt: '2024-05-20 09:20' },
   { id: 'doc', name: '编写接口文档', level: '低', owner: 'DocHelper', role: '文档工程师', status: '已完成', progress: 100, createdAt: '2024-05-20 09:30' },
@@ -12,7 +12,7 @@ const tasks = [
 const executionSteps = [
   { step: 1, name: '需求分析', role: '产品经理', owner: 'ProductKing', status: '已完成' },
   { step: 2, name: '接口设计', role: '开发工程师', owner: 'Alex', status: '已完成' },
-  { step: 3, name: '代码开发', role: '开发工程师', owner: 'Alex', status: '进行中' },
+  { step: 3, name: '代码开发', role: '开发工程师', owner: 'Alex', status: '开发中' },
   { step: 4, name: '测试验证', role: '测试工程师', owner: 'TestBot', status: '待开始' },
   { step: 5, name: '部署上线', role: '运维工程师', owner: 'OpsMaster', status: '待开始' },
 ];
@@ -113,7 +113,7 @@ function TaskDetail({ task, onClose }) {
                   <div className="flex items-center gap-3">
                     <span className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-medium ${
                       step.status === '已完成' ? 'bg-[#2bb36b] text-white' :
-                      step.status === '进行中' ? 'bg-[#2f6bff] text-white' :
+                      step.status === '开发中' ? 'bg-[#2f6bff] text-white' :
                       'bg-[#eef2f8] text-[#8d99ae]'
                     }`}>
                       {step.step}
@@ -124,7 +124,7 @@ function TaskDetail({ task, onClose }) {
                     </div>
                   </div>
                   <StatusPill
-                    color={step.status === '已完成' ? 'green' : step.status === '进行中' ? 'blue' : 'gray'}
+                    color={step.status === '已完成' ? 'green' : step.status === '开发中' ? 'blue' : 'gray'}
                     className="text-[10px]"
                   >
                     {step.status}
@@ -188,6 +188,16 @@ function TaskDetail({ task, onClose }) {
 
 export default function Tasks() {
   const [selectedTask, setSelectedTask] = useState(null);
+  const [activeTab, setActiveTab] = useState('all');
+
+  const tabs = [
+    { key: 'all', label: '全部任务' },
+    { key: 'mine', label: '我的任务' },
+    { key: 'developing', label: '开发中' },
+    { key: 'deploying', label: '部署中' },
+    { key: 'done', label: '已完成' },
+    { key: 'failed', label: '已失败' },
+  ];
 
   return (
     <div className="space-y-5">
@@ -202,10 +212,15 @@ export default function Tasks() {
             </div>
 
             <div className="mt-4 flex gap-8 border-b border-[#edf1f8] pb-3 text-[13px]">
-              {['全部任务', '我的任务', '进行中', '已完成', '已失败'].map((tab, index) => (
-                <div key={tab} className={index === 0 ? 'font-medium text-[#2f6bff]' : 'text-[#8d99ae]'}>
-                  {tab}
-                </div>
+              {tabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveTab(tab.key)}
+                  className={activeTab === tab.key ? 'font-medium text-[#2f6bff]' : 'text-[#8d99ae] hover:text-[#5f6d83]'}
+                >
+                  {tab.label}
+                </button>
               ))}
             </div>
 
@@ -219,7 +234,15 @@ export default function Tasks() {
                 <div>创建时间</div>
                 <div>操作</div>
               </div>
-              {tasks.map((task, index) => (
+              {tasks.filter((task) => {
+                if (activeTab === 'all') return true;
+                if (activeTab === 'mine') return task.owner === 'Alex';
+                if (activeTab === 'developing') return task.status === '开发中';
+                if (activeTab === 'deploying') return task.status === '部署中';
+                if (activeTab === 'done') return task.status === '已完成';
+                if (activeTab === 'failed') return task.status === '已失败';
+                return true;
+              }).map((task, index) => (
                 <button
                   key={task.id}
                   type="button"
