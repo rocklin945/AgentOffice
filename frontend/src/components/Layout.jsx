@@ -1,5 +1,5 @@
-import React from 'react';
-import { Avatar, Badge } from 'antd';
+import React, { useState } from 'react';
+import { Avatar, Badge, Dropdown } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   AppstoreOutlined,
@@ -12,6 +12,8 @@ import {
   SearchOutlined,
   SettingOutlined,
   TeamOutlined,
+  UserOutlined,
+  LogoutOutlined,
 } from '@ant-design/icons';
 import { useAppStore } from '../store';
 
@@ -26,12 +28,42 @@ const menuItems = [
   { key: '/settings', label: '推送设置', icon: <SettingOutlined /> },
 ];
 
+const notifications = [
+  { id: 1, title: 'Alex 完成了任务', desc: '开发用户登录接口', time: '5分钟前', type: 'task' },
+  { id: 2, title: '部署成功', desc: 'order-service 已部署到测试环境', time: '10分钟前', type: 'deploy' },
+  { id: 3, title: 'TestBot 开始测试', desc: '登录接口测试用例已开始执行', time: '20分钟前', type: 'test' },
+];
+
 export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAppStore();
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [userOpen, setUserOpen] = useState(false);
 
   const officeShell = location.pathname === '/office';
+
+  const notificationItems = {
+    items: notifications.map((n) => ({
+      key: n.id,
+      label: (
+        <div className="py-1">
+          <div className="text-[13px] font-medium text-[#1d2740]">{n.title}</div>
+          <div className="text-[12px] text-[#8d99ae]">{n.desc}</div>
+          <div className="mt-1 text-[11px] text-[#b0bac8]">{n.time}</div>
+        </div>
+      ),
+    })),
+  };
+
+  const userItems = {
+    items: [
+      { key: 'profile', label: '个人中心', icon: <UserOutlined />, onClick: () => console.log('个人中心') },
+      { key: 'settings', label: '账号设置', icon: <SettingOutlined />, onClick: () => console.log('账号设置') },
+      { type: 'divider' },
+      { key: 'logout', label: '退出登录', icon: <LogoutOutlined />, danger: true, onClick: () => console.log('退出登录') },
+    ],
+  };
 
   return (
     <div className="h-screen overflow-hidden bg-[#f6f8fc]">
@@ -68,24 +100,28 @@ export default function Layout() {
           </div>
 
           <Badge count={12} size="small">
-            <button
-              type="button"
-              className="flex h-[42px] w-[42px] items-center justify-center rounded-full border border-[#e8edf6] bg-white text-[#66758f]"
-            >
-              <BellOutlined />
-            </button>
+            <Dropdown menu={notificationItems} trigger={['click']} open={notifOpen} onOpenChange={setNotifOpen}>
+              <button
+                type="button"
+                className="flex h-[42px] w-[42px] items-center justify-center rounded-full border border-[#e8edf6] bg-white text-[#66758f]"
+              >
+                <BellOutlined />
+              </button>
+            </Dropdown>
           </Badge>
 
-          <button
-            type="button"
-            className="flex items-center gap-3 rounded-full border border-[#e8edf6] bg-white px-3 py-1.5"
-          >
-            <Avatar
-              size={34}
-              src={user?.avatar || 'https://api.dicebear.com/7.x/adventurer/svg?seed=zhangsan'}
-            />
-            <span className="text-[14px] font-medium text-[#1d2740]">{user?.nickname || '张三'}</span>
-          </button>
+          <Dropdown menu={userItems} trigger={['click']} open={userOpen} onOpenChange={setUserOpen}>
+            <button
+              type="button"
+              className="flex items-center gap-3 rounded-full border border-[#e8edf6] bg-white px-3 py-1.5"
+            >
+              <Avatar
+                size={34}
+                src={user?.avatar || 'https://api.dicebear.com/7.x/adventurer/svg?seed=zhangsan'}
+              />
+              <span className="text-[14px] font-medium text-[#1d2740]">{user?.nickname || '张三'}</span>
+            </button>
+          </Dropdown>
         </div>
       </header>
 
