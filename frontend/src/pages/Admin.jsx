@@ -243,7 +243,7 @@ export default function Admin() {
     <div className="flex h-[calc(100vh-140px)] rounded-[18px] bg-white shadow-sm">
       {/* 左侧菜单 */}
       <div className="w-[220px] shrink-0 border-r border-[#edf1f8] p-4">
-        <div className="mb-4 px-3 text-[12px] text-[#8d99ae]">管理后台</div>
+        <div className="mb-4 px-3 text-[18px] font-semibold text-[#1d2740]">管理后台</div>
         <nav className="space-y-1">
           {menuItems.map((item) => (
             <button
