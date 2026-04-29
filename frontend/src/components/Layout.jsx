@@ -17,7 +17,7 @@ import { useAppStore } from '../store';
 
 const menuItems = [
   { key: '/dashboard', label: '首页', icon: <HomeOutlined /> },
-  { key: '/office', label: '虚拟办公室', icon: <AppstoreOutlined /> },
+  { key: '/office', label: '团队协作', icon: <AppstoreOutlined /> },
   { key: '/employees', label: '员工管理', icon: <TeamOutlined /> },
   { key: '/tasks', label: '任务管理', icon: <CheckSquareOutlined /> },
   { key: '/dev', label: '云端开发', icon: <CodeOutlined /> },

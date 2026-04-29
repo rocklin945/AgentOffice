@@ -247,7 +247,7 @@ export default function Office() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-[22px] font-semibold text-[#1d2740]">虚拟办公室</h1>
+        <h1 className="text-[22px] font-semibold text-[#1d2740]">团队协作</h1>
       </div>
 
       <div className="flex h-[calc(100vh-220px)] gap-4">
