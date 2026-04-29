@@ -58,10 +58,13 @@ export default function Layout() {
 
   const userItems = {
     items: [
-      { key: 'profile', label: '个人中心', icon: <UserOutlined />, onClick: () => console.log('个人中心') },
-      { key: 'settings', label: '账号设置', icon: <SettingOutlined />, onClick: () => console.log('账号设置') },
+      { key: 'profile', label: '个人中心', icon: <UserOutlined />, onClick: () => navigate('/profile') },
+      { key: 'settings', label: '后台管理', icon: <SettingOutlined />, onClick: () => navigate('/admin') },
       { type: 'divider' },
-      { key: 'logout', label: '退出登录', icon: <LogoutOutlined />, danger: true, onClick: () => console.log('退出登录') },
+      { key: 'logout', label: '退出登录', icon: <LogoutOutlined />, danger: true, onClick: () => {
+        useAppStore.getState().logout?.();
+        navigate('/login');
+      }},
     ],
   };
 

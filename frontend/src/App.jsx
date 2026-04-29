@@ -12,6 +12,8 @@ import Dev from './pages/Dev';
 import Deploy from './pages/Deploy';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
+import Profile from './pages/Profile';
+import Admin from './pages/Admin';
 import { useAppStore } from './store';
 import './styles/global.css';
 
@@ -54,6 +56,8 @@ export default function App() {
             <Route path="deploy" element={<Deploy />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="profile" element={<Profile />} />
+            <Route path="admin" element={<Admin />} />
           </Route>
         </Routes>
       </BrowserRouter>
