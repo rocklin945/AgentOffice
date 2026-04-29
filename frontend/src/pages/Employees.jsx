@@ -105,7 +105,7 @@ function CreateEmployeeModal({ onClose }) {
 }
 
 export default function Employees() {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   return (
     <>
