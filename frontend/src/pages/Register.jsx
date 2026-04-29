@@ -1,7 +1,6 @@
 import React from 'react';
-import { LockOutlined, UserOutlined } from '@ant-design/icons';
+import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { useAppStore } from '../store';
 
 function CubeIllustration() {
   return (
@@ -56,18 +55,8 @@ function CubeIllustration() {
   );
 }
 
-export default function Login() {
+export default function Register() {
   const navigate = useNavigate();
-  const { setToken, setUser } = useAppStore();
-
-  const handleLogin = () => {
-    setToken('demo-token');
-    setUser({
-      nickname: '张三',
-      avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=zhangsan',
-    });
-    navigate('/dashboard');
-  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#07111f] px-6 py-10">
@@ -77,43 +66,55 @@ export default function Login() {
           <div className="mt-3 text-[28px] font-semibold text-[#69a8ff]">云端开发与运维平台</div>
 
           <div className="mt-12 rounded-[18px] border border-white/8 bg-[rgba(24,33,53,0.72)] px-6 py-7 shadow-[0_16px_48px_rgba(0,0,0,0.2)] backdrop-blur-sm">
-            <div className="text-[34px] font-semibold text-white">欢迎回来</div>
-            <div className="mt-2 text-[14px] text-[#8f9bb1]">登录您的账户</div>
+            <div className="text-[34px] font-semibold text-white">创建账号</div>
+            <div className="mt-2 text-[14px] text-[#8f9bb1]">填写信息完成注册</div>
 
             <div className="mt-7 space-y-4">
               <div className="flex h-[48px] items-center gap-3 rounded-[10px] border border-white/10 bg-[rgba(6,16,32,0.35)] px-4">
                 <UserOutlined className="text-[#71809a]" />
                 <input
                   type="text"
-                  defaultValue="admin@example.com"
-                  className="h-full flex-1 border-none bg-transparent text-[14px] text-white outline-none"
+                  placeholder="用户名"
+                  className="h-full flex-1 border-none bg-transparent text-[14px] text-white outline-none placeholder:text-[#71809a]"
+                />
+              </div>
+              <div className="flex h-[48px] items-center gap-3 rounded-[10px] border border-white/10 bg-[rgba(6,16,32,0.35)] px-4">
+                <MailOutlined className="text-[#71809a]" />
+                <input
+                  type="email"
+                  placeholder="邮箱"
+                  className="h-full flex-1 border-none bg-transparent text-[14px] text-white outline-none placeholder:text-[#71809a]"
                 />
               </div>
               <div className="flex h-[48px] items-center gap-3 rounded-[10px] border border-white/10 bg-[rgba(6,16,32,0.35)] px-4">
                 <LockOutlined className="text-[#71809a]" />
                 <input
                   type="password"
-                  defaultValue="123456"
-                  className="h-full flex-1 border-none bg-transparent text-[14px] text-white outline-none"
+                  placeholder="密码"
+                  className="h-full flex-1 border-none bg-transparent text-[14px] text-white outline-none placeholder:text-[#71809a]"
+                />
+              </div>
+              <div className="flex h-[48px] items-center gap-3 rounded-[10px] border border-white/10 bg-[rgba(6,16,32,0.35)] px-4">
+                <LockOutlined className="text-[#71809a]" />
+                <input
+                  type="password"
+                  placeholder="确认密码"
+                  className="h-full flex-1 border-none bg-transparent text-[14px] text-white outline-none placeholder:text-[#71809a]"
                 />
               </div>
             </div>
 
-            <div className="mt-4 flex items-center justify-end text-[13px] text-[#c9d3e5]">
-              <button type="button" onClick={() => navigate('/forgot-password')} className="hover:text-[#69a8ff]">忘记密码？</button>
-            </div>
-
             <button
               type="button"
-              onClick={handleLogin}
+              onClick={() => navigate('/login')}
               className="mt-6 h-[48px] w-full rounded-[10px] bg-[linear-gradient(180deg,#3980ff_0%,#2f6bff_100%)] text-[15px] font-medium text-white shadow-[0_14px_28px_rgba(47,107,255,0.32)]"
             >
-              登录
+              注册
             </button>
 
             <div className="mt-5 text-center text-[13px] text-[#8f9bb1]">
-              还没有账号？
-              <button type="button" onClick={() => navigate('/register')} className="ml-2 text-[#69a8ff] hover:text-[#8bbfff]">立即注册</button>
+              已有账号？
+              <button type="button" onClick={() => navigate('/login')} className="ml-2 text-[#69a8ff] hover:text-[#8bbfff]">立即登录</button>
             </div>
           </div>
 
