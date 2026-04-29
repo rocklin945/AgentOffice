@@ -19,6 +19,10 @@ const staffList = [
     commits: '16次',
     testPass: '12个',
     deployCount: '2次',
+    workProducts: [
+      { name: '登录流程PRD文档', time: '10:30', status: '已完成' },
+      { name: '原型设计稿', time: '10:45', status: '已完成' },
+    ],
   },
   {
     id: 'alex',
@@ -36,6 +40,10 @@ const staffList = [
     commits: '126次',
     testPass: '45个',
     deployCount: '12次',
+    workProducts: [
+      { name: 'login API 接口设计', time: '10:30', status: '已完成' },
+      { name: 'user-service 登录模块代码', time: '11:20', status: '进行中' },
+    ],
   },
   {
     id: 'testbot',
@@ -53,6 +61,9 @@ const staffList = [
     commits: '34次',
     testPass: '31个',
     deployCount: '4次',
+    workProducts: [
+      { name: '登录接口测试用例', time: '10:35', status: '进行中' },
+    ],
   },
   {
     id: 'ops',
@@ -70,6 +81,9 @@ const staffList = [
     commits: '52次',
     testPass: '20个',
     deployCount: '26次',
+    workProducts: [
+      { name: 'order-service 部署配置', time: '10:40', status: '进行中' },
+    ],
   },
 ];
 
@@ -108,58 +122,93 @@ function EmployeeCard({ employee, isSelected, onClick }) {
   return (
     <div
       onClick={onClick}
-      className={`cursor-pointer rounded-[14px] border bg-white p-3 transition-all ${
+      className={`cursor-pointer rounded-[10px] border bg-white p-2 transition-all ${
         isSelected
-          ? 'border-[#2f6bff] shadow-md'
+          ? 'border-[#2f6bff] shadow-sm'
           : 'border-[#edf1f8] hover:border-[#2f6bff]'
       }`}
     >
       <div className="flex items-center gap-2">
         <div
-          className="flex h-8 w-8 items-center justify-center rounded-full text-[13px] font-bold text-white"
+          className="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold text-white"
           style={{ background: employeeColors[employee.id] }}
         >
           {employee.name.slice(0, 1)}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[13px] font-medium text-[#1d2740]">{employee.name}</span>
-            <StatusPill color={employee.badgeColor} className="text-[10px]">{employee.badge}</StatusPill>
+          <div className="flex items-center gap-1">
+            <span className="text-[12px] font-medium text-[#1d2740]">{employee.name}</span>
+            <StatusPill color={employee.badgeColor} className="text-[9px]">{employee.badge}</StatusPill>
           </div>
-          <div className="text-[11px] text-[#8d99ae]">{employee.title}</div>
+          <div className="text-[10px] text-[#8d99ae]">{employee.title}</div>
         </div>
       </div>
-      <div className="mt-2">
-        <div className="flex items-center justify-between text-[11px]">
-          <span className="text-[#8d99ae]">{employee.task}</span>
+      <div className="mt-1.5">
+        <div className="flex items-center justify-between text-[10px]">
+          <span className="text-[#8d99ae] truncate">{employee.task}</span>
           <span className="text-[#5f6d83]">{employee.progress}%</span>
         </div>
         <ProgressTrack value={employee.progress} className="mt-1" />
       </div>
 
       {isSelected && (
-        <div className="mt-3 border-t border-[#edf1f8] pt-3">
-          <div className="grid grid-cols-2 gap-2 text-[11px]">
+        <div className="mt-2 border-t border-[#edf1f8] pt-2">
+          <div className="grid grid-cols-2 gap-1 text-[10px]">
             <div className="text-[#8d99ae]">工时：<span className="text-[#1d2740]">{employee.workingTime}</span></div>
             <div className="text-[#8d99ae]">提交：<span className="text-[#1d2740]">{employee.commits}</span></div>
             <div className="text-[#8d99ae]">测试：<span className="text-[#1d2740]">{employee.testPass}</span></div>
             <div className="text-[#8d99ae]">部署：<span className="text-[#1d2740]">{employee.deployCount}</span></div>
           </div>
-          <div className="mt-2 text-[11px] text-[#8d99ae]">职责：<span className="text-[#5f6d83]">{employee.duty}</span></div>
-          <div className="mt-2 flex flex-wrap gap-1">
+          <div className="mt-1.5 text-[10px] text-[#8d99ae]">职责：<span className="text-[#5f6d83]">{employee.duty}</span></div>
+          <div className="mt-1.5 flex flex-wrap gap-1">
             {employee.skills.map((skill) => (
-              <span key={skill} className="rounded-full bg-[#f0f4ff] px-1.5 py-0.5 text-[10px] text-[#2f6bff]">
+              <span key={skill} className="rounded-full bg-[#f0f4ff] px-1 py-0.5 text-[9px] text-[#2f6bff]">
                 {skill}
               </span>
             ))}
           </div>
           {employee.nextEmployee && (
-            <div className="mt-2 rounded-[6px] bg-[#fff4ea] px-2 py-1.5 text-[11px] text-[#8d99ae]">
+            <div className="mt-1.5 rounded-[4px] bg-[#fff4ea] px-1.5 py-1 text-[10px] text-[#8d99ae]">
               下一步：<span className="font-medium text-[#ff8a32]">@{staffList.find(e => e.id === employee.nextEmployee)?.name}</span>
             </div>
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function WorkProductsPanel({ selectedEmployee }) {
+  const employee = selectedEmployee || staffList[0];
+  return (
+    <div className="flex h-full flex-col rounded-[16px] border border-[#edf1f8] bg-[#fbfcff] p-4 shadow-sm">
+      <div className="mb-3 border-b border-[#edf1f8] pb-3">
+        <div className="text-[15px] font-semibold text-[#1d2740]">工作产物</div>
+      </div>
+      <div className="flex-1 space-y-2 overflow-auto">
+        {employee.workProducts.map((product, index) => (
+          <div key={index} className="rounded-[10px] border border-[#edf1f8] bg-white p-3 hover:border-[#2f6bff] cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div
+                  className="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                  style={{ background: employeeColors[employee.id] }}
+                >
+                  {employee.name.slice(0, 1)}
+                </div>
+                <span className="text-[13px] font-medium text-[#1d2740]">{product.name}</span>
+              </div>
+              <StatusPill
+                color={product.status === '已完成' ? 'green' : 'blue'}
+                className="text-[10px]"
+              >
+                {product.status}
+              </StatusPill>
+            </div>
+            <div className="mt-2 text-[11px] text-[#8d99ae]">更新时间：{product.time}</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -198,7 +247,6 @@ function ChatPanel() {
     <div className="flex h-full flex-col rounded-[16px] border border-[#edf1f8] bg-[#fbfcff] p-4 shadow-sm">
       <div className="mb-3 border-b border-[#edf1f8] pb-3">
         <div className="text-[16px] font-semibold text-[#1d2740]">群聊</div>
-        <div className="mt-1 text-[12px] text-[#8d99ae]">团队协作沟通</div>
       </div>
       <div className="flex-1 space-y-3 overflow-auto">
         {messages.map((msg) => (
@@ -246,23 +294,26 @@ export default function Office() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-[22px] font-semibold text-[#1d2740]">团队协作</h1>
-      </div>
-
-      <div className="flex h-[calc(100vh-220px)] gap-4">
-        <div className="flex-1 overflow-auto">
-          <div className="mb-3 text-[15px] font-medium text-[#8d99ae]">员工列表</div>
-          <div className="grid gap-3 xl:grid-cols-3">
-            {staffList.map((emp) => (
-              <EmployeeCard
-                key={emp.id}
-                employee={emp}
-                isSelected={selected.id === emp.id}
-                onClick={() => setSelected(emp)}
-              />
-            ))}
+      <div className="flex h-[calc(100vh-180px)] gap-4">
+        <div className="w-[280px] shrink-0">
+          <div className="flex h-full flex-col rounded-[16px] border border-[#edf1f8] bg-[#fbfcff] p-4 shadow-sm">
+            <div className="mb-3 border-b border-[#edf1f8] pb-3">
+              <div className="text-[15px] font-semibold text-[#1d2740]">员工列表</div>
+            </div>
+            <div className="flex-1 space-y-2 overflow-auto">
+              {staffList.map((emp) => (
+                <EmployeeCard
+                  key={emp.id}
+                  employee={emp}
+                  isSelected={selected.id === emp.id}
+                  onClick={() => setSelected(emp)}
+                />
+              ))}
+            </div>
           </div>
+        </div>
+        <div className="flex-1">
+          <WorkProductsPanel selectedEmployee={selected} />
         </div>
         <div className="w-[380px] shrink-0">
           <ChatPanel />
