@@ -51,7 +51,7 @@ function AvatarCell({ name, tone }) {
 
 function OverviewOfficeStage() {
   return (
-    <Panel className="overflow-hidden">
+    <Panel className="overflow-visible">
       <div className="flex flex-wrap items-start justify-between gap-5 px-6 pt-5">
         <div>
           <div className="text-[28px] font-semibold text-[#1e2840]">我的办公室</div>

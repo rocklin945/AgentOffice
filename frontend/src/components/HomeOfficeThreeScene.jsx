@@ -204,8 +204,8 @@ export default function HomeOfficeThreeScene() {
   };
 
   return (
-    <div className="relative h-[480px] overflow-hidden rounded-[18px] border border-[#edf1f8] bg-[linear-gradient(180deg,#f8fbff_0%,#edf4fb_100%)]">
-      <div ref={mountRef} className="absolute inset-0 cursor-grab active:cursor-grabbing" />
+    <div className="relative z-10 -mt-24 h-[600px] overflow-visible bg-transparent pt-24">
+      <div ref={mountRef} className="absolute -inset-x-32 -top-40 -bottom-24 cursor-grab active:cursor-grabbing" />
       {loaded ? <OfficeLabels /> : null}
       {!loaded ? (
         <div className="absolute inset-0 flex items-center justify-center text-[14px] font-medium text-[#66758f]">
