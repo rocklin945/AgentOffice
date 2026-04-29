@@ -527,10 +527,16 @@ export default function Dashboard() {
     <div className="space-y-5">
       <OverviewOfficeStage />
 
-      <div className="grid gap-5 xl:grid-cols-[1fr_1.06fr_1.35fr]">
+      <div className="relative z-20 grid gap-5 xl:grid-cols-[1fr_1.06fr_1.35fr]">
         <EmployeeWidget />
         <TaskWidget />
         <DevWidget />
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[1fr_1.06fr_1.35fr]">
+        <DeployWidget />
+        <AnalyticsWidget />
+        <TaskDetailWidget />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1fr_1.06fr_1.35fr]">
