@@ -23,7 +23,7 @@ const menuItems = [
   { key: '/dev', label: '云端开发', icon: <CodeOutlined /> },
   { key: '/deploy', label: '部署与运维', icon: <CloudOutlined /> },
   { key: '/analytics', label: '成果与分析', icon: <BarChartOutlined /> },
-  { key: '/settings', label: '系统设置', icon: <SettingOutlined /> },
+  { key: '/settings', label: '推送设置', icon: <SettingOutlined /> },
 ];
 
 export default function Layout() {
