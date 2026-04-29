@@ -1,16 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 const officeModelPath = '/models/office-scene/isometric_office.glb';
-
-const staffMarkers = [
-  { id: 'product', name: '产品经理', status: '思考中', color: '#667085', left: '43%', top: '28%' },
-  { id: 'dev', name: '开发工程师', status: '编码中', color: '#22c55e', left: '67%', top: '40%' },
-  { id: 'test', name: '测试工程师', status: '测试中', color: '#10b981', left: '28%', top: '61%' },
-  { id: 'ops', name: '运维工程师', status: '部署中', color: '#6366f1', left: '55%', top: '69%' },
-];
+const modelFitSize = 11.8;
+const cameraDistanceScale = 1.18;
+const initialCameraPosition = new THREE.Vector3(15.587, 8.349, 16.461);
+const initialControlsTarget = new THREE.Vector3(0.426, -0.433, -1.29);
 
 function fitOfficeModel(model) {
   const bounds = new THREE.Box3().setFromObject(model);
@@ -28,7 +25,7 @@ function fitOfficeModel(model) {
   model.position.z -= size.z * 0.08;
 
   const maxAxis = Math.max(size.x, size.y, size.z) || 1;
-  model.scale.setScalar(11.8 / maxAxis);
+  model.scale.setScalar(modelFitSize / maxAxis);
 
   model.traverse((object) => {
     if (!object.isMesh) return;
@@ -41,62 +38,67 @@ function fitOfficeModel(model) {
   });
 }
 
-function frameCamera(camera, controls, object, viewportRatio) {
-  const bounds = new THREE.Box3().setFromObject(object);
+function applyInitialView(camera, controls) {
+  camera.position.copy(initialCameraPosition);
+  camera.near = 0.01;
+  camera.far = camera.position.distanceTo(initialControlsTarget) * 8;
+  camera.lookAt(initialControlsTarget);
+  camera.updateProjectionMatrix();
+
+  controls.target.copy(initialControlsTarget);
+  controls.minDistance = 7.332;
+  controls.maxDistance = 46.09;
+  controls.update();
+}
+
+function logOfficeSceneParams(label, model, camera, controls) {
+  const bounds = new THREE.Box3().setFromObject(model);
   const size = new THREE.Vector3();
   const center = new THREE.Vector3();
   bounds.getSize(size);
   bounds.getCenter(center);
 
-  const maxAxis = Math.max(size.x, size.z, size.y * 1.65);
-  const direction = new THREE.Vector3(1.05, 0.82, 1).normalize();
-  const fov = THREE.MathUtils.degToRad(camera.fov);
-  const distance = (maxAxis / (2 * Math.tan(fov / 2))) * (viewportRatio > 1.8 ? 0.78 : 0.92);
+  const round = (value) => Number(value.toFixed(3));
+  const vector = (item) => ({
+    x: round(item.x),
+    y: round(item.y),
+    z: round(item.z),
+  });
 
-  const target = new THREE.Vector3(center.x - size.x * (-0.15), center.y + size.y * (-0.65), center.z - size.z * 0.11);
-  camera.position.copy(target).add(direction.multiplyScalar(distance));
-  camera.near = 0.01;
-  camera.far = distance * 8;
-  camera.lookAt(target);
-  camera.updateProjectionMatrix();
-
-  controls.target.copy(target);
-  controls.minDistance = distance * 0.35;
-  controls.maxDistance = distance * 2.2;
-  controls.update();
-}
-
-function OfficeLabels() {
-  return (
-    <>
-      {staffMarkers.map((marker) => (
-        <button
-          key={marker.id}
-          type="button"
-          className="absolute min-w-[108px] -translate-x-1/2 rounded-[14px] bg-[rgba(17,24,39,0.86)] px-4 py-2 text-center text-white shadow-[0_16px_30px_rgba(15,23,42,0.25)] backdrop-blur transition hover:-translate-y-0.5"
-          style={{ left: marker.left, top: marker.top }}
-        >
-          <div className="text-[13px] font-semibold leading-5">{marker.name}</div>
-          <div className="mt-1 inline-flex rounded-full px-3 py-1 text-[12px] font-semibold" style={{ backgroundColor: marker.color }}>
-            {marker.status}
-          </div>
-        </button>
-      ))}
-      <div className="absolute left-[74%] top-[53%] rounded-[16px] border border-[#8ab4ff]/60 bg-[rgba(20,31,48,0.82)] px-5 py-4 text-center text-white shadow-[0_18px_34px_rgba(15,23,42,0.24)] backdrop-blur">
-        <div className="text-[15px] font-semibold">空闲工位</div>
-        <button type="button" className="mt-2 rounded-full bg-white/10 px-4 py-2 text-[13px] font-medium">
-          + 创建员工
-        </button>
-      </div>
-    </>
-  );
+  console.log(`[HomeOfficeThreeScene] ${label}`, {
+    modelFitSize,
+    cameraDistanceScale,
+    model: {
+      position: vector(model.position),
+      rotation: {
+        x: round(model.rotation.x),
+        y: round(model.rotation.y),
+        z: round(model.rotation.z),
+      },
+      scale: vector(model.scale),
+    },
+    camera: {
+      position: vector(camera.position),
+      fov: round(camera.fov),
+      distanceToTarget: round(camera.position.distanceTo(controls.target)),
+    },
+    controls: {
+      target: vector(controls.target),
+      minDistance: round(controls.minDistance),
+      maxDistance: round(controls.maxDistance),
+    },
+    bounds: {
+      center: vector(center),
+      size: vector(size),
+      min: vector(bounds.min),
+      max: vector(bounds.max),
+    },
+  });
 }
 
 export default function HomeOfficeThreeScene() {
   const mountRef = useRef(null);
   const stateRef = useRef(null);
-  const [musicOn, setMusicOn] = useState(true);
-  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -157,15 +159,22 @@ export default function HomeOfficeThreeScene() {
         const model = gltf.scene;
         fitOfficeModel(model);
         scene.add(model);
-        frameCamera(camera, controls, model, mount.clientWidth / Math.max(mount.clientHeight, 1));
+        applyInitialView(camera, controls);
         stateRef.current = { model, scene, renderer, camera, controls };
-        setLoaded(true);
+        logOfficeSceneParams('loaded', model, camera, controls);
       },
       undefined,
       (error) => {
         console.error('Office GLB failed to load:', error);
       },
     );
+
+    const logAfterInteraction = () => {
+      const current = stateRef.current;
+      if (!current?.model) return;
+      logOfficeSceneParams('interaction-end', current.model, current.camera, current.controls);
+    };
+    controls.addEventListener('end', logAfterInteraction);
 
     const animate = () => {
       controls.update();
@@ -178,6 +187,7 @@ export default function HomeOfficeThreeScene() {
       disposed = true;
       cancelAnimationFrame(frameId);
       window.removeEventListener('resize', resize);
+      controls.removeEventListener('end', logAfterInteraction);
       controls.dispose();
       scene.traverse((object) => {
         if (object.geometry) object.geometry.dispose();
@@ -192,48 +202,9 @@ export default function HomeOfficeThreeScene() {
     };
   }, []);
 
-  const resetView = () => {
-    const current = stateRef.current;
-    if (!current?.model) return;
-    frameCamera(
-      current.camera,
-      current.controls,
-      current.model,
-      mountRef.current.clientWidth / Math.max(mountRef.current.clientHeight, 1),
-    );
-  };
-
   return (
     <div className="relative z-10 -mt-24 h-[600px] overflow-visible bg-transparent pt-24">
       <div ref={mountRef} className="absolute -inset-x-32 -top-40 -bottom-24 cursor-grab active:cursor-grabbing" />
-      {loaded ? <OfficeLabels /> : null}
-      {!loaded ? (
-        <div className="absolute inset-0 flex items-center justify-center text-[14px] font-medium text-[#66758f]">
-          正在加载办公室模型...
-        </div>
-      ) : null}
-
-      <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
-        <div className="pointer-events-auto flex items-center gap-3">
-          <button
-            type="button"
-            onClick={resetView}
-            className="rounded-full bg-white/92 px-4 py-2 text-[13px] font-medium text-[#42526e] shadow-sm backdrop-blur"
-          >
-            办公室视图
-          </button>
-          <button
-            type="button"
-            onClick={() => setMusicOn((current) => !current)}
-            className="rounded-full bg-white/92 px-4 py-2 text-[13px] font-medium text-[#42526e] shadow-sm backdrop-blur"
-          >
-            音乐: {musicOn ? '开' : '关'}
-          </button>
-          <button type="button" onClick={resetView} className="rounded-full bg-white/92 px-4 py-2 text-[13px] font-medium text-[#42526e] shadow-sm backdrop-blur">
-            重置视角
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
