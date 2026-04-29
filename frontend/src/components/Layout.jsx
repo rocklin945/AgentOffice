@@ -32,24 +32,12 @@ export default function Layout() {
   const { user } = useAppStore();
 
   const officeShell = location.pathname === '/office';
-  const brand = officeShell
-    ? { title: 'AgentOffice', subtitle: '智能体办公室' }
-    : { title: 'AI数字员工', subtitle: '云端开发与运维平台' };
 
   return (
     <div className="h-screen overflow-hidden bg-[#f6f8fc]">
-      <aside className="fixed inset-y-0 left-0 z-30 w-[212px] border-r border-[#edf1f7] bg-white">
-        <div className="flex h-[90px] items-center gap-3 px-6">
-          <div className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[linear-gradient(180deg,#2f6bff_0%,#5c94ff_100%)] text-white shadow-[0_12px_24px_rgba(47,107,255,0.22)]">
-            <AppstoreOutlined className="text-[18px]" />
-          </div>
-          <div className="min-w-0">
-            <div className="truncate text-[16px] font-semibold text-[#1e2840]">{brand.title}</div>
-            <div className="mt-1 text-[13px] text-[#78859a]">{brand.subtitle}</div>
-          </div>
-        </div>
-
-        <nav className="px-4">
+      <header className="fixed inset-x-0 top-0 z-30 border-b border-[#edf1f7] bg-white/92 backdrop-blur">
+        <div className="flex h-[76px] items-center gap-6 px-8">
+          <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto rounded-full bg-[#f6f8fc] p-1">
           {menuItems.map((item) => {
             const active = location.pathname === item.key;
             return (
@@ -57,9 +45,9 @@ export default function Layout() {
                 key={item.key}
                 type="button"
                 onClick={() => navigate(item.key)}
-                className={`mb-2 flex h-[42px] w-full items-center gap-3 rounded-[12px] px-4 text-left text-[14px] font-medium transition ${
+                  className={`flex h-[40px] shrink-0 items-center gap-2 rounded-full px-4 text-[14px] font-medium transition ${
                   active
-                    ? 'bg-[#2f6bff] text-white shadow-[0_12px_24px_rgba(47,107,255,0.18)]'
+                      ? 'bg-[#2f6bff] text-white shadow-[0_10px_22px_rgba(47,107,255,0.18)]'
                     : 'text-[#5d6a82] hover:bg-[#f6f8fc] hover:text-[#2f6bff]'
                 }`}
               >
@@ -70,33 +58,7 @@ export default function Layout() {
           })}
         </nav>
 
-        {officeShell ? (
-          <div className="absolute bottom-5 left-4 right-4 rounded-[16px] border border-[#edf1f7] bg-white p-4 shadow-[0_8px_28px_rgba(31,45,76,0.05)]">
-            <div className="text-[16px] font-semibold text-[#1d2740]">系统状态</div>
-            <div className="mt-3 flex items-center gap-2 text-[13px] font-medium text-[#2bb36b]">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#2bb36b]" />
-              全部正常
-            </div>
-            <div className="mt-4 space-y-3 text-[13px] text-[#708099]">
-              {[
-                ['在线员工', '12'],
-                ['运行服务', '8'],
-                ['进行中任务', '5'],
-                ['系统负载', '32%'],
-              ].map(([label, value]) => (
-                <div key={label} className="flex items-center justify-between">
-                  <span>{label}</span>
-                  <span className="font-medium text-[#1d2740]">{value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-      </aside>
-
-      <main className="ml-[212px] flex h-screen flex-col overflow-hidden">
-        <div className="flex shrink-0 items-center justify-end gap-4 px-8 pt-6">
-          <div className="relative w-[260px]">
+          <div className="relative hidden w-[220px] shrink-0 xl:block">
             <SearchOutlined className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9aa5b8]" />
             <input
               type="text"
@@ -125,6 +87,28 @@ export default function Layout() {
             <span className="text-[14px] font-medium text-[#1d2740]">{user?.nickname || '张三'}</span>
           </button>
         </div>
+      </header>
+
+      <main className="flex h-screen flex-col overflow-hidden pt-[76px]">
+        {officeShell ? (
+          <div className="mx-8 mt-5 flex shrink-0 items-center gap-4 rounded-[18px] border border-[#edf1f7] bg-white/82 px-5 py-3 text-[13px] text-[#708099] shadow-[0_8px_28px_rgba(31,45,76,0.04)]">
+            <span className="font-semibold text-[#1d2740]">系统状态</span>
+            <span className="flex items-center gap-2 font-medium text-[#2bb36b]">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#2bb36b]" />
+              全部正常
+            </span>
+            {[
+              ['在线员工', '12'],
+              ['运行服务', '8'],
+              ['进行中任务', '5'],
+              ['系统负载', '32%'],
+            ].map(([label, value]) => (
+              <span key={label} className="hidden xl:inline">
+                {label} <span className="font-medium text-[#1d2740]">{value}</span>
+              </span>
+            ))}
+          </div>
+        ) : null}
 
         <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-8 pt-5">
           <Outlet />
