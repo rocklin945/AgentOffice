@@ -14,7 +14,9 @@ import java.util.List;
 public class LlmRequest {
     private String model;
     private List<LlmMessage> messages;
+    @Builder.Default
     private double temperature = 0.7;
+    @Builder.Default
     private int maxTokens = 2048;
     private List<LlmTool> tools;
     private String apiBase;

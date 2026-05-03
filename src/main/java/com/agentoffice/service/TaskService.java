@@ -109,7 +109,7 @@ public class TaskService {
                 step.setStepName(stepName);
                 step.setStepOrder(order++);
                 step.setStatus("待处理");
-                stepMapper.insertBatch(task.getId(), List.of(stepName), order - 1);
+                stepMapper.insert(step);
             }
         }
 

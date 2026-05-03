@@ -36,6 +36,7 @@ export const taskApi = {
 export const officeApi = {
   getLayout: () => request.get('/office/layout'),
   getEmployeeStatusOverview: () => request.get('/office/employees/status'),
+  getCollaboration: () => request.get('/office/collaboration'),
 };
 
 // 云端开发
@@ -72,4 +73,15 @@ export const analyticsApi = {
   getEmployeeEfficiency: () => request.get('/analytics/employees'),
   getTaskTrend: (params) => request.get('/analytics/tasks/trend', { params }),
   getKpi: () => request.get('/analytics/kpi'),
+};
+
+// 页面聚合数据：保持前端原页面结构，由后端适配字段
+export const uiApi = {
+  getDashboard: () => request.get('/ui/dashboard'),
+  getEmployees: () => request.get('/ui/employees'),
+  getTasks: () => request.get('/ui/tasks'),
+  getDeploy: () => request.get('/ui/deploy'),
+  getDev: () => request.get('/ui/dev'),
+  getAnalytics: () => request.get('/ui/analytics'),
+  getAdmin: () => request.get('/ui/admin'),
 };

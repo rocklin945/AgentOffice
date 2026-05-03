@@ -3,6 +3,8 @@ package com.agentoffice.mapper;
 import com.agentoffice.entity.SysUser;
 import org.apache.ibatis.annotations.*;
 
+import java.util.List;
+
 @Mapper
 public interface SysUserMapper {
 
@@ -11,6 +13,9 @@ public interface SysUserMapper {
 
     @Select("SELECT * FROM sys_user WHERE id = #{id}")
     SysUser findById(@Param("id") Long id);
+
+    @Select("SELECT * FROM sys_user ORDER BY create_time DESC")
+    List<SysUser> findAll();
 
     @Insert("INSERT INTO sys_user (username, password, nickname, email, status) " +
             "VALUES (#{username}, #{password}, #{nickname}, #{email}, 1)")

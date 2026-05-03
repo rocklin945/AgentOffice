@@ -12,6 +12,7 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LlmTool {
+    @Builder.Default
     private String type = "function";
     private Function function;
 

@@ -26,4 +26,9 @@ public class OfficeController {
         Map<String, Integer> overview = officeService.getStatusOverview();
         return Result.success(overview);
     }
+
+    @GetMapping("/collaboration")
+    public Result<Map<String, Object>> getCollaboration() {
+        return Result.success(officeService.getCollaboration());
+    }
 }

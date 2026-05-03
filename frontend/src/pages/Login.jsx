@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { authApi } from '../api';
 import { useAppStore } from '../store';
 
 function CubeIllustration() {
@@ -59,14 +60,24 @@ function CubeIllustration() {
 export default function Login() {
   const navigate = useNavigate();
   const { setToken, setUser } = useAppStore();
+  const [username, setUsername] = useState('admin');
+  const [password, setPassword] = useState('admin123');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleLogin = () => {
-    setToken('demo-token');
-    setUser({
-      nickname: '张三',
-      avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=zhangsan',
-    });
-    navigate('/dashboard');
+  const handleLogin = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await authApi.login({ username, password });
+      setToken(res.data.token);
+      setUser(res.data.user);
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message || '登录失败');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -88,7 +99,8 @@ export default function Login() {
                 <UserOutlined className="text-[#71809a]" />
                 <input
                   type="text"
-                  defaultValue="admin@example.com"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
                   className="h-full flex-1 border-none bg-transparent text-[14px] text-white outline-none"
                 />
               </div>
@@ -96,11 +108,14 @@ export default function Login() {
                 <LockOutlined className="text-[#71809a]" />
                 <input
                   type="password"
-                  defaultValue="123456"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
                   className="h-full flex-1 border-none bg-transparent text-[14px] text-white outline-none"
                 />
               </div>
             </div>
+
+            {error ? <div className="mt-3 text-[12px] text-[#ff8b8b]">{error}</div> : null}
 
             <div className="mt-4 flex items-center justify-end text-[13px] text-[#c9d3e5]">
               <button type="button" onClick={() => navigate('/forgot-password')} className="hover:text-[#69a8ff]">忘记密码？</button>
@@ -109,9 +124,10 @@ export default function Login() {
             <button
               type="button"
               onClick={handleLogin}
+              disabled={loading}
               className="mt-6 h-[48px] w-full rounded-[10px] bg-[linear-gradient(180deg,#3980ff_0%,#2f6bff_100%)] text-[15px] font-medium text-white shadow-[0_14px_28px_rgba(47,107,255,0.32)]"
             >
-              登录
+              {loading ? '登录中...' : '登录'}
             </button>
 
             <div className="mt-5 text-center text-[13px] text-[#8f9bb1]">
