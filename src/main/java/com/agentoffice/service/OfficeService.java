@@ -4,6 +4,8 @@ import com.agentoffice.dto.OfficeLayoutResponse;
 import com.agentoffice.dto.CollaborationChatRequest;
 import com.agentoffice.common.exception.BusinessException;
 import com.agentoffice.entity.AgentEmployee;
+import com.agentoffice.entity.ChatMessage;
+import com.agentoffice.entity.ChatSession;
 import com.agentoffice.entity.OfficeDesk;
 import com.agentoffice.entity.TaskInfo;
 import com.agentoffice.entity.WorkProduct;
@@ -12,6 +14,8 @@ import com.agentoffice.llm.LlmRequest;
 import com.agentoffice.llm.LlmResponse;
 import com.agentoffice.llm.LlmService;
 import com.agentoffice.mapper.AgentEmployeeMapper;
+import com.agentoffice.mapper.ChatMessageMapper;
+import com.agentoffice.mapper.ChatSessionMapper;
 import com.agentoffice.mapper.OfficeDeskMapper;
 import com.agentoffice.mapper.TaskInfoMapper;
 import com.agentoffice.mapper.WorkProductMapper;
@@ -43,6 +47,12 @@ public class OfficeService {
 
     @Autowired
     private WorkProductMapper workProductMapper;
+
+    @Autowired
+    private ChatSessionMapper chatSessionMapper;
+
+    @Autowired
+    private ChatMessageMapper chatMessageMapper;
 
     @Autowired
     private LlmService llmService;
@@ -168,21 +178,10 @@ public class OfficeService {
         return code.toString();
     }
 
-    private String avatarColor(AgentEmployee employee) {
-        String[] colors = {"#8b5cf6", "#2bb36b", "#2f6bff", "#ff8a32", "#14b8a6", "#f43f5e"};
-        String source = String.valueOf(employee.getId()) + (employee.getName() == null ? "" : employee.getName());
-        int seed = 0;
-        for (int i = 0; i < source.length(); i++) {
-            seed += source.charAt(i);
-        }
-        return colors[Math.floorMod(seed, colors.length)];
-    }
-
     public Map<String, Object> getCollaboration() {
         List<AgentEmployee> employees = employeeMapper.findAll();
         List<TaskInfo> tasks = taskMapper.findList(null, null, null);
         List<Map<String, Object>> staff = new ArrayList<>();
-        String[] colors = {"#8b5cf6", "#2bb36b", "#2f6bff", "#ff8a32", "#94a0b8"};
 
         for (int i = 0; i < employees.size(); i++) {
             AgentEmployee employee = employees.get(i);
@@ -207,7 +206,6 @@ public class OfficeService {
             item.put("deployCount", "0次");
             item.put("avatar", employee.getAvatar());
             item.put("workProducts", workProducts(employee.getId()));
-            item.put("color", colors[i % colors.length]);
             staff.add(item);
         }
 
@@ -238,7 +236,7 @@ public class OfficeService {
         return result;
     }
 
-    public Map<String, Object> sendCollaborationMessage(CollaborationChatRequest request) {
+    public Map<String, Object> sendCollaborationMessage(CollaborationChatRequest request, Long userId) {
         if (request.getMessage() == null || request.getMessage().isBlank()) {
             throw new BusinessException(400, "消息内容不能为空");
         }
@@ -246,6 +244,8 @@ public class OfficeService {
             throw new BusinessException(400, "请先 @ 至少一名员工");
         }
 
+        ChatSession session = resolveCollaborationSession(userId, request.getSessionId(), request.getMessage());
+        saveChatMessage(session.getId(), "user", "我", null, request.getMessage());
         List<Map<String, Object>> replies = new ArrayList<>();
         for (Long employeeId : request.getMentionedEmployeeIds()) {
             AgentEmployee employee = employeeMapper.findById(employeeId);
@@ -270,24 +270,50 @@ public class OfficeService {
             Map<String, Object> reply = new HashMap<>();
             reply.put("employeeId", employee.getId());
             reply.put("sender", employee.getName());
-            reply.put("avatar", avatarColor(employee));
             reply.put("text", cleanLlmReply(response.getContent()));
             replies.add(reply);
+            saveChatMessage(session.getId(), "assistant", employee.getName(), employee.getId(), cleanLlmReply(response.getContent()));
         }
 
-        return Map.of("replies", replies);
+        return Map.of("session", sessionMap(session), "replies", replies);
     }
 
-    public SseEmitter streamCollaborationMessage(CollaborationChatRequest request) {
+    public SseEmitter streamCollaborationMessage(CollaborationChatRequest request, Long userId) {
         validateCollaborationChat(request);
         SseEmitter emitter = new SseEmitter(120000L);
+        ChatSession session = resolveCollaborationSession(userId, request.getSessionId(), request.getMessage());
+        saveChatMessage(session.getId(), "user", "我", null, request.getMessage());
 
         CompletableFuture.runAsync(() -> {
             try {
-                List<CompletableFuture<Void>> replyTasks = request.getMentionedEmployeeIds().stream()
-                        .map(employeeId -> CompletableFuture.runAsync(() -> streamEmployeeReply(emitter, employeeId, request.getMessage())))
+                sendEvent(emitter, "session", sessionMap(session));
+                List<CompletableFuture<ReplyHandoff>> replyTasks = request.getMentionedEmployeeIds().stream()
+                        .map(employeeId -> CompletableFuture.supplyAsync(() -> streamEmployeeReply(emitter, employeeId, request.getMessage(), session.getId(), "reply")))
                         .toList();
                 CompletableFuture.allOf(replyTasks.toArray(new CompletableFuture[0])).join();
+                List<CompletableFuture<ReplyHandoff>> handoffTasks = replyTasks.stream()
+                        .map(CompletableFuture::join)
+                        .filter(handoff -> handoff != null && !handoff.mentionedEmployeeIds().isEmpty())
+                        .flatMap(handoff -> handoff.mentionedEmployeeIds().stream()
+                                .filter(employeeId -> !request.getMentionedEmployeeIds().contains(employeeId))
+                                .map(employeeId -> {
+                                    AgentEmployee targetEmployee = employeeMapper.findById(employeeId);
+                                    String assignmentText = handoff.sender() + " 指派下一步给 @" + (targetEmployee == null ? employeeId : targetEmployee.getName());
+                                    saveChatMessage(session.getId(), "system", "System", null, assignmentText);
+                                    sendEventQuietly(emitter, "handoff", Map.of(
+                                            "fromEmployeeId", handoff.employeeId(),
+                                            "fromSender", handoff.sender(),
+                                            "employeeId", employeeId,
+                                            "text", assignmentText,
+                                            "message", handoff.content()
+                                    ));
+                                    String handoffMessage = handoff.sender() + " 在回复中 @ 了你并指派下一步任务：\n" + handoff.content();
+                                    return CompletableFuture.supplyAsync(() -> streamEmployeeReply(emitter, employeeId, handoffMessage, session.getId(), "handoff_reply"));
+                                }))
+                        .toList();
+                if (!handoffTasks.isEmpty()) {
+                    CompletableFuture.allOf(handoffTasks.toArray(new CompletableFuture[0])).join();
+                }
                 sendEvent(emitter, "complete", Map.of("ok", true));
                 emitter.complete();
             } catch (Exception e) {
@@ -302,10 +328,10 @@ public class OfficeService {
         return emitter;
     }
 
-    private void streamEmployeeReply(SseEmitter emitter, Long employeeId, String message) {
+    private ReplyHandoff streamEmployeeReply(SseEmitter emitter, Long employeeId, String message, Long sessionDbId, String phase) {
         AgentEmployee employee = employeeMapper.findById(employeeId);
         if (employee == null) {
-            return;
+            return null;
         }
         try {
             String replyId = "reply_" + UUID.randomUUID().toString().substring(0, 8);
@@ -313,7 +339,7 @@ public class OfficeService {
             start.put("replyId", replyId);
             start.put("employeeId", employee.getId());
             start.put("sender", employee.getName());
-            start.put("avatar", avatarColor(employee));
+            start.put("phase", phase);
             sendEvent(emitter, "reply_start", start);
 
             LlmResponse response = llmService.chatCompletion(LlmRequest.builder()
@@ -332,7 +358,9 @@ public class OfficeService {
                     .build());
 
             String content = cleanLlmReply(response.getContent());
+            StringBuilder savedContent = new StringBuilder();
             for (String chunk : splitReply(content)) {
+                savedContent.append(chunk);
                 Map<String, Object> delta = new HashMap<>();
                 delta.put("replyId", replyId);
                 delta.put("employeeId", employee.getId());
@@ -342,6 +370,8 @@ public class OfficeService {
             }
 
             sendEvent(emitter, "reply_done", Map.of("replyId", replyId, "employeeId", employee.getId()));
+            saveChatMessage(sessionDbId, "assistant", employee.getName(), employee.getId(), savedContent.toString());
+            return new ReplyHandoff(employee.getId(), employee.getName(), savedContent.toString(), parseMentionedEmployeeIds(savedContent.toString(), employee.getId()));
         } catch (Exception e) {
             try {
                 sendEvent(emitter, "reply_error", Map.of(
@@ -350,6 +380,7 @@ public class OfficeService {
                 ));
             } catch (Exception ignored) {
             }
+            return null;
         }
     }
 
@@ -362,8 +393,126 @@ public class OfficeService {
         }
     }
 
+    public Map<String, Object> getCollaborationSessions(Long userId) {
+        List<Map<String, Object>> sessions = chatSessionMapper.findCollaborationByUser(userId).stream()
+                .map(this::sessionMap)
+                .toList();
+        return Map.of("sessions", sessions);
+    }
+
+    public Map<String, Object> createCollaborationSession(Long userId, String title) {
+        ChatSession session = new ChatSession();
+        session.setSessionId("collab_" + UUID.randomUUID().toString().substring(0, 8));
+        session.setUserId(userId);
+        session.setSessionType("collaboration");
+        session.setTitle(title == null || title.isBlank() ? "新会话" : title);
+        chatSessionMapper.insert(session);
+        return Map.of("session", sessionMap(session), "messages", List.of());
+    }
+
+    public Map<String, Object> getCollaborationMessages(Long userId, String sessionId) {
+        ChatSession session = chatSessionMapper.findBySessionIdAndUser(sessionId, userId);
+        if (session == null) {
+            throw new BusinessException(404, "会话不存在");
+        }
+        List<Map<String, Object>> messages = chatMessageMapper.findBySessionId(session.getId()).stream()
+                .map(this::messageMap)
+                .toList();
+        return Map.of("session", sessionMap(session), "messages", messages);
+    }
+
+    @Transactional
+    public void deleteCollaborationSession(Long userId, String sessionId) {
+        ChatSession session = chatSessionMapper.findBySessionIdAndUser(sessionId, userId);
+        if (session == null) {
+            throw new BusinessException(404, "会话不存在");
+        }
+        chatMessageMapper.deleteBySessionId(session.getId());
+        chatSessionMapper.deleteById(session.getId());
+    }
+
+    private ChatSession resolveCollaborationSession(Long userId, String sessionId, String message) {
+        ChatSession session = null;
+        if (sessionId != null && !sessionId.isBlank()) {
+            session = chatSessionMapper.findBySessionIdAndUser(sessionId, userId);
+        }
+        if (session == null) {
+            session = new ChatSession();
+            session.setSessionId("collab_" + UUID.randomUUID().toString().substring(0, 8));
+            session.setUserId(userId);
+            session.setSessionType("collaboration");
+            session.setTitle(defaultSessionTitle(message));
+            chatSessionMapper.insert(session);
+        } else {
+            if (session.getTitle() == null || "新会话".equals(session.getTitle())) {
+                session.setTitle(defaultSessionTitle(message));
+                chatSessionMapper.updateTitle(session);
+            }
+            chatSessionMapper.touch(session.getId());
+        }
+        return session;
+    }
+
+    private void saveChatMessage(Long sessionId, String role, String sender, Long employeeId, String content) {
+        ChatMessage message = new ChatMessage();
+        message.setSessionId(sessionId);
+        message.setRole(role);
+        message.setSender(sender);
+        message.setEmployeeId(employeeId);
+        message.setContent(content);
+        chatMessageMapper.insert(message);
+    }
+
+    private Map<String, Object> sessionMap(ChatSession session) {
+        Map<String, Object> item = new HashMap<>();
+        item.put("id", session.getSessionId());
+        item.put("title", session.getTitle() == null ? "新会话" : session.getTitle());
+        item.put("updatedAt", session.getUpdateTime() == null ? "" : session.getUpdateTime().toString().replace('T', ' ').substring(0, 16));
+        return item;
+    }
+
+    private Map<String, Object> messageMap(ChatMessage message) {
+        Map<String, Object> item = new HashMap<>();
+        item.put("id", message.getId());
+        item.put("sender", message.getSender());
+        item.put("employeeId", message.getEmployeeId());
+        item.put("text", message.getContent());
+        item.put("time", message.getCreateTime() == null ? "" : message.getCreateTime().toLocalTime().toString().substring(0, 5));
+        item.put("fromUser", "user".equals(message.getRole()));
+        item.put("system", "system".equals(message.getRole()));
+        item.put("avatar", "user".equals(message.getRole()) ? "#2f6bff" : null);
+        return item;
+    }
+
+    private String defaultSessionTitle(String message) {
+        String text = message == null ? "新会话" : message.replaceAll("@\\S+", "").trim();
+        if (text.isBlank()) {
+            text = "新会话";
+        }
+        return text.length() > 18 ? text.substring(0, 18) + "..." : text;
+    }
+
     private synchronized void sendEvent(SseEmitter emitter, String name, Object data) throws IOException {
         emitter.send(SseEmitter.event().name(name).data(data));
+    }
+
+    private void sendEventQuietly(SseEmitter emitter, String name, Object data) {
+        try {
+            sendEvent(emitter, name, data);
+        } catch (Exception ignored) {
+        }
+    }
+
+    private List<Long> parseMentionedEmployeeIds(String content, Long senderEmployeeId) {
+        if (content == null || content.isBlank()) {
+            return List.of();
+        }
+        return employeeMapper.findAll().stream()
+                .filter(employee -> employee.getId() != null && !employee.getId().equals(senderEmployeeId))
+                .filter(employee -> employee.getName() != null && content.contains("@" + employee.getName()))
+                .map(AgentEmployee::getId)
+                .distinct()
+                .toList();
     }
 
     private List<String> splitReply(String content) {
@@ -391,7 +540,8 @@ public class OfficeService {
                 + "你的姓名是 " + employee.getName() + "，角色是 " + employee.getRole() + "，职责是 " + roleDuty(employee.getRole()) + "。"
                 + "当前状态是 " + employee.getStatus() + "，职位是 " + (employee.getPosition() == null ? "-" : employee.getPosition()) + "。"
                 + "只有当用户明确 @ 你时你才会收到消息；现在这条消息已经 @ 到你。"
-                + "请用第一人称、中文、简洁地回复，并给出你会如何执行或推进。不要替其他员工发言。";
+                + "请用第一人称、中文、简洁地回复，并给出你会如何执行或推进。"
+                + "如果下一步需要其他员工接力，请在回复中用 @员工姓名 明确指派，但不要替其他员工发言。";
     }
 
     private List<Map<String, Object>> workProducts(Long employeeId) {
@@ -452,5 +602,8 @@ public class OfficeService {
         if (role.contains("测试")) return List.of("Playwright", "Jest", "API Test");
         if (role.contains("运维")) return List.of("K8s", "Nginx", "Linux");
         return List.of("Java", "Spring Boot", "MySQL", "Docker");
+    }
+
+    private record ReplyHandoff(Long employeeId, String sender, String content, List<Long> mentionedEmployeeIds) {
     }
 }

@@ -62,3 +62,16 @@ export function getPriorityColor(priority) {
   };
   return colorMap[priority] || '#9CA3AF';
 }
+
+const avatarPalette = ['#8b5cf6', '#2bb36b', '#2f6bff', '#ff8a32', '#14b8a6', '#f43f5e', '#7c3aed', '#64748b'];
+
+export function getAvatarColor(employeeOrName) {
+  const id = typeof employeeOrName === 'object' ? employeeOrName?.employeeId ?? employeeOrName?.id ?? '' : '';
+  const name = typeof employeeOrName === 'object' ? employeeOrName?.name ?? employeeOrName?.sender ?? '' : employeeOrName ?? '';
+  const source = `${id}:${name}`;
+  let seed = 0;
+  for (let i = 0; i < source.length; i += 1) {
+    seed = (seed * 31 + source.charCodeAt(i)) >>> 0;
+  }
+  return avatarPalette[seed % avatarPalette.length];
+}

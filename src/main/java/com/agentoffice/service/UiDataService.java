@@ -30,7 +30,6 @@ import java.util.Map;
 public class UiDataService {
 
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-    private static final String[] AVATAR_COLORS = {"#8b5cf6", "#2bb36b", "#2f6bff", "#ff8a32", "#14b8a6", "#f43f5e", "#7c3aed", "#64748b"};
     private static final List<Map<String, String>> PERMISSION_CATALOG = List.of(
             Map.of("code", "task.view", "name", "查看任务"),
             Map.of("code", "task.execute", "name", "执行任务"),
@@ -176,7 +175,6 @@ public class UiDataService {
         item.put("status", uiStatus(e));
         item.put("tasks", String.valueOf(nz(e.getTaskCount())));
         item.put("efficiency", percent(e.getEfficiency()));
-        item.put("color", avatarColor(e));
         item.put("employeeNo", "EMP" + String.format("%04d", e.getId()));
         item.put("joinedAt", time(e.getCreateTime()).split(" ")[0]);
         item.put("duty", n(e.getPosition()));
@@ -278,12 +276,4 @@ public class UiDataService {
         return text == null || text.isBlank() ? "-" : text;
     }
 
-    private String avatarColor(AgentEmployee employee) {
-        String source = String.valueOf(employee.getId()) + n(employee.getName());
-        int seed = 0;
-        for (int i = 0; i < source.length(); i++) {
-            seed += source.charAt(i);
-        }
-        return AVATAR_COLORS[Math.floorMod(seed, AVATAR_COLORS.length)];
-    }
 }

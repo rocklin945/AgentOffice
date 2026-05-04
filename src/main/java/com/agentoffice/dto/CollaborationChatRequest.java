@@ -7,6 +7,7 @@ import java.util.Map;
 
 @Data
 public class CollaborationChatRequest {
+    private String sessionId;
     private String message;
     private List<Long> mentionedEmployeeIds;
     private List<Map<String, String>> history;

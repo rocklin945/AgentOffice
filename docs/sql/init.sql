@@ -190,6 +190,8 @@ CREATE TABLE chat_session (
     session_id VARCHAR(100) NOT NULL COMMENT '会话 ID',
     user_id BIGINT DEFAULT NULL COMMENT '用户 ID',
     agent_id BIGINT DEFAULT NULL COMMENT 'Agent ID',
+    session_type VARCHAR(30) DEFAULT 'collaboration' COMMENT 'session type',
+    title VARCHAR(120) DEFAULT NULL COMMENT 'title',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     UNIQUE KEY uk_session_id (session_id),
@@ -200,6 +202,8 @@ CREATE TABLE chat_message (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
     session_id BIGINT NOT NULL COMMENT '会话 ID',
     role VARCHAR(20) NOT NULL COMMENT '角色',
+    sender VARCHAR(50) DEFAULT NULL COMMENT 'sender',
+    employee_id BIGINT DEFAULT NULL COMMENT 'employee id',
     content TEXT COMMENT '内容',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     KEY idx_session_id (session_id)

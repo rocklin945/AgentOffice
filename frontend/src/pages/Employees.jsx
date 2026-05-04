@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { UserOutlined, CheckCircleFilled, CloseCircleFilled, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { employeeApi, uiApi } from '../api';
 import { Panel, ProgressTrack, StatusPill } from '../components/AppPrimitives';
+import { getAvatarColor } from '../utils';
 
-function AvatarToken({ name, color }) {
+function AvatarToken({ employee }) {
+  const name = employee?.name || '';
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-8 w-8 items-center justify-center rounded-full text-[12px] font-semibold text-white" style={{ background: color }}>
+      <div className="flex h-8 w-8 items-center justify-center rounded-full text-[12px] font-semibold text-white" style={{ background: getAvatarColor(employee) }}>
         {name.slice(0, 1)}
       </div>
       <span>{name}</span>
@@ -264,7 +266,7 @@ function EmployeeDetailPanel({ employee, onClose }) {
     <div className="rounded-[16px] border border-[#edf1f8] bg-[#fbfcff] p-5 shadow-sm">
       <div className="flex items-center justify-between border-b border-[#edf1f8] pb-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full text-[20px] font-bold text-white" style={{ background: employee.color }}>{employee.name.slice(0, 1)}</div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-full text-[20px] font-bold text-white" style={{ background: getAvatarColor(employee) }}>{employee.name.slice(0, 1)}</div>
           <div><div className="text-[16px] font-semibold text-[#1d2740]">{employee.name}</div><div className="text-[12px] text-[#8d99ae]">{employee.role} · {employee.employeeNo}</div></div>
         </div>
         <button type="button" onClick={onClose} className="text-[20px] text-[#a0abc0]">×</button>
@@ -337,7 +339,7 @@ export default function Employees() {
               <div className="grid grid-cols-[1.5fr_1.4fr_1fr_0.7fr_0.7fr_0.7fr] bg-[#fbfcff] px-4 py-3 text-[12px] text-[#8d99ae]"><div>员工信息</div><div>角色</div><div>状态</div><div>任务</div><div>效率</div><div>操作</div></div>
               {employees.map((emp, index) => (
                 <div key={emp.id || emp.name} className={`grid grid-cols-[1.5fr_1.4fr_1fr_0.7fr_0.7fr_0.7fr] cursor-pointer items-center px-4 py-4 text-[13px] text-[#5f6d83] transition-colors ${index !== employees.length - 1 ? 'border-t border-[#f1f4f8]' : ''} ${selectedEmployee?.name === emp.name ? 'bg-[#f7fbff]' : 'hover:bg-[#fafbff]'}`} onClick={() => setSelectedEmployee(emp)}>
-                  <AvatarToken name={emp.name} color={emp.color} /><div>{emp.role}</div><div><StatusPill color={getStatusColor(emp.status)}>{emp.status}</StatusPill></div><div>{emp.tasks}</div><div>{emp.efficiency}</div><div className="flex gap-2"><button type="button" title="编辑" onClick={(event) => { event.stopPropagation(); setEditingEmployee(emp); }} className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[#2f6bff] hover:bg-[#eef4ff]"><EditOutlined /></button><button type="button" title="删除" onClick={(event) => deleteEmployee(emp, event)} className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[#ff5c5c] hover:bg-[#fff1f1]"><DeleteOutlined /></button></div>
+                  <AvatarToken employee={emp} /><div>{emp.role}</div><div><StatusPill color={getStatusColor(emp.status)}>{emp.status}</StatusPill></div><div>{emp.tasks}</div><div>{emp.efficiency}</div><div className="flex gap-2"><button type="button" title="编辑" onClick={(event) => { event.stopPropagation(); setEditingEmployee(emp); }} className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[#2f6bff] hover:bg-[#eef4ff]"><EditOutlined /></button><button type="button" title="删除" onClick={(event) => deleteEmployee(emp, event)} className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[#ff5c5c] hover:bg-[#fff1f1]"><DeleteOutlined /></button></div>
                 </div>
               ))}
             </div>

@@ -2,20 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { PlusOutlined } from '@ant-design/icons';
 import { employeeApi, officeApi } from '../api';
 import { useAppStore } from '../store';
+import { getAvatarColor } from '../utils';
 import { Panel, StatusPill } from '../components/AppPrimitives';
 import HomeOfficeThreeScene from '../components/HomeOfficeThreeScene';
 
-const avatarColors = ['#8b5cf6', '#2bb36b', '#2f6bff', '#ff8a32', '#14b8a6', '#f43f5e', '#7c3aed', '#64748b'];
-
-function avatarColor(employee) {
-  const source = `${employee?.id || ''}${employee?.name || ''}`;
-  const seed = source.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  return avatarColors[seed % avatarColors.length];
-}
-
 function Avatar({ employee }) {
   return (
-    <div className="flex h-10 w-10 items-center justify-center rounded-full text-[14px] font-semibold text-white" style={{ background: avatarColor(employee) }}>
+    <div className="flex h-10 w-10 items-center justify-center rounded-full text-[14px] font-semibold text-white" style={{ background: getAvatarColor(employee) }}>
       {employee?.name?.slice(0, 1) || '?'}
     </div>
   );

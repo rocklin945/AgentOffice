@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { CheckCircleFilled, ClockCircleFilled, SendOutlined, TeamOutlined } from '@ant-design/icons';
+import { CheckCircleFilled, ClockCircleFilled, DeleteOutlined, PlusOutlined, SendOutlined, TeamOutlined } from '@ant-design/icons';
 import { officeApi } from '../api';
 import { DonutChart, Panel, ProgressTrack, StatusPill } from '../components/AppPrimitives';
+import { getAvatarColor } from '../utils';
 
 function metricIcon(label) {
   if (label?.includes('员工')) return <TeamOutlined />;
@@ -18,7 +19,7 @@ function EmployeeCard({ employee, isSelected, onClick, staff }) {
       }`}
     >
       <div className="flex items-center gap-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ background: employee.color || '#2f6bff' }}>
+        <div className="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ background: getAvatarColor(employee) }}>
           {employee.name?.slice(0, 1)}
         </div>
         <div className="min-w-0 flex-1">
@@ -94,7 +95,7 @@ function WorkProductsPanel({ selectedEmployee }) {
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: selectedEmployee.color || '#2f6bff' }}>
+                <div className="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: getAvatarColor(selectedEmployee) }}>
                   {selectedEmployee.name?.slice(0, 1)}
                 </div>
                 <span className="text-[13px] font-medium text-[#1d2740]">{product.name}</span>
@@ -153,7 +154,7 @@ function MarkdownMessage({ text, staff, highlightMentions }) {
         const name = mentionNames.find((item) => part === `@${item}`);
         const employee = staff.find((item) => item.name === name);
         if (employee) {
-          return <span key={key} className="font-medium" style={{ color: employee.color || '#2f6bff' }}>{part}</span>;
+          return <span key={key} className="font-medium" style={{ color: getAvatarColor(employee) }}>{part}</span>;
         }
       }
       return <span key={key}>{part}</span>;
@@ -217,25 +218,40 @@ function MarkdownMessage({ text, staff, highlightMentions }) {
 
 function ChatPanel({ initialMessages, staff }) {
   const [messages, setMessages] = useState(initialMessages);
+  const [sessions, setSessions] = useState([]);
+  const [currentSessionId, setCurrentSessionId] = useState('');
   const [input, setInput] = useState('');
   const [mentionOpen, setMentionOpen] = useState(false);
+  const [sessionOpen, setSessionOpen] = useState(false);
   const [mentionedIds, setMentionedIds] = useState([]);
   const [sending, setSending] = useState(false);
+  const [sessionLoading, setSessionLoading] = useState(false);
   const mentionRef = useRef(null);
+  const sessionRef = useRef(null);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    setMessages(initialMessages);
-  }, [initialMessages]);
+    if (!currentSessionId) setMessages(initialMessages);
+  }, [initialMessages, currentSessionId]);
+
+  useEffect(() => {
+    loadSessions();
+  }, []);
 
   useEffect(() => {
     const closeMention = (event) => {
       if (mentionRef.current && !mentionRef.current.contains(event.target)) {
         setMentionOpen(false);
       }
+      if (sessionRef.current && !sessionRef.current.contains(event.target)) {
+        setSessionOpen(false);
+      }
     };
     const closeOnEscape = (event) => {
-      if (event.key === 'Escape') setMentionOpen(false);
+      if (event.key === 'Escape') {
+        setMentionOpen(false);
+        setSessionOpen(false);
+      }
     };
     document.addEventListener('mousedown', closeMention);
     document.addEventListener('keydown', closeOnEscape);
@@ -248,6 +264,90 @@ function ChatPanel({ initialMessages, staff }) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: 'end' });
   }, [messages]);
+
+  const upsertSession = (session) => {
+    if (!session?.id) return;
+    setSessions((current) => {
+      const exists = current.some((item) => item.id === session.id);
+      const next = exists ? current.map((item) => (item.id === session.id ? { ...item, ...session } : item)) : [session, ...current];
+      return next.sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+    });
+  };
+
+  const loadMessages = async (sessionId) => {
+    if (!sessionId) return;
+    const res = await officeApi.getCollaborationMessages(sessionId);
+    setCurrentSessionId(res.data?.session?.id || sessionId);
+    upsertSession(res.data?.session);
+    setMessages(res.data?.messages || []);
+  };
+
+  const loadSessions = async () => {
+    setSessionLoading(true);
+    try {
+      const res = await officeApi.getCollaborationSessions();
+      const nextSessions = res.data?.sessions || [];
+      setSessions(nextSessions);
+      if (nextSessions.length) {
+        await loadMessages(nextSessions[0].id);
+      } else {
+        const created = await officeApi.createCollaborationSession();
+        const session = created.data?.session;
+        setCurrentSessionId(session?.id || '');
+        setSessions(session ? [session] : []);
+        setMessages(created.data?.messages || []);
+      }
+    } catch (error) {
+      setMessages(initialMessages);
+    } finally {
+      setSessionLoading(false);
+    }
+  };
+
+  const createSession = async () => {
+    setSessionLoading(true);
+    try {
+      const res = await officeApi.createCollaborationSession();
+      const session = res.data?.session;
+      if (session) {
+        setCurrentSessionId(session.id);
+        setSessions((current) => [session, ...current.filter((item) => item.id !== session.id)]);
+        setMessages([]);
+        setSessionOpen(false);
+      }
+    } finally {
+      setSessionLoading(false);
+    }
+  };
+
+  const switchSession = async (sessionId) => {
+    await loadMessages(sessionId);
+    setSessionOpen(false);
+  };
+
+  const deleteSession = async (event, sessionId) => {
+    event.stopPropagation();
+    if (!sessionId || sessionLoading) return;
+    setSessionLoading(true);
+    try {
+      await officeApi.deleteCollaborationSession(sessionId);
+      const nextSessions = sessions.filter((item) => item.id !== sessionId);
+      setSessions(nextSessions);
+      if (currentSessionId === sessionId) {
+        if (nextSessions.length) {
+          await loadMessages(nextSessions[0].id);
+        } else {
+          const created = await officeApi.createCollaborationSession();
+          const session = created.data?.session;
+          setCurrentSessionId(session?.id || '');
+          setSessions(session ? [session] : []);
+          setMessages([]);
+        }
+      }
+    } finally {
+      setSessionLoading(false);
+    }
+  };
 
   const getEmployeeId = (employee) => {
     const id = employee?.employeeId ?? employee?.realId;
@@ -292,7 +392,7 @@ function ChatPanel({ initialMessages, staff }) {
         id: pendingId,
         employeeId,
         sender: employee?.name || '员工',
-        avatar: employee?.color || '#2f6bff',
+        avatar: getAvatarColor(employee),
         text: '',
         time: now,
         pending: true,
@@ -312,6 +412,7 @@ function ChatPanel({ initialMessages, staff }) {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
+          sessionId: currentSessionId,
           message: text,
           mentionedEmployeeIds: targetEmployeeIds,
           history: messages.slice(-8).map((message) => ({
@@ -349,12 +450,41 @@ function ChatPanel({ initialMessages, staff }) {
     const dataText = raw.split('\n').filter((line) => line.startsWith('data:')).map((line) => line.slice(5).trim()).join('\n');
     if (!event || !dataText) return;
     const data = JSON.parse(dataText);
+    if (event === 'session') {
+      setCurrentSessionId(data.id);
+      upsertSession(data);
+    }
     if (event === 'reply_start') {
       const messageId = pendingByEmployee.get(Number(data.employeeId));
-      replyMessageById.set(data.replyId, messageId);
-      setMessages((current) => current.map((message) => (
-        message.id === messageId ? { ...message, sender: data.sender, avatar: data.avatar, pending: true } : message
-      )));
+      const nextMessageId = messageId || `reply-${data.replyId}`;
+      replyMessageById.set(data.replyId, nextMessageId);
+      setMessages((current) => {
+        if (current.some((message) => message.id === nextMessageId)) {
+          return current.map((message) => (
+            message.id === nextMessageId ? { ...message, sender: data.sender, avatar: getAvatarColor({ id: data.employeeId, name: data.sender }), pending: true } : message
+          ));
+        }
+        return [...current, {
+          id: nextMessageId,
+          employeeId: Number(data.employeeId),
+          sender: data.sender,
+          avatar: getAvatarColor({ id: data.employeeId, name: data.sender }),
+          text: '',
+          time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+          pending: true,
+        }];
+      });
+    }
+    if (event === 'handoff') {
+      const employee = staff.find((item) => getEmployeeId(item) === Number(data.employeeId));
+      setMessages((current) => [...current, {
+        id: `handoff-${Date.now()}-${data.employeeId}`,
+        sender: 'System',
+        avatar: '#8d99ae',
+        text: data.text || `${data.fromSender || '员工'} 指派下一步给 @${employee?.name || data.employeeId}`,
+        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+        system: true,
+      }]);
     }
     if (event === 'reply_delta') {
       const messageId = replyMessageById.get(data.replyId);
@@ -383,14 +513,69 @@ function ChatPanel({ initialMessages, staff }) {
   return (
     <div className="flex h-full flex-col rounded-[16px] border border-[#edf1f8] bg-[#fbfcff] p-4 shadow-sm">
       <div className="mb-3 border-b border-[#edf1f8] pb-3">
-        <div className="text-[16px] font-semibold text-[#1d2740]">群聊</div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="shrink-0 text-[16px] font-semibold text-[#1d2740]">群聊</div>
+          <div className="relative" ref={sessionRef}>
+            <button
+              type="button"
+              onClick={() => setSessionOpen((open) => !open)}
+              disabled={sessionLoading}
+              className="flex h-8 items-center gap-1 rounded-[8px] border border-[#dde4f0] bg-white px-3 text-[12px] font-medium text-[#5f6d83] transition-colors hover:border-[#2f6bff] hover:text-[#2f6bff] disabled:cursor-not-allowed disabled:text-[#b8c0d0]"
+            >
+              选择会话
+            </button>
+            {sessionOpen ? (
+              <div className="absolute right-0 top-10 z-20 w-[260px] rounded-[12px] border border-[#edf1f8] bg-white p-2 shadow-[0_18px_48px_rgba(18,30,52,0.16)]">
+                <button
+                  type="button"
+                  onClick={createSession}
+                  disabled={sessionLoading}
+                  className="mb-2 flex w-full items-center justify-center gap-1 rounded-[8px] border border-[#dbe7ff] bg-[#f4f8ff] px-3 py-2 text-[12px] font-medium text-[#2f6bff] hover:border-[#2f6bff] disabled:cursor-not-allowed disabled:text-[#b8c0d0]"
+                >
+                  <PlusOutlined />
+                  新建会话
+                </button>
+                <div className="max-h-[260px] space-y-1 overflow-auto">
+                  {sessions.map((session) => (
+                    <button
+                      key={session.id}
+                      type="button"
+                      onClick={() => switchSession(session.id)}
+                      className={`flex w-full items-center gap-2 rounded-[8px] px-3 py-2 text-left transition-colors ${session.id === currentSessionId ? 'bg-[#eef4ff]' : 'hover:bg-[#f7f9fc]'}`}
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[12px] font-medium text-[#1d2740]">{session.title || '新会话'}</span>
+                        <span className="mt-0.5 block text-[10px] text-[#9aa6ba]">{session.updatedAt || '刚刚创建'}</span>
+                      </span>
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(event) => deleteSession(event, session.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') deleteSession(event, session.id);
+                        }}
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] text-[#ff5c5c] transition-colors hover:bg-[#fff0f0]"
+                        title="删除会话"
+                      >
+                        <DeleteOutlined />
+                      </span>
+                    </button>
+                  ))}
+                  {!sessions.length ? (
+                    <div className="px-3 py-4 text-center text-[12px] text-[#9aa6ba]">暂无会话</div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
       </div>
       <div className="flex-1 space-y-3 overflow-auto">
         {messages.map((msg) => (
           <div key={msg.id} className="flex gap-2">
             <div
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
-              style={{ background: msg.avatar || '#2f6bff' }}
+              style={{ background: msg.employeeId ? getAvatarColor({ id: msg.employeeId, name: msg.sender }) : (msg.avatar || '#2f6bff') }}
             >
               {msg.sender?.slice(0, 1)}
             </div>
@@ -400,7 +585,7 @@ function ChatPanel({ initialMessages, staff }) {
                 <span className="text-[11px] text-[#b8c0d0]">{msg.time}</span>
               </div>
               <div className="mt-1 rounded-[10px] rounded-tl-sm border border-[#edf1f8] bg-white px-3 py-2 text-[13px] shadow-sm">
-                {msg.pending && !msg.text ? <TypingDots /> : <MarkdownMessage text={msg.text} staff={staff} highlightMentions={msg.fromUser} />}
+                {msg.pending && !msg.text ? <TypingDots /> : <MarkdownMessage text={msg.text} staff={staff} highlightMentions />}
               </div>
             </div>
           </div>
@@ -425,7 +610,7 @@ function ChatPanel({ initialMessages, staff }) {
                   onClick={() => toggleMention(employee)}
                   className={`flex w-full items-center gap-2 rounded-[8px] px-2 py-2 text-left ${parseMentionedEmployeeIds(input).includes(getEmployeeId(employee)) ? 'bg-[#eef4ff]' : 'hover:bg-[#f7f9fc]'}`}
                 >
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold text-white" style={{ background: employee.color || '#2f6bff' }}>{employee.name?.slice(0, 1)}</span>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold text-white" style={{ background: getAvatarColor(employee) }}>{employee.name?.slice(0, 1)}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[12px] font-medium text-[#1d2740]">{employee.name}</span>
                     <span className="block truncate text-[10px] text-[#8d99ae]">{employee.title}</span>
@@ -445,7 +630,7 @@ function ChatPanel({ initialMessages, staff }) {
         />
         <button
           onClick={handleSend}
-          disabled={sending || !parseMentionedEmployeeIds(input).length}
+          disabled={sending || sessionLoading || !parseMentionedEmployeeIds(input).length}
           className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-[#2f6bff] bg-[#2f6bff] text-white transition-colors hover:bg-[#1d5ae8] disabled:cursor-not-allowed disabled:border-[#cbd5e1] disabled:bg-[#cbd5e1]"
         >
           <SendOutlined />
