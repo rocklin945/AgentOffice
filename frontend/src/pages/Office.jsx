@@ -115,29 +115,81 @@ function WorkProductsPanel({ selectedEmployee }) {
 function ChatPanel({ initialMessages, staff }) {
   const [messages, setMessages] = useState(initialMessages);
   const [input, setInput] = useState('');
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const [mentionedIds, setMentionedIds] = useState([]);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     setMessages(initialMessages);
   }, [initialMessages]);
 
-  const handleSend = () => {
+  const getEmployeeId = (employee) => {
+    const id = employee?.employeeId ?? employee?.realId;
+    return Number.isFinite(Number(id)) ? Number(id) : null;
+  };
+
+  const parseMentionedEmployeeIds = (text) => {
+    const selectedIds = mentionedIds.filter((id) => Number.isFinite(Number(id))).map(Number);
+    const typedIds = staff
+      .filter((employee) => text.includes(`@${employee.name}`))
+      .map(getEmployeeId)
+      .filter((id) => id !== null);
+    return [...new Set([...selectedIds, ...typedIds])];
+  };
+
+  const toggleMention = (employee) => {
+    const id = getEmployeeId(employee);
+    if (id === null) return;
+    setMentionedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+    if (!input.includes(`@${employee.name}`)) {
+      setInput((current) => `${current}${current.trim() ? ' ' : ''}@${employee.name} `);
+    }
+  };
+
+  const handleSend = async () => {
     if (!input.trim()) return;
-    setMessages((current) => [
-      ...current,
-      {
-        id: Date.now(),
-        sender: '我',
-        avatar: '#2f6bff',
-        text: input.trim(),
-        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-      },
-    ]);
-    setInput('');
+    const targetEmployeeIds = parseMentionedEmployeeIds(input);
+    if (!targetEmployeeIds.length) return;
+
+    const now = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    const text = input.trim();
+    setMessages((current) => [...current, { id: Date.now(), sender: '我', avatar: '#2f6bff', text, time: now }]);
+    setSending(true);
+    setMentionOpen(false);
+    try {
+      const res = await officeApi.sendCollaborationMessage({
+        message: text,
+        mentionedEmployeeIds: targetEmployeeIds,
+        history: messages.slice(-8).map((message) => ({
+          role: message.sender === '我' ? 'user' : 'assistant',
+          content: message.text,
+        })),
+      });
+      const replyTime = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+      const replies = (res.data.replies || []).map((reply, index) => ({
+        id: `${Date.now()}-${index}`,
+        sender: reply.sender,
+        avatar: reply.avatar,
+        text: reply.text,
+        time: replyTime,
+      }));
+      setMessages((current) => [...current, ...replies]);
+      setInput('');
+      setMentionedIds([]);
+    } catch (error) {
+      setMessages((current) => [...current, { id: `${Date.now()}-error`, sender: '系统', avatar: '#ff5c5c', text: error.message || '发送失败，请稍后重试', time: now }]);
+    } finally {
+      setSending(false);
+    }
   };
 
   const renderMessageText = (text) => {
     if (!text?.includes('@')) return <span className="text-[#5f6d83]">{text}</span>;
-    return text.split(/(@\w+)/g).map((part, index) => {
+    const names = staff.map((item) => item.name).filter(Boolean).sort((a, b) => b.length - a.length);
+    const pattern = names.length
+      ? new RegExp(`(@(?:${names.map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}))`, 'g')
+      : /(@\S+)/g;
+    return text.split(pattern).map((part, index) => {
       if (part.startsWith('@')) {
         const emp = staff.find((item) => item.name === part.slice(1));
         return (
@@ -177,17 +229,45 @@ function ChatPanel({ initialMessages, staff }) {
         ))}
       </div>
       <div className="mt-3 flex gap-2">
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setMentionOpen((open) => !open)}
+            className={`flex h-9 w-9 items-center justify-center rounded-[10px] border text-[15px] font-semibold transition-colors ${mentionedIds.length ? 'border-[#2f6bff] bg-[#eef4ff] text-[#2f6bff]' : 'border-[#dde4f0] bg-white text-[#66758f]'}`}
+          >
+            @
+          </button>
+          {mentionOpen ? (
+            <div className="absolute bottom-11 left-0 z-20 max-h-[260px] w-[220px] overflow-auto rounded-[12px] border border-[#edf1f8] bg-white p-2 shadow-[0_18px_48px_rgba(18,30,52,0.16)]">
+              {staff.map((employee) => (
+                <button
+                  key={getEmployeeId(employee) ?? employee.id ?? employee.name}
+                  type="button"
+                  onClick={() => toggleMention(employee)}
+                  className={`flex w-full items-center gap-2 rounded-[8px] px-2 py-2 text-left ${mentionedIds.includes(getEmployeeId(employee)) ? 'bg-[#eef4ff]' : 'hover:bg-[#f7f9fc]'}`}
+                >
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold text-white" style={{ background: employee.color || '#2f6bff' }}>{employee.name?.slice(0, 1)}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[12px] font-medium text-[#1d2740]">{employee.name}</span>
+                    <span className="block truncate text-[10px] text-[#8d99ae]">{employee.title}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
         <input
           type="text"
           value={input}
           onChange={(event) => setInput(event.target.value)}
           onKeyDown={(event) => event.key === 'Enter' && handleSend()}
-          placeholder="输入消息..."
+          placeholder="点击 @ 选择员工后输入消息..."
           className="flex-1 rounded-[10px] border border-[#dde4f0] bg-white px-3 py-2 text-[13px] text-[#1d2740] placeholder-[#b8c0d0] focus:border-[#2f6bff] focus:outline-none focus:shadow-sm"
         />
         <button
           onClick={handleSend}
-          className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-[#2f6bff] bg-[#2f6bff] text-white transition-colors hover:bg-[#1d5ae8]"
+          disabled={sending || !parseMentionedEmployeeIds(input).length}
+          className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-[#2f6bff] bg-[#2f6bff] text-white transition-colors hover:bg-[#1d5ae8] disabled:cursor-not-allowed disabled:border-[#cbd5e1] disabled:bg-[#cbd5e1]"
         >
           <SendOutlined />
         </button>

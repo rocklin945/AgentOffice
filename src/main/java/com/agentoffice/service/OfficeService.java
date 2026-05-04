@@ -1,11 +1,16 @@
 package com.agentoffice.service;
 
 import com.agentoffice.dto.OfficeLayoutResponse;
+import com.agentoffice.dto.CollaborationChatRequest;
 import com.agentoffice.common.exception.BusinessException;
 import com.agentoffice.entity.AgentEmployee;
 import com.agentoffice.entity.OfficeDesk;
 import com.agentoffice.entity.TaskInfo;
 import com.agentoffice.entity.WorkProduct;
+import com.agentoffice.llm.LlmMessage;
+import com.agentoffice.llm.LlmRequest;
+import com.agentoffice.llm.LlmResponse;
+import com.agentoffice.llm.LlmService;
 import com.agentoffice.mapper.AgentEmployeeMapper;
 import com.agentoffice.mapper.OfficeDeskMapper;
 import com.agentoffice.mapper.TaskInfoMapper;
@@ -34,6 +39,9 @@ public class OfficeService {
 
     @Autowired
     private WorkProductMapper workProductMapper;
+
+    @Autowired
+    private LlmService llmService;
 
     public OfficeLayoutResponse getLayout() {
         List<OfficeDesk> desks = deskMapper.findAll();
@@ -156,6 +164,16 @@ public class OfficeService {
         return code.toString();
     }
 
+    private String avatarColor(AgentEmployee employee) {
+        String[] colors = {"#8b5cf6", "#2bb36b", "#2f6bff", "#ff8a32", "#14b8a6", "#f43f5e"};
+        String source = String.valueOf(employee.getId()) + (employee.getName() == null ? "" : employee.getName());
+        int seed = 0;
+        for (int i = 0; i < source.length(); i++) {
+            seed += source.charAt(i);
+        }
+        return colors[Math.floorMod(seed, colors.length)];
+    }
+
     public Map<String, Object> getCollaboration() {
         List<AgentEmployee> employees = employeeMapper.findAll();
         List<TaskInfo> tasks = taskMapper.findList(null, null, null);
@@ -168,6 +186,7 @@ public class OfficeService {
             String id = employee.getName() == null ? "emp" + employee.getId() : employee.getName().toLowerCase();
             String displayStatus = collaborationStatus(employee);
             item.put("id", id);
+            item.put("employeeId", employee.getId());
             item.put("name", employee.getName());
             item.put("title", employee.getRole());
             item.put("badge", displayStatus);
@@ -213,6 +232,61 @@ public class OfficeService {
                 List.of("已失败", String.valueOf(countTasks(tasks, "已失败")))
         ));
         return result;
+    }
+
+    public Map<String, Object> sendCollaborationMessage(CollaborationChatRequest request) {
+        if (request.getMessage() == null || request.getMessage().isBlank()) {
+            throw new BusinessException(400, "消息内容不能为空");
+        }
+        if (request.getMentionedEmployeeIds() == null || request.getMentionedEmployeeIds().isEmpty()) {
+            throw new BusinessException(400, "请先 @ 至少一名员工");
+        }
+
+        List<Map<String, Object>> replies = new ArrayList<>();
+        for (Long employeeId : request.getMentionedEmployeeIds()) {
+            AgentEmployee employee = employeeMapper.findById(employeeId);
+            if (employee == null) {
+                continue;
+            }
+            LlmResponse response = llmService.chatCompletion(LlmRequest.builder()
+                    .messages(List.of(
+                            LlmMessage.builder()
+                                    .role("system")
+                                    .content(agentSystemPrompt(employee))
+                                    .build(),
+                            LlmMessage.builder()
+                                    .role("user")
+                                    .content(request.getMessage())
+                                    .build()
+                    ))
+                    .temperature(0.6)
+                    .maxTokens(600)
+                    .build());
+
+            Map<String, Object> reply = new HashMap<>();
+            reply.put("employeeId", employee.getId());
+            reply.put("sender", employee.getName());
+            reply.put("avatar", avatarColor(employee));
+            reply.put("text", cleanLlmReply(response.getContent()));
+            replies.add(reply);
+        }
+
+        return Map.of("replies", replies);
+    }
+
+    private String cleanLlmReply(String content) {
+        if (content == null) {
+            return "";
+        }
+        return content.replaceAll("(?s)<think>.*?</think>", "").trim();
+    }
+
+    private String agentSystemPrompt(AgentEmployee employee) {
+        return "你是 AgentOffice 团队协作群聊中的数字员工。"
+                + "你的姓名是 " + employee.getName() + "，角色是 " + employee.getRole() + "，职责是 " + roleDuty(employee.getRole()) + "。"
+                + "当前状态是 " + employee.getStatus() + "，职位是 " + (employee.getPosition() == null ? "-" : employee.getPosition()) + "。"
+                + "只有当用户明确 @ 你时你才会收到消息；现在这条消息已经 @ 到你。"
+                + "请用第一人称、中文、简洁地回复，并给出你会如何执行或推进。不要替其他员工发言。";
     }
 
     private List<Map<String, Object>> workProducts(Long employeeId) {

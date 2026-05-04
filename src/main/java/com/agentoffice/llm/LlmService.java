@@ -48,6 +48,7 @@ public class LlmService {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
+            log.info("response:{}",response);
 
             return parseResponse(response, resolvedModel);
         } catch (WebClientResponseException e) {

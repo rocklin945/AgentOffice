@@ -38,6 +38,7 @@ export const officeApi = {
   getLayout: () => request.get('/office/layout'),
   getEmployeeStatusOverview: () => request.get('/office/employees/status'),
   getCollaboration: () => request.get('/office/collaboration'),
+  sendCollaborationMessage: (data) => request.post('/office/collaboration/messages', data, { timeout: 120000 }),
   createDesk: () => request.post('/office/desks'),
   assignDesk: (deskId, employeeId) => request.patch(`/office/desks/${deskId}/employee`, { employeeId }),
 };
