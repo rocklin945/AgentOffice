@@ -80,4 +80,12 @@ public class AuthService {
 
         return userInfo;
     }
+
+    public void resetPassword(String email, String password) {
+        SysUser user = userMapper.findByEmail(email);
+        if (user == null) {
+            throw new BusinessException(404, "该邮箱未注册");
+        }
+        userMapper.updatePassword(user.getId(), passwordEncoder.encode(password));
+    }
 }

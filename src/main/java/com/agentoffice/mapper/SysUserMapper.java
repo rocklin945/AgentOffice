@@ -14,6 +14,12 @@ public interface SysUserMapper {
     @Select("SELECT * FROM sys_user WHERE id = #{id}")
     SysUser findById(@Param("id") Long id);
 
+    @Select("SELECT * FROM sys_user WHERE email = #{email}")
+    SysUser findByEmail(@Param("email") String email);
+
+    @Update("UPDATE sys_user SET password = #{password}, update_time = NOW() WHERE id = #{id}")
+    int updatePassword(@Param("id") Long id, @Param("password") String password);
+
     @Select("SELECT * FROM sys_user ORDER BY create_time DESC")
     List<SysUser> findAll();
 

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { authApi } from '../api';
 
 function CubeIllustration() {
   return (
@@ -57,6 +58,30 @@ function CubeIllustration() {
 
 export default function Register() {
   const navigate = useNavigate();
+  const [form, setForm] = useState({ username: '', email: '', password: '', confirmPassword: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleRegister = async () => {
+    if (!form.username || !form.email || !form.password) {
+      setError('请填写所有字段');
+      return;
+    }
+    if (form.password !== form.confirmPassword) {
+      setError('两次密码输入不一致');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      await authApi.register({ username: form.username, email: form.email, password: form.password });
+      navigate('/login');
+    } catch (err) {
+      setError(err.message || '注册失败');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#07111f] px-6 py-10">
@@ -78,6 +103,8 @@ export default function Register() {
                 <input
                   type="text"
                   placeholder="用户名"
+                  value={form.username}
+                  onChange={(e) => setForm({ ...form, username: e.target.value })}
                   className="h-full flex-1 border-none bg-transparent text-[14px] text-white outline-none placeholder:text-[#71809a]"
                 />
               </div>
@@ -86,6 +113,8 @@ export default function Register() {
                 <input
                   type="email"
                   placeholder="邮箱"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
                   className="h-full flex-1 border-none bg-transparent text-[14px] text-white outline-none placeholder:text-[#71809a]"
                 />
               </div>
@@ -94,6 +123,8 @@ export default function Register() {
                 <input
                   type="password"
                   placeholder="密码"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
                   className="h-full flex-1 border-none bg-transparent text-[14px] text-white outline-none placeholder:text-[#71809a]"
                 />
               </div>
@@ -102,17 +133,22 @@ export default function Register() {
                 <input
                   type="password"
                   placeholder="确认密码"
+                  value={form.confirmPassword}
+                  onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
                   className="h-full flex-1 border-none bg-transparent text-[14px] text-white outline-none placeholder:text-[#71809a]"
                 />
               </div>
             </div>
 
+            {error ? <div className="mt-3 text-[12px] text-[#ff8b8b]">{error}</div> : null}
+
             <button
               type="button"
-              onClick={() => navigate('/login')}
+              onClick={handleRegister}
+              disabled={loading}
               className="mt-6 h-[48px] w-full rounded-[10px] bg-[linear-gradient(180deg,#3980ff_0%,#2f6bff_100%)] text-[15px] font-medium text-white shadow-[0_14px_28px_rgba(47,107,255,0.32)]"
             >
-              注册
+              {loading ? '注册中...' : '注册'}
             </button>
 
             <div className="mt-5 text-center text-[13px] text-[#8f9bb1]">

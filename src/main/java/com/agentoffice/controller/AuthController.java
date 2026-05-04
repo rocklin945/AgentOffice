@@ -50,6 +50,12 @@ public class AuthController {
         return Result.success();
     }
 
+    @PostMapping("/reset-password")
+    public Result<Void> resetPassword(@RequestBody com.agentoffice.dto.ResetPasswordRequest request) {
+        authService.resetPassword(request.getEmail(), request.getPassword());
+        return Result.success();
+    }
+
     private Long extractUserId(String token) {
         if (token != null && token.startsWith("Bearer ")) {
             token = token.substring(7);

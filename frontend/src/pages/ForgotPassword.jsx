@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { MailOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import request from '../api/request';
 
 function CubeIllustration() {
   return (
@@ -57,6 +58,32 @@ function CubeIllustration() {
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
+  const [form, setForm] = useState({ email: '', password: '', confirmPassword: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  const handleReset = async () => {
+    if (!form.email || !form.password) {
+      setError('请填写所有字段');
+      return;
+    }
+    if (form.password !== form.confirmPassword) {
+      setError('两次密码输入不一致');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      await request.post('/auth/reset-password', { email: form.email, password: form.password });
+      setSuccess(true);
+      setTimeout(() => navigate('/login'), 2000);
+    } catch (err) {
+      setError(err.message || '重置失败');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#07111f] px-6 py-10">
@@ -78,6 +105,8 @@ export default function ForgotPassword() {
                 <input
                   type="email"
                   placeholder="注册邮箱"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
                   className="h-full flex-1 border-none bg-transparent text-[14px] text-white outline-none placeholder:text-[#71809a]"
                 />
               </div>
@@ -86,6 +115,8 @@ export default function ForgotPassword() {
                 <input
                   type="password"
                   placeholder="新密码"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
                   className="h-full flex-1 border-none bg-transparent text-[14px] text-white outline-none placeholder:text-[#71809a]"
                 />
               </div>
@@ -94,17 +125,23 @@ export default function ForgotPassword() {
                 <input
                   type="password"
                   placeholder="确认新密码"
+                  value={form.confirmPassword}
+                  onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
                   className="h-full flex-1 border-none bg-transparent text-[14px] text-white outline-none placeholder:text-[#71809a]"
                 />
               </div>
             </div>
 
+            {error ? <div className="mt-3 text-[12px] text-[#ff8b8b]">{error}</div> : null}
+            {success ? <div className="mt-3 text-[12px] text-[#69a8ff]">密码重置成功，即将跳转到登录页...</div> : null}
+
             <button
               type="button"
-              onClick={() => navigate('/login')}
+              onClick={handleReset}
+              disabled={loading}
               className="mt-6 h-[48px] w-full rounded-[10px] bg-[linear-gradient(180deg,#3980ff_0%,#2f6bff_100%)] text-[15px] font-medium text-white shadow-[0_14px_28px_rgba(47,107,255,0.32)]"
             >
-              重置密码
+              {loading ? '重置中...' : '重置密码'}
             </button>
 
             <div className="mt-5 text-center text-[13px] text-[#8f9bb1]">
