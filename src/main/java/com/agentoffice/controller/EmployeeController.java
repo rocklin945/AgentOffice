@@ -1,6 +1,7 @@
 package com.agentoffice.controller;
 
 import com.agentoffice.common.result.Result;
+import com.agentoffice.dto.CreateEmployeeRequest;
 import com.agentoffice.entity.AgentEmployee;
 import com.agentoffice.service.EmployeeService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,8 +33,8 @@ public class EmployeeController {
     }
 
     @PostMapping
-    public Result<AgentEmployee> create(@RequestBody AgentEmployee employee) {
-        AgentEmployee result = employeeService.create(employee);
+    public Result<AgentEmployee> create(@RequestBody CreateEmployeeRequest request) {
+        AgentEmployee result = employeeService.create(request);
         return Result.success(result);
     }
 

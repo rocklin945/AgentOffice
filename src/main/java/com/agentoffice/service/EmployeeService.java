@@ -1,8 +1,11 @@
 package com.agentoffice.service;
 
+import com.agentoffice.dto.CreateEmployeeRequest;
 import com.agentoffice.entity.AgentEmployee;
+import com.agentoffice.entity.EmployeePermission;
 import com.agentoffice.entity.OfficeDesk;
 import com.agentoffice.mapper.AgentEmployeeMapper;
+import com.agentoffice.mapper.EmployeePermissionMapper;
 import com.agentoffice.mapper.OfficeDeskMapper;
 import com.agentoffice.common.exception.BusinessException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +25,9 @@ public class EmployeeService {
     @Autowired
     private OfficeDeskMapper deskMapper;
 
+    @Autowired
+    private EmployeePermissionMapper permissionMapper;
+
     public List<AgentEmployee> getList(String status, String role, String keyword) {
         return employeeMapper.findList(status, role, keyword);
     }
@@ -37,11 +43,27 @@ public class EmployeeService {
                 employee.setDeskCode(desk.getDeskCode());
             }
         }
+        fillPermissions(employee);
         return employee;
     }
 
     @Transactional
-    public AgentEmployee create(AgentEmployee employee) {
+    public AgentEmployee create(CreateEmployeeRequest request) {
+        AgentEmployee employee = new AgentEmployee();
+        employee.setName(request.getName());
+        employee.setAvatar(request.getAvatar());
+        employee.setRole(request.getRole());
+        employee.setPosition(request.getPosition());
+        employee.setStatus(request.getStatus());
+        employee.setEfficiency(request.getEfficiency());
+        employee.setDeskId(request.getDeskId());
+
+        if (employee.getName() == null || employee.getName().isBlank()) {
+            throw new BusinessException(400, "员工姓名不能为空");
+        }
+        if (employee.getRole() == null || employee.getRole().isBlank()) {
+            throw new BusinessException(400, "员工角色不能为空");
+        }
         if (employee.getStatus() == null) {
             employee.setStatus("空闲");
         }
@@ -51,12 +73,23 @@ public class EmployeeService {
         if (employee.getEfficiency() == null) {
             employee.setEfficiency(java.math.BigDecimal.ZERO);
         }
+        if (employee.getDeskId() != null) {
+            OfficeDesk desk = deskMapper.findById(employee.getDeskId());
+            if (desk == null) {
+                throw new BusinessException(404, "工位不存在");
+            }
+            if (desk.getEmployeeId() != null) {
+                throw new BusinessException(400, "该工位已被占用");
+            }
+        }
+
         employeeMapper.insert(employee);
 
         if (employee.getDeskId() != null) {
             deskMapper.updateEmployee(employee.getDeskId(), employee.getId(), 1);
         }
-
+        savePermissions(employee.getId(), request.getPermissions());
+        fillPermissions(employee);
         return employee;
     }
 
@@ -94,6 +127,7 @@ public class EmployeeService {
         if (employee.getDeskId() != null) {
             deskMapper.updateEmployee(employee.getDeskId(), null, 0);
         }
+        permissionMapper.deleteByEmployeeId(id);
 
         employeeMapper.deleteById(id);
     }
@@ -111,5 +145,22 @@ public class EmployeeService {
         overview.put("deploying", employeeMapper.countByStatus("部署中"));
         overview.put("idle", employeeMapper.countByStatus("空闲") + employeeMapper.countByStatus("在线"));
         return overview;
+    }
+
+    private void savePermissions(Long employeeId, List<CreateEmployeeRequest.PermissionItem> permissions) {
+        if (permissions == null) return;
+        for (CreateEmployeeRequest.PermissionItem item : permissions) {
+            EmployeePermission permission = new EmployeePermission();
+            permission.setEmployeeId(employeeId);
+            permission.setPermissionCode(item.getCode());
+            permission.setPermissionName(item.getName());
+            permission.setEnabled(Boolean.FALSE.equals(item.getEnabled()) ? 0 : 1);
+            permissionMapper.insert(permission);
+        }
+    }
+
+    private void fillPermissions(AgentEmployee employee) {
+        List<EmployeePermission> permissions = permissionMapper.findByEmployeeId(employee.getId());
+        employee.setPermissions(permissions);
     }
 }

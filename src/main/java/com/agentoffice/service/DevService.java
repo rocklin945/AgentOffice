@@ -129,7 +129,7 @@ public class DevService {
             throw new BusinessException(404, "文件不存在");
         }
 
-        // 模拟代码执行
-        return "Hello World!\n";
+        String content = file.getContent() == null ? "" : file.getContent();
+        return "文件：" + file.getFilePath() + "\n语言：" + language + "\n字符数：" + content.length() + "\n";
     }
 }

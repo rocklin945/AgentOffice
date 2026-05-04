@@ -18,10 +18,7 @@ function EmployeeCard({ employee, isSelected, onClick, staff }) {
       }`}
     >
       <div className="flex items-center gap-2">
-        <div
-          className="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold text-white"
-          style={{ background: employee.color || '#2f6bff' }}
-        >
+        <div className="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ background: employee.color || '#2f6bff' }}>
           {employee.name?.slice(0, 1)}
         </div>
         <div className="min-w-0 flex-1">
@@ -97,10 +94,7 @@ function WorkProductsPanel({ selectedEmployee }) {
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div
-                  className="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white"
-                  style={{ background: selectedEmployee.color || '#2f6bff' }}
-                >
+                <div className="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: selectedEmployee.color || '#2f6bff' }}>
                   {selectedEmployee.name?.slice(0, 1)}
                 </div>
                 <span className="text-[13px] font-medium text-[#1d2740]">{product.name}</span>
@@ -110,6 +104,7 @@ function WorkProductsPanel({ selectedEmployee }) {
               </StatusPill>
             </div>
             <div className="mt-2 text-[11px] text-[#8d99ae]">更新时间：{product.time}</div>
+            {product.taskName ? <div className="mt-1 text-[11px] text-[#8d99ae]">关联任务：{product.taskName}</div> : null}
           </div>
         ))}
       </div>

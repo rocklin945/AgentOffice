@@ -53,14 +53,14 @@ public class AnalyticsService {
             response.setAvgEfficiency(BigDecimal.ZERO);
         }
 
-        // 模拟趋势数据
         List<DashboardResponse.TrendData> trend = new ArrayList<>();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         for (int i = 6; i >= 0; i--) {
+            LocalDate date = LocalDate.now().minusDays(i);
             DashboardResponse.TrendData data = new DashboardResponse.TrendData();
-            data.setDate(LocalDate.now().minusDays(i).format(formatter));
-            data.setCompleted((int) (Math.random() * 10) + 5);
-            data.setTotal(data.getCompleted() + (int) (Math.random() * 5));
+            data.setDate(date.format(formatter));
+            data.setCompleted(taskMapper.countCompletedByDate(date));
+            data.setTotal(taskMapper.countCreatedByDate(date));
             trend.add(data);
         }
         response.setTrend(trend);
@@ -84,7 +84,6 @@ public class AnalyticsService {
     }
 
     public List<DashboardResponse.TrendData> getTaskTrend(LocalDate startDate, LocalDate endDate) {
-        // 模拟数据
         List<DashboardResponse.TrendData> trend = new ArrayList<>();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -94,8 +93,8 @@ public class AnalyticsService {
         for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
             DashboardResponse.TrendData data = new DashboardResponse.TrendData();
             data.setDate(date.format(formatter));
-            data.setCompleted((int) (Math.random() * 15) + 3);
-            data.setTotal(data.getCompleted() + (int) (Math.random() * 5));
+            data.setCompleted(taskMapper.countCompletedByDate(date));
+            data.setTotal(taskMapper.countCreatedByDate(date));
             trend.add(data);
         }
 

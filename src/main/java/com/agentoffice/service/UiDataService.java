@@ -11,7 +11,9 @@ import com.agentoffice.mapper.AgentEmployeeMapper;
 import com.agentoffice.mapper.DeployServiceMapper;
 import com.agentoffice.mapper.DevFileMapper;
 import com.agentoffice.mapper.DevProjectMapper;
+import com.agentoffice.mapper.EmployeePermissionMapper;
 import com.agentoffice.mapper.SysUserMapper;
+import com.agentoffice.mapper.SystemConfigMapper;
 import com.agentoffice.mapper.TaskInfoMapper;
 import com.agentoffice.mapper.TaskStepMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +30,17 @@ import java.util.Map;
 public class UiDataService {
 
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final String[] AVATAR_COLORS = {"#8b5cf6", "#2bb36b", "#2f6bff", "#ff8a32", "#14b8a6", "#f43f5e", "#7c3aed", "#64748b"};
+    private static final List<Map<String, String>> PERMISSION_CATALOG = List.of(
+            Map.of("code", "task.view", "name", "查看任务"),
+            Map.of("code", "task.execute", "name", "执行任务"),
+            Map.of("code", "log.view", "name", "查看日志"),
+            Map.of("code", "report.write", "name", "输出报告"),
+            Map.of("code", "dev.code", "name", "代码开发"),
+            Map.of("code", "deploy.manage", "name", "部署服务"),
+            Map.of("code", "task.assign", "name", "任务拆解"),
+            Map.of("code", "product.plan", "name", "产品规划")
+    );
 
     @Autowired private AgentEmployeeMapper employeeMapper;
     @Autowired private TaskInfoMapper taskMapper;
@@ -36,6 +49,8 @@ public class UiDataService {
     @Autowired private DevProjectMapper projectMapper;
     @Autowired private DevFileMapper fileMapper;
     @Autowired private SysUserMapper userMapper;
+    @Autowired private EmployeePermissionMapper employeePermissionMapper;
+    @Autowired private SystemConfigMapper systemConfigMapper;
     @Autowired private AnalyticsService analyticsService;
 
     public Map<String, Object> dashboard() {
@@ -111,10 +126,7 @@ public class UiDataService {
                 "memory", s.get("memory")
         )).toList());
         data.put("images", serviceRows.stream().map(s -> Map.of("name", s.get("name"), "tag", s.get("version"), "size", "-", "created", "-")).toList());
-        data.put("logs", List.of(
-                Map.of("time", "实时", "level", "info", "message", "服务数据已从后端同步"),
-                Map.of("time", "实时", "level", "info", "message", "共加载 " + services.size() + " 个服务")
-        ));
+        data.put("logs", List.of());
         return data;
     }
 
@@ -150,6 +162,7 @@ public class UiDataService {
         data.put("tasks", taskMapper.findList(null, null, null));
         data.put("services", deployMapper.findAll());
         data.put("dashboard", analyticsService.getDashboard());
+        data.put("systemSettings", systemConfigMapper.findAll());
         return data;
     }
 
@@ -161,7 +174,7 @@ public class UiDataService {
         item.put("status", uiStatus(e));
         item.put("tasks", String.valueOf(nz(e.getTaskCount())));
         item.put("efficiency", percent(e.getEfficiency()));
-        item.put("color", "#4f8dff");
+        item.put("color", avatarColor(e));
         item.put("employeeNo", "EMP" + String.format("%04d", e.getId()));
         item.put("joinedAt", time(e.getCreateTime()).split(" ")[0]);
         item.put("duty", n(e.getPosition()));
@@ -172,7 +185,18 @@ public class UiDataService {
         item.put("commits", "0次");
         item.put("testPass", "0个");
         item.put("deployCount", "0次");
-        item.put("permissions", List.of("查看任务", "执行任务", "查看日志"));
+        Map<String, Boolean> enabledMap = employeePermissionMapper.findByEmployeeId(e.getId()).stream()
+                .collect(HashMap::new,
+                        (map, permission) -> map.put(n(permission.getPermissionCode()), permission.getEnabled() == null || permission.getEnabled() == 1),
+                        HashMap::putAll);
+        List<Map<String, Object>> permissions = PERMISSION_CATALOG.stream()
+                .map(permission -> Map.<String, Object>of(
+                        "code", permission.get("code"),
+                        "name", permission.get("name"),
+                        "enabled", enabledMap.getOrDefault(permission.get("code"), false)
+                ))
+                .toList();
+        item.put("permissions", permissions);
         return item;
     }
 
@@ -180,6 +204,9 @@ public class UiDataService {
         Map<String, Object> item = new HashMap<>();
         item.put("id", String.valueOf(t.getId()));
         item.put("name", n(t.getTaskName()));
+        item.put("description", empty(t.getDescription()));
+        item.put("taskType", empty(t.getTaskType()));
+        item.put("executorId", t.getExecutorId());
         item.put("level", n(t.getPriority()));
         item.put("owner", empty(t.getExecutorName()));
         item.put("role", "执行员工");
@@ -247,5 +274,14 @@ public class UiDataService {
 
     private String empty(String text) {
         return text == null || text.isBlank() ? "-" : text;
+    }
+
+    private String avatarColor(AgentEmployee employee) {
+        String source = String.valueOf(employee.getId()) + n(employee.getName());
+        int seed = 0;
+        for (int i = 0; i < source.length(); i++) {
+            seed += source.charAt(i);
+        }
+        return AVATAR_COLORS[Math.floorMod(seed, AVATAR_COLORS.length)];
     }
 }

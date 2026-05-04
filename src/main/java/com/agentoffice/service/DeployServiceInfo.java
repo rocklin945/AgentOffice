@@ -94,11 +94,12 @@ public class DeployServiceInfo {
             throw new BusinessException(404, "服务不存在");
         }
 
-        // 模拟日志
         StringBuilder logs = new StringBuilder();
-        logs.append("[INFO] 2024-01-01 10:00:00 Service started\n");
-        logs.append("[INFO] 2024-01-01 10:00:01 Listening on port ").append(service.getPort()).append("\n");
-        logs.append("[INFO] 2024-01-01 10:00:02 Health check passed\n");
+        logs.append("[SERVICE] ").append(service.getServiceName()).append("\n");
+        logs.append("[STATUS] ").append(service.getStatus()).append("\n");
+        logs.append("[IMAGE] ").append(service.getImage()).append(":").append(service.getVersion()).append("\n");
+        logs.append("[PORT] ").append(service.getPort() == null ? "-" : service.getPort()).append("\n");
+        logs.append("[CONTAINER] ").append(service.getContainerId() == null ? "-" : service.getContainerId()).append("\n");
 
         return logs.toString();
     }

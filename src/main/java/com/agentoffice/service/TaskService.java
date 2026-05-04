@@ -15,7 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class TaskService {
@@ -31,6 +33,16 @@ public class TaskService {
 
     public List<TaskInfo> getList(String status, String priority, Long executorId) {
         return taskMapper.findList(status, priority, executorId);
+    }
+
+    public List<Map<String, Object>> getTaskTypes() {
+        List<Map<String, Object>> types = new ArrayList<>();
+        types.add(taskType("development", "开发任务", "接口开发、页面开发、功能实现", List.of("需求分析", "接口设计", "代码开发", "测试验证", "部署上线")));
+        types.add(taskType("testing", "测试任务", "测试用例、自动化测试、回归验证", List.of("用例设计", "环境准备", "执行测试", "缺陷记录", "回归验证")));
+        types.add(taskType("deployment", "部署任务", "服务部署、容器发布、环境巡检", List.of("构建镜像", "配置环境", "发布服务", "健康检查", "监控观察")));
+        types.add(taskType("product", "产品任务", "需求分析、原型设计、验收规划", List.of("需求梳理", "原型设计", "评审确认", "任务拆解")));
+        types.add(taskType("custom", "自定义任务", "手动填写任务步骤", List.of("任务执行")));
+        return types;
     }
 
     public TaskDetailResponse getDetail(Long id) {
@@ -75,7 +87,6 @@ public class TaskService {
         }
         response.setSteps(stepInfoList);
 
-        // 模拟日志数据
         List<TaskDetailResponse.LogInfo> logs = new ArrayList<>();
         TaskDetailResponse.LogInfo log1 = new TaskDetailResponse.LogInfo();
         log1.setTime(task.getCreateTime().format(formatter));
@@ -92,18 +103,24 @@ public class TaskService {
     public TaskInfo create(CreateTaskRequest request) {
         TaskInfo task = new TaskInfo();
         task.setTaskName(request.getTaskName());
+        task.setTaskType(request.getTaskType() != null ? request.getTaskType() : "custom");
         task.setDescription(request.getDescription());
         task.setPriority(request.getPriority() != null ? request.getPriority() : "中");
         task.setExecutorId(request.getExecutorId());
-        task.setStatus("待分配");
+        task.setStatus(request.getExecutorId() == null ? "待分配" : "进行中");
         task.setProgress(0);
         task.setCreateUser(1L);
 
         taskMapper.insert(task);
 
-        if (request.getSteps() != null && !request.getSteps().isEmpty()) {
+        List<String> steps = request.getSteps();
+        if (steps == null || steps.isEmpty()) {
+            steps = defaultSteps(task.getTaskType());
+        }
+
+        if (steps != null && !steps.isEmpty()) {
             int order = 1;
-            for (String stepName : request.getSteps()) {
+            for (String stepName : steps) {
                 TaskStep step = new TaskStep();
                 step.setTaskId(task.getId());
                 step.setStepName(stepName);
@@ -114,6 +131,23 @@ public class TaskService {
         }
 
         return task;
+    }
+
+    private Map<String, Object> taskType(String value, String label, String description, List<String> steps) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("value", value);
+        item.put("label", label);
+        item.put("description", description);
+        item.put("steps", steps);
+        return item;
+    }
+
+    private List<String> defaultSteps(String taskType) {
+        return getTaskTypes().stream()
+                .filter(type -> type.get("value").equals(taskType))
+                .findFirst()
+                .map(type -> (List<String>) type.get("steps"))
+                .orElse(List.of("任务执行"));
     }
 
     @Transactional

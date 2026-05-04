@@ -27,12 +27,12 @@ public interface TaskInfoMapper {
             "WHERE t.id = #{id}")
     TaskInfo findById(@Param("id") Long id);
 
-    @Insert("INSERT INTO task_info (task_name, description, priority, executor_id, status, progress, create_user) " +
-            "VALUES (#{taskName}, #{description}, #{priority}, #{executorId}, #{status}, #{progress}, #{createUser})")
+    @Insert("INSERT INTO task_info (task_name, task_type, description, priority, executor_id, status, progress, create_user) " +
+            "VALUES (#{taskName}, #{taskType}, #{description}, #{priority}, #{executorId}, #{status}, #{progress}, #{createUser})")
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(TaskInfo task);
 
-    @Update("UPDATE task_info SET task_name = #{taskName}, description = #{description}, " +
+    @Update("UPDATE task_info SET task_name = #{taskName}, task_type = #{taskType}, description = #{description}, " +
             "priority = #{priority}, executor_id = #{executorId}, status = #{status}, " +
             "progress = #{progress}, update_time = NOW() WHERE id = #{id}")
     int update(TaskInfo task);
@@ -57,4 +57,10 @@ public interface TaskInfoMapper {
 
     @Select("SELECT COUNT(*) FROM task_info WHERE status = #{status}")
     int countByStatus(@Param("status") String status);
+
+    @Select("SELECT COUNT(*) FROM task_info WHERE DATE(create_time) = #{date}")
+    int countCreatedByDate(@Param("date") java.time.LocalDate date);
+
+    @Select("SELECT COUNT(*) FROM task_info WHERE status = '已完成' AND DATE(COALESCE(end_time, update_time)) = #{date}")
+    int countCompletedByDate(@Param("date") java.time.LocalDate date);
 }

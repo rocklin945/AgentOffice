@@ -33,6 +33,11 @@ public class TaskController {
         return Result.success(detail);
     }
 
+    @GetMapping("/types")
+    public Result<List<Map<String, Object>>> getTaskTypes() {
+        return Result.success(taskService.getTaskTypes());
+    }
+
     @PostMapping
     public Result<TaskInfo> create(@RequestBody CreateTaskRequest request) {
         TaskInfo task = taskService.create(request);

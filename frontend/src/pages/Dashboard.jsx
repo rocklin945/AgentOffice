@@ -1,176 +1,207 @@
-import React, { useEffect, useState } from 'react';
-import { CheckCircleFilled, PlayCircleFilled, TeamOutlined } from '@ant-design/icons';
-import { officeApi, uiApi } from '../api';
-import { BarChart, LineChart, Panel, ProgressTrack, StatusPill } from '../components/AppPrimitives';
+import React, { useEffect, useMemo, useState } from 'react';
+import { PlusOutlined } from '@ant-design/icons';
+import { employeeApi, officeApi } from '../api';
+import { useAppStore } from '../store';
+import { Panel, StatusPill } from '../components/AppPrimitives';
 import HomeOfficeThreeScene from '../components/HomeOfficeThreeScene';
 
-const iconMap = {
-  team: <TeamOutlined />,
-  check: <CheckCircleFilled />,
-  play: <PlayCircleFilled />,
-};
+const avatarColors = ['#8b5cf6', '#2bb36b', '#2f6bff', '#ff8a32', '#14b8a6', '#f43f5e', '#7c3aed', '#64748b'];
 
-function AvatarCell({ name, tone }) {
+function avatarColor(employee) {
+  const source = `${employee?.id || ''}${employee?.name || ''}`;
+  const seed = source.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return avatarColors[seed % avatarColors.length];
+}
+
+function Avatar({ employee }) {
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex h-8 w-8 items-center justify-center rounded-full text-[12px] font-semibold text-white" style={{ background: tone }}>
-        {name.slice(0, 1)}
-      </div>
-      <span>{name}</span>
+    <div className="flex h-10 w-10 items-center justify-center rounded-full text-[14px] font-semibold text-white" style={{ background: avatarColor(employee) }}>
+      {employee?.name?.slice(0, 1) || '?'}
     </div>
   );
 }
 
-function OfficeDeskLayout({ layout }) {
-  if (!layout?.desks?.length) return null;
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 6) return '夜深了';
+  if (hour < 12) return '上午好';
+  if (hour < 18) return '下午好';
+  return '晚上好';
+}
+
+function getTodayText() {
+  const now = new Date();
+  const date = new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now).replace(/\//g, '年').replace(/年(\d{2})$/, '月$1日');
+  const weekday = new Intl.DateTimeFormat('zh-CN', { weekday: 'long' }).format(now);
+  return `今天是 ${date} ${weekday}`;
+}
+
+function DeskAssignModal({ desk, employees, onClose, onAssign }) {
+  const available = employees.filter((employee) => !employee.deskId || employee.deskId === desk.id);
+
   return (
-    <div className="mx-6 mb-6 rounded-[16px] border border-[#edf1f8] bg-[#fbfcff] p-4">
-      <div className="mb-3 text-[15px] font-semibold text-[#1d2740]">工位布局</div>
-      <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${layout.cols || 4}, minmax(0, 1fr))` }}>
-        {layout.desks.map((desk) => (
-          <div key={desk.id} className={`min-h-[76px] rounded-[12px] border p-3 ${desk.employee ? 'border-[#d9e5ff] bg-white' : 'border-[#edf1f8] bg-[#f7f9fd]'}`}>
-            <div className="text-[12px] font-medium text-[#8d99ae]">{desk.deskCode}</div>
-            <div className="mt-2 text-[13px] font-semibold text-[#1d2740]">{desk.employee?.name || '空闲工位'}</div>
-            {desk.employee ? <div className="mt-1 text-[11px] text-[#8d99ae]">{desk.employee.role}</div> : null}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(12,18,28,0.28)] px-6">
+      <div className="w-full max-w-[560px] rounded-[18px] bg-white p-6 shadow-[0_32px_80px_rgba(18,30,52,0.18)]">
+        <div className="flex items-center justify-between border-b border-[#edf1f8] pb-4">
+          <div>
+            <div className="text-[18px] font-semibold text-[#1d2740]">添加员工到 {desk.deskCode}</div>
+            <div className="mt-1 text-[12px] text-[#8d99ae]">选择一个未分配工位的员工</div>
           </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function OverviewOfficeStage({ stats, layout }) {
-  return (
-    <Panel className="overflow-visible">
-      <div className="flex flex-wrap items-start justify-between gap-5 px-6 pt-5">
-        <div>
-          <div className="text-[28px] font-semibold text-[#1e2840]">我的办公室</div>
-          <div className="mt-3 text-[16px] font-medium text-[#1f2940]">欢迎回来</div>
-          <div className="mt-1 text-[12px] text-[#8c97ab]">数据由后端实时提供</div>
+          <button type="button" onClick={onClose} className="text-[22px] text-[#97a3b8]">×</button>
         </div>
-        <div className="grid min-w-[460px] grid-cols-2 gap-4 xl:grid-cols-4">
-          {stats.map((item) => (
-            <div key={item.label} className="rounded-[16px] bg-[#fbfcff] px-4 py-3 shadow-[inset_0_0_0_1px_#eef2f8]">
-              <div className="flex items-center gap-2">
-                <span className={`flex h-7 w-7 items-center justify-center rounded-full text-[13px] ${item.color}`}>
-                  {iconMap[item.icon] || <CheckCircleFilled />}
-                </span>
-                <span className="text-[11px] text-[#98a3b7]">{item.label}</span>
+        <div className="mt-4 max-h-[360px] space-y-2 overflow-auto">
+          {available.map((employee) => (
+            <button
+              key={employee.id}
+              type="button"
+              onClick={() => onAssign(employee.id)}
+              className="flex w-full items-center justify-between rounded-[12px] border border-[#edf1f8] bg-[#fbfcff] px-4 py-3 text-left transition hover:border-[#2f6bff] hover:bg-white"
+            >
+              <div className="flex items-center gap-3">
+                <Avatar employee={employee} />
+                <div>
+                  <div className="text-[14px] font-medium text-[#1d2740]">{employee.name}</div>
+                  <div className="text-[12px] text-[#8d99ae]">{employee.role} · {employee.position || '未设置职位'}</div>
+                </div>
               </div>
-              <div className="mt-2 text-[26px] font-semibold leading-none text-[#1d2740]">{item.value}</div>
-            </div>
+              <StatusPill color={employee.status === '空闲' ? 'gray' : 'blue'}>{employee.status}</StatusPill>
+            </button>
           ))}
+          {!available.length ? <div className="rounded-[12px] bg-[#fbfcff] px-4 py-6 text-center text-[13px] text-[#8d99ae]">暂无可分配员工，请先到员工管理创建员工</div> : null}
         </div>
       </div>
-      <div className="m-6">
-        <HomeOfficeThreeScene />
-      </div>
-      <OfficeDeskLayout layout={layout} />
-    </Panel>
+    </div>
   );
 }
 
-function EmployeeWidget({ rows }) {
-  const colors = ['#4f8dff', '#7a7fff', '#f3a64a', '#22b07d', '#8a93a5'];
-  return (
-    <Panel className="p-5">
-      <div className="text-[18px] font-semibold text-[#1d2740]">员工管理</div>
-      <div className="mt-5 overflow-hidden rounded-[14px] border border-[#edf1f8]">
-        <div className="grid grid-cols-[1.5fr_1.4fr_1fr_0.7fr_0.7fr_0.7fr] bg-[#fbfcff] px-4 py-3 text-[12px] text-[#8d99ae]">
-          <div>员工信息</div><div>角色</div><div>状态</div><div>任务</div><div>效率</div><div>操作</div>
-        </div>
-        {rows.map(([name, role, status, tasks, rate], index) => (
-          <div key={name} className={`grid grid-cols-[1.5fr_1.4fr_1fr_0.7fr_0.7fr_0.7fr] items-center px-4 py-3 text-[13px] text-[#5f6d83] ${index !== rows.length - 1 ? 'border-t border-[#f1f4f8]' : ''}`}>
-            <AvatarCell name={name} tone={colors[index % colors.length]} />
-            <div>{role}</div>
-            <div><StatusPill color={status === '部署中' ? 'purple' : status === '思考中' ? 'orange' : status === '空闲' ? 'gray' : 'blue'}>{status}</StatusPill></div>
-            <div>{tasks}</div><div>{rate}</div><div className="text-[#8d99ae]">⋯</div>
-          </div>
-        ))}
-      </div>
-    </Panel>
-  );
-}
+function OfficeDeskLayout({ layout, onDeskClick, onRemoveEmployee, onCreateDesk }) {
+  const gridTemplateColumns = useMemo(() => `repeat(${layout?.cols || 4}, minmax(0, 1fr))`, [layout?.cols]);
 
-function TaskWidget({ rows }) {
   return (
-    <Panel className="p-5">
-      <div className="text-[18px] font-semibold text-[#1d2740]">任务管理</div>
-      <div className="mt-4 overflow-hidden rounded-[14px] border border-[#edf1f8]">
-        <div className="grid grid-cols-[1.6fr_0.7fr_1.4fr_0.9fr_1.1fr_1.2fr_0.4fr] bg-[#fbfcff] px-4 py-3 text-[12px] text-[#8d99ae]">
-          <div>任务名称</div><div>优先级</div><div>分配给</div><div>状态</div><div>进度</div><div>创建时间</div><div />
+    <Panel className="relative z-20 p-6">
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <div className="text-[22px] font-semibold text-[#1d2740]">工位布局</div>
+          <div className="mt-1 text-[12px] text-[#8d99ae]">点击空闲工位添加员工</div>
         </div>
-        {rows.map(([task, level, owner, status, progress, time], index) => (
-          <div key={task} className={`grid grid-cols-[1.6fr_0.7fr_1.4fr_0.9fr_1.1fr_1.2fr_0.4fr] items-center px-4 py-3 text-[13px] text-[#5f6d83] ${index !== rows.length - 1 ? 'border-t border-[#f1f4f8]' : ''}`}>
-            <div>{task}</div><div className={level === '高' ? 'text-[#ff6a5f]' : 'text-[#ff9b42]'}>{level}</div><div>{owner}</div>
-            <div><StatusPill color={status === '已完成' ? 'green' : status === '部署中' ? 'purple' : 'blue'}>{status}</StatusPill></div>
-            <ProgressTrack value={Number(progress || 0)} /><div>{time}</div><div>⋯</div>
-          </div>
+        <div className="text-[12px] text-[#8d99ae]">{layout?.rows || 0} 行 · {layout?.cols || 0} 列</div>
+      </div>
+      <div className="grid gap-4" style={{ gridTemplateColumns }}>
+        {(layout?.desks || []).map((desk) => (
+          <button
+            key={desk.id}
+            type="button"
+            onClick={() => !desk.employee && onDeskClick(desk)}
+            className={`min-h-[118px] rounded-[16px] border p-4 text-left transition ${
+              desk.employee ? 'cursor-default border-[#d9e5ff] bg-white shadow-sm' : 'border-dashed border-[#cfd9ea] bg-[#fbfcff] hover:border-[#2f6bff] hover:bg-white'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] font-medium text-[#8d99ae]">{desk.deskCode}</span>
+              {desk.employee ? <StatusPill color="blue">{desk.employee.status}</StatusPill> : <PlusOutlined className="text-[#2f6bff]" />}
+            </div>
+            {desk.employee ? (
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <Avatar employee={desk.employee} />
+                  <div className="min-w-0">
+                    <div className="truncate text-[15px] font-semibold text-[#1d2740]">{desk.employee.name}</div>
+                    <div className="mt-1 truncate text-[12px] text-[#8d99ae]">{desk.employee.role}</div>
+                  </div>
+                </div>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onRemoveEmployee(desk.id);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.stopPropagation();
+                      onRemoveEmployee(desk.id);
+                    }
+                  }}
+                  className="shrink-0 rounded-[8px] border border-[#ffd4d4] px-2 py-1 text-[11px] text-[#ff5c5c] hover:bg-[#fff5f5]"
+                >
+                  移除
+                </span>
+              </div>
+            ) : (
+              <div className="mt-5 text-[14px] font-medium text-[#2f6bff]">空闲工位</div>
+            )}
+          </button>
         ))}
-      </div>
-    </Panel>
-  );
-}
-
-function DeployWidget({ rows }) {
-  return (
-    <Panel className="p-5">
-      <div className="text-[18px] font-semibold text-[#1d2740]">部署与运维</div>
-      <div className="mt-5 rounded-[14px] border border-[#edf1f8]">
-        <div className="grid grid-cols-[1.4fr_0.9fr_1.6fr_0.7fr_0.9fr_0.7fr] bg-[#fbfcff] px-4 py-3 text-[12px] text-[#8d99ae]">
-          <div>服务名称</div><div>状态</div><div>镜像</div><div>版本</div><div>运行时间</div><div>操作</div>
-        </div>
-        {rows.map(([name, status, image, version, time], index) => (
-          <div key={name} className={`grid grid-cols-[1.4fr_0.9fr_1.6fr_0.7fr_0.9fr_0.7fr] items-center px-4 py-4 text-[13px] text-[#5f6d83] ${index !== rows.length - 1 ? 'border-t border-[#f1f4f8]' : ''}`}>
-            <div className="text-[#2f6bff]">{name}</div><div className={status === '运行中' ? 'text-[#2bb36b]' : 'text-[#ff6a5f]'}>{status}</div><div>{image}</div><div>{version}</div><div>{time}</div><div>◔ ⤢</div>
+        <button
+          type="button"
+          onClick={onCreateDesk}
+          className="min-h-[118px] rounded-[16px] border border-dashed border-[#b8c8e6] bg-[#f7fbff] p-4 text-center text-[#2f6bff] transition hover:border-[#2f6bff] hover:bg-white"
+        >
+          <div className="flex h-full min-h-[84px] flex-col items-center justify-center gap-2">
+            <PlusOutlined />
+            <div className="text-[14px] font-medium">新增工位</div>
           </div>
-        ))}
+        </button>
       </div>
-    </Panel>
-  );
-}
-
-function AnalyticsWidget({ stats, trend }) {
-  const labels = trend.map((item) => item.date?.slice(5) || item.date);
-  return (
-    <Panel className="p-5">
-      <div className="text-[18px] font-semibold text-[#1d2740]">成果与数据分析</div>
-      <div className="mt-5 grid grid-cols-4 gap-4">
-        {stats.map(([label, value, desc]) => (
-          <div key={label} className="rounded-[14px] border border-[#edf1f8] px-4 py-4">
-            <div className="text-[12px] text-[#8d99ae]">{label}</div><div className="mt-2 text-[18px] font-semibold text-[#1d2740]">{value}</div><div className="mt-1 text-[12px] text-[#7ac891]">{desc}</div>
-          </div>
-        ))}
-      </div>
-      <div className="mt-5 h-[170px]">
-        <LineChart labels={labels.length ? labels : ['-']} series={[
-          { name: '完成任务', values: trend.length ? trend.map((i) => Number(i.completed || 0)) : [0] },
-          { name: '创建任务', values: trend.length ? trend.map((i) => Number(i.total || 0)) : [0] },
-        ]} height={170} />
-      </div>
-      <div className="mt-5 h-[170px]"><BarChart items={[]} height={170} /></div>
     </Panel>
   );
 }
 
 export default function Dashboard() {
-  const [data, setData] = useState({ overviewStats: [], employeeRows: [], taskRows: [], deployRows: [], analyticsStats: [], trend: [] });
+  const { user } = useAppStore();
   const [layout, setLayout] = useState(null);
+  const [employees, setEmployees] = useState([]);
+  const [activeDesk, setActiveDesk] = useState(null);
+
+  const reload = () => {
+    officeApi.getLayout().then((res) => setLayout(res.data)).catch(() => {});
+    employeeApi.getList().then((res) => setEmployees(res.data || [])).catch(() => {});
+  };
 
   useEffect(() => {
-    uiApi.getDashboard().then((res) => setData((prev) => ({ ...prev, ...res.data }))).catch(() => {});
-    officeApi.getLayout().then((res) => setLayout(res.data)).catch(() => {});
+    reload();
   }, []);
+
+  const handleAssign = async (employeeId) => {
+    await officeApi.assignDesk(activeDesk.id, employeeId);
+    setActiveDesk(null);
+    reload();
+  };
+
+  const handleRemoveEmployee = async (deskId) => {
+    await officeApi.assignDesk(deskId, null);
+    reload();
+  };
+
+  const handleCreateDesk = async () => {
+    await officeApi.createDesk();
+    reload();
+  };
 
   return (
     <div className="space-y-5">
-      <OverviewOfficeStage stats={data.overviewStats} layout={layout} />
-      <div className="relative z-20 grid gap-5 xl:grid-cols-[1fr_1.06fr_1.35fr]">
-        <EmployeeWidget rows={data.employeeRows} />
-        <TaskWidget rows={data.taskRows} />
-        <DeployWidget rows={data.deployRows} />
-      </div>
-      <AnalyticsWidget stats={data.analyticsStats} trend={data.trend} />
+      <Panel className="relative z-0 overflow-visible">
+        <div className="px-6 pt-5">
+          <div className="text-[28px] font-semibold text-[#1e2840]">我的办公室</div>
+          <div className="mt-3 text-[16px] font-medium text-[#1f2940]">{getGreeting()}，{user?.nickname || user?.username || '管理员'}！ 👋</div>
+          <div className="mt-1 text-[12px] text-[#8c97ab]">{getTodayText()}</div>
+        </div>
+        <div className="m-6">
+          <HomeOfficeThreeScene />
+        </div>
+      </Panel>
+
+      <OfficeDeskLayout
+        layout={layout}
+        onDeskClick={setActiveDesk}
+        onRemoveEmployee={handleRemoveEmployee}
+        onCreateDesk={handleCreateDesk}
+      />
+      {activeDesk ? <DeskAssignModal desk={activeDesk} employees={employees} onClose={() => setActiveDesk(null)} onAssign={handleAssign} /> : null}
     </div>
   );
 }

@@ -1,12 +1,18 @@
 package com.agentoffice.service;
 
 import com.agentoffice.dto.OfficeLayoutResponse;
+import com.agentoffice.common.exception.BusinessException;
 import com.agentoffice.entity.AgentEmployee;
 import com.agentoffice.entity.OfficeDesk;
+import com.agentoffice.entity.TaskInfo;
+import com.agentoffice.entity.WorkProduct;
 import com.agentoffice.mapper.AgentEmployeeMapper;
 import com.agentoffice.mapper.OfficeDeskMapper;
+import com.agentoffice.mapper.TaskInfoMapper;
+import com.agentoffice.mapper.WorkProductMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,6 +28,12 @@ public class OfficeService {
 
     @Autowired
     private AgentEmployeeMapper employeeMapper;
+
+    @Autowired
+    private TaskInfoMapper taskMapper;
+
+    @Autowired
+    private WorkProductMapper workProductMapper;
 
     public OfficeLayoutResponse getLayout() {
         List<OfficeDesk> desks = deskMapper.findAll();
@@ -82,8 +94,71 @@ public class OfficeService {
                 ));
     }
 
+    @Transactional
+    public OfficeDesk createDesk() {
+        Integer maxRow = deskMapper.findMaxRow();
+        int row = maxRow == null || maxRow <= 0 ? 1 : maxRow;
+        Integer maxCol = deskMapper.findMaxCol(row);
+        int col = maxCol == null ? 1 : maxCol + 1;
+
+        if (col > 4) {
+            row += 1;
+            col = 1;
+        }
+
+        OfficeDesk desk = new OfficeDesk();
+        desk.setDeskCode(rowCode(row) + col);
+        desk.setRowNum(row);
+        desk.setColNum(col);
+        desk.setStatus(0);
+        deskMapper.insert(desk);
+        return desk;
+    }
+
+    @Transactional
+    public void assignDesk(Long deskId, Long employeeId) {
+        OfficeDesk desk = deskMapper.findById(deskId);
+        if (desk == null) {
+            throw new BusinessException(404, "工位不存在");
+        }
+
+        if (desk.getEmployeeId() != null) {
+            employeeMapper.updateDeskId(desk.getEmployeeId(), null);
+        }
+
+        if (employeeId == null) {
+            deskMapper.updateEmployee(deskId, null, 0);
+            return;
+        }
+
+        AgentEmployee employee = employeeMapper.findById(employeeId);
+        if (employee == null) {
+            throw new BusinessException(404, "员工不存在");
+        }
+
+        OfficeDesk oldDesk = deskMapper.findByEmployeeId(employeeId);
+        if (oldDesk != null && !oldDesk.getId().equals(deskId)) {
+            deskMapper.updateEmployee(oldDesk.getId(), null, 0);
+        }
+
+        deskMapper.updateEmployee(deskId, employeeId, 1);
+        employeeMapper.updateDeskId(employeeId, deskId);
+    }
+
+    private String rowCode(int row) {
+        StringBuilder code = new StringBuilder();
+        int value = row;
+        while (value > 0) {
+            value--;
+            code.insert(0, (char) ('A' + (value % 26)));
+            value /= 26;
+        }
+        return code.toString();
+    }
+
     public Map<String, Object> getCollaboration() {
         List<AgentEmployee> employees = employeeMapper.findAll();
+        List<TaskInfo> tasks = taskMapper.findList(null, null, null);
         List<Map<String, Object>> staff = new ArrayList<>();
         String[] colors = {"#8b5cf6", "#2bb36b", "#2f6bff", "#ff8a32", "#94a0b8"};
 
@@ -107,9 +182,8 @@ public class OfficeService {
             item.put("commits", "0次");
             item.put("testPass", "0个");
             item.put("deployCount", "0次");
-            item.put("workProducts", List.of(
-                    Map.of("name", employee.getName() + " 工作记录", "time", "实时", "status", employee.getTaskCount() != null && employee.getTaskCount() > 0 ? "进行中" : "已完成")
-            ));
+            item.put("avatar", employee.getAvatar());
+            item.put("workProducts", workProducts(employee.getId()));
             item.put("color", colors[i % colors.length]);
             staff.add(item);
         }
@@ -121,38 +195,44 @@ public class OfficeService {
 
         Map<String, Object> result = new HashMap<>();
         result.put("staffList", staff);
-        result.put("messages", buildMessages(staff));
+        result.put("messages", List.of());
         result.put("statCards", List.of(
                 Map.of("label", "员工总数", "value", total + "人", "iconClass", "bg-[#edf4ff] text-[#2f6bff]"),
                 Map.of("label", "在线员工", "value", total + "人", "iconClass", "bg-[#ebfbf1] text-[#2bb36b]"),
                 Map.of("label", "忙碌中", "value", busy + "人", "iconClass", "bg-[#fff4ea] text-[#ff8a32]"),
                 Map.of("label", "空闲中", "value", idle + "人", "iconClass", "bg-[#fff8e8] text-[#f4b53f]"),
-                Map.of("label", "今日完成任务", "value", "0个", "iconClass", "bg-[#ebfbf1] text-[#2bb36b]")
+                Map.of("label", "今日完成任务", "value", countTasks(tasks, "已完成") + "个", "iconClass", "bg-[#ebfbf1] text-[#2bb36b]")
         ));
         result.put("donutItems", overview.entrySet().stream()
                 .map(entry -> Map.of("label", entry.getKey(), "value", entry.getValue(), "color", colorForStatus(entry.getKey())))
                 .collect(Collectors.toList()));
         result.put("taskSummary", List.of(
-                List.of("全部任务", "0"),
-                List.of("进行中", "0"),
-                List.of("已完成", "0"),
-                List.of("已失败", "0")
+                List.of("全部任务", String.valueOf(tasks.size())),
+                List.of("进行中", String.valueOf(countTasks(tasks, "进行中"))),
+                List.of("已完成", String.valueOf(countTasks(tasks, "已完成"))),
+                List.of("已失败", String.valueOf(countTasks(tasks, "已失败")))
         ));
         return result;
     }
 
-    private List<Map<String, Object>> buildMessages(List<Map<String, Object>> staff) {
-        if (staff.isEmpty()) {
-            return List.of();
-        }
-        Map<String, Object> first = staff.get(0);
-        return List.of(Map.of(
-                "id", 1,
-                "sender", first.get("name"),
-                "avatar", first.get("color"),
-                "text", "团队协作数据已从后端同步",
-                "time", "实时"
-        ));
+    private List<Map<String, Object>> workProducts(Long employeeId) {
+        return workProductMapper.findByEmployeeId(employeeId).stream()
+                .map(product -> {
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("id", product.getId());
+                    item.put("name", product.getName());
+                    item.put("type", product.getProductType());
+                    item.put("taskName", product.getTaskName() == null ? "-" : product.getTaskName());
+                    item.put("time", product.getUpdateTime() == null ? "-" : product.getUpdateTime().toString().replace('T', ' '));
+                    item.put("status", product.getStatus());
+                    item.put("fileUrl", product.getFileUrl() == null ? "" : product.getFileUrl());
+                    return item;
+                })
+                .collect(Collectors.toList());
+    }
+
+    private int countTasks(List<TaskInfo> tasks, String status) {
+        return (int) tasks.stream().filter(task -> status.equals(task.getStatus())).count();
     }
 
     private String statusColor(String status) {

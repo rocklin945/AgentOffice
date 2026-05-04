@@ -40,6 +40,9 @@ public interface AgentEmployeeMapper {
     @Update("UPDATE agent_employee SET status = #{status}, update_time = NOW() WHERE id = #{id}")
     int updateStatus(@Param("id") Long id, @Param("status") String status);
 
+    @Update("UPDATE agent_employee SET desk_id = #{deskId}, update_time = NOW() WHERE id = #{id}")
+    int updateDeskId(@Param("id") Long id, @Param("deskId") Long deskId);
+
     @Select("SELECT COUNT(*) FROM agent_employee WHERE status = #{status}")
     int countByStatus(@Param("status") String status);
 }

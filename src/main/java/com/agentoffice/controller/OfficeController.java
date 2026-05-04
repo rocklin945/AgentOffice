@@ -2,6 +2,7 @@ package com.agentoffice.controller;
 
 import com.agentoffice.common.result.Result;
 import com.agentoffice.dto.OfficeLayoutResponse;
+import com.agentoffice.entity.OfficeDesk;
 import com.agentoffice.service.OfficeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -30,5 +31,16 @@ public class OfficeController {
     @GetMapping("/collaboration")
     public Result<Map<String, Object>> getCollaboration() {
         return Result.success(officeService.getCollaboration());
+    }
+
+    @PostMapping("/desks")
+    public Result<OfficeDesk> createDesk() {
+        return Result.success(officeService.createDesk());
+    }
+
+    @PatchMapping("/desks/{deskId}/employee")
+    public Result<Void> assignDesk(@PathVariable Long deskId, @RequestBody Map<String, Long> body) {
+        officeService.assignDesk(deskId, body.get("employeeId"));
+        return Result.success();
     }
 }

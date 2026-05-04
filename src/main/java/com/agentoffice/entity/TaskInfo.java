@@ -8,6 +8,7 @@ import java.util.List;
 public class TaskInfo {
     private Long id;
     private String taskName;
+    private String taskType;
     private String description;
     private String priority;
     private Long executorId;

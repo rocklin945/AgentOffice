@@ -21,6 +21,7 @@ export const employeeApi = {
 // 任务相关
 export const taskApi = {
   getList: (params) => request.get('/tasks', { params }),
+  getTypes: () => request.get('/tasks/types'),
   getDetail: (id) => request.get(`/tasks/${id}`),
   create: (data) => request.post('/tasks', data),
   update: (id, data) => request.put(`/tasks/${id}`, data),
@@ -37,6 +38,8 @@ export const officeApi = {
   getLayout: () => request.get('/office/layout'),
   getEmployeeStatusOverview: () => request.get('/office/employees/status'),
   getCollaboration: () => request.get('/office/collaboration'),
+  createDesk: () => request.post('/office/desks'),
+  assignDesk: (deskId, employeeId) => request.patch(`/office/desks/${deskId}/employee`, { employeeId }),
 };
 
 // 云端开发
@@ -65,6 +68,14 @@ export const deployApi = {
   stopService: (id) => request.post(`/deploy/services/${id}/stop`),
   restartService: (id) => request.post(`/deploy/services/${id}/restart`),
   getServiceLogs: (id, lines) => request.get(`/deploy/services/${id}/logs`, { params: { lines } }),
+};
+
+// 后台管理
+export const adminApi = {
+  updateUser: (id, data) => request.put(`/admin/users/${id}`, data),
+  deleteUser: (id) => request.delete(`/admin/users/${id}`),
+  getSystemSettings: () => request.get('/admin/system-settings'),
+  updateSystemSettings: (data) => request.put('/admin/system-settings', data),
 };
 
 // 数据分析

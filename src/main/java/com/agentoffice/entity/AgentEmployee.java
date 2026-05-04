@@ -3,6 +3,7 @@ package com.agentoffice.entity;
 import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class AgentEmployee {
@@ -16,6 +17,7 @@ public class AgentEmployee {
     private BigDecimal efficiency;
     private Long deskId;
     private String deskCode;
+    private List<EmployeePermission> permissions;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

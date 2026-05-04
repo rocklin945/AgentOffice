@@ -25,4 +25,11 @@ public interface SysUserMapper {
     @Update("UPDATE sys_user SET nickname = #{nickname}, avatar = #{avatar}, email = #{email}, " +
             "phone = #{phone}, update_time = NOW() WHERE id = #{id}")
     int update(SysUser user);
+
+    @Update("UPDATE sys_user SET username = #{username}, nickname = #{nickname}, email = #{email}, " +
+            "phone = #{phone}, status = #{status}, update_time = NOW() WHERE id = #{id}")
+    int updateAdmin(SysUser user);
+
+    @Delete("DELETE FROM sys_user WHERE id = #{id}")
+    int deleteById(@Param("id") Long id);
 }

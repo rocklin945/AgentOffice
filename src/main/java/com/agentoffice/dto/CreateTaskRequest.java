@@ -6,6 +6,7 @@ import java.util.List;
 @Data
 public class CreateTaskRequest {
     private String taskName;
+    private String taskType;
     private String description;
     private String priority;
     private Long executorId;
