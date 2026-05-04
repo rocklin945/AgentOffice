@@ -6,7 +6,9 @@ import com.agentoffice.dto.OfficeLayoutResponse;
 import com.agentoffice.entity.OfficeDesk;
 import com.agentoffice.service.OfficeService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.Map;
 
@@ -37,6 +39,11 @@ public class OfficeController {
     @PostMapping("/collaboration/messages")
     public Result<Map<String, Object>> sendCollaborationMessage(@RequestBody CollaborationChatRequest request) {
         return Result.success(officeService.sendCollaborationMessage(request));
+    }
+
+    @PostMapping(value = "/collaboration/messages/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamCollaborationMessage(@RequestBody CollaborationChatRequest request) {
+        return officeService.streamCollaborationMessage(request);
     }
 
     @PostMapping("/desks")

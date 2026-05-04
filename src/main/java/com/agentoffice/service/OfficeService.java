@@ -18,11 +18,15 @@ import com.agentoffice.mapper.WorkProductMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Service
@@ -272,6 +276,93 @@ public class OfficeService {
         }
 
         return Map.of("replies", replies);
+    }
+
+    public SseEmitter streamCollaborationMessage(CollaborationChatRequest request) {
+        validateCollaborationChat(request);
+        SseEmitter emitter = new SseEmitter(120000L);
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                for (Long employeeId : request.getMentionedEmployeeIds()) {
+                    AgentEmployee employee = employeeMapper.findById(employeeId);
+                    if (employee == null) {
+                        continue;
+                    }
+
+                    String replyId = "reply_" + UUID.randomUUID().toString().substring(0, 8);
+                    Map<String, Object> start = new HashMap<>();
+                    start.put("replyId", replyId);
+                    start.put("employeeId", employee.getId());
+                    start.put("sender", employee.getName());
+                    start.put("avatar", avatarColor(employee));
+                    sendEvent(emitter, "reply_start", start);
+
+                    LlmResponse response = llmService.chatCompletion(LlmRequest.builder()
+                            .messages(List.of(
+                                    LlmMessage.builder()
+                                            .role("system")
+                                            .content(agentSystemPrompt(employee))
+                                            .build(),
+                                    LlmMessage.builder()
+                                            .role("user")
+                                            .content(request.getMessage())
+                                            .build()
+                            ))
+                            .temperature(0.6)
+                            .maxTokens(600)
+                            .build());
+
+                    String content = cleanLlmReply(response.getContent());
+                    for (String chunk : splitReply(content)) {
+                        Map<String, Object> delta = new HashMap<>();
+                        delta.put("replyId", replyId);
+                        delta.put("employeeId", employee.getId());
+                        delta.put("delta", chunk);
+                        sendEvent(emitter, "reply_delta", delta);
+                        Thread.sleep(20L);
+                    }
+
+                    sendEvent(emitter, "reply_done", Map.of("replyId", replyId, "employeeId", employee.getId()));
+                }
+                sendEvent(emitter, "complete", Map.of("ok", true));
+                emitter.complete();
+            } catch (Exception e) {
+                try {
+                    sendEvent(emitter, "error", Map.of("message", e.getMessage() == null ? "回复失败" : e.getMessage()));
+                } catch (Exception ignored) {
+                }
+                emitter.complete();
+            }
+        });
+
+        return emitter;
+    }
+
+    private void validateCollaborationChat(CollaborationChatRequest request) {
+        if (request.getMessage() == null || request.getMessage().isBlank()) {
+            throw new BusinessException(400, "消息内容不能为空");
+        }
+        if (request.getMentionedEmployeeIds() == null || request.getMentionedEmployeeIds().isEmpty()) {
+            throw new BusinessException(400, "请先 @ 至少一名员工");
+        }
+    }
+
+    private void sendEvent(SseEmitter emitter, String name, Object data) throws IOException {
+        emitter.send(SseEmitter.event().name(name).data(data));
+    }
+
+    private List<String> splitReply(String content) {
+        List<String> chunks = new ArrayList<>();
+        if (content == null || content.isBlank()) {
+            chunks.add("");
+            return chunks;
+        }
+        int size = 4;
+        for (int i = 0; i < content.length(); i += size) {
+            chunks.add(content.substring(i, Math.min(i + size, content.length())));
+        }
+        return chunks;
     }
 
     private String cleanLlmReply(String content) {

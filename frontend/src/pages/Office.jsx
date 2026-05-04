@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CheckCircleFilled, ClockCircleFilled, SendOutlined, TeamOutlined } from '@ant-design/icons';
 import { officeApi } from '../api';
 import { DonutChart, Panel, ProgressTrack, StatusPill } from '../components/AppPrimitives';
@@ -112,16 +112,53 @@ function WorkProductsPanel({ selectedEmployee }) {
   );
 }
 
+function TypingDots() {
+  return (
+    <span className="inline-flex items-center gap-1 text-[#8d99ae]">
+      {[0, 1, 2].map((item) => (
+        <span
+          key={item}
+          className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#8d99ae]"
+          style={{ animationDelay: `${item * 120}ms` }}
+        />
+      ))}
+    </span>
+  );
+}
+
 function ChatPanel({ initialMessages, staff }) {
   const [messages, setMessages] = useState(initialMessages);
   const [input, setInput] = useState('');
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionedIds, setMentionedIds] = useState([]);
   const [sending, setSending] = useState(false);
+  const mentionRef = useRef(null);
+  const messagesEndRef = useRef(null);
 
   useEffect(() => {
     setMessages(initialMessages);
   }, [initialMessages]);
+
+  useEffect(() => {
+    const closeMention = (event) => {
+      if (mentionRef.current && !mentionRef.current.contains(event.target)) {
+        setMentionOpen(false);
+      }
+    };
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setMentionOpen(false);
+    };
+    document.addEventListener('mousedown', closeMention);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('mousedown', closeMention);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, []);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ block: 'end' });
+  }, [messages]);
 
   const getEmployeeId = (employee) => {
     const id = employee?.employeeId ?? employee?.realId;
@@ -129,19 +166,21 @@ function ChatPanel({ initialMessages, staff }) {
   };
 
   const parseMentionedEmployeeIds = (text) => {
-    const selectedIds = mentionedIds.filter((id) => Number.isFinite(Number(id))).map(Number);
     const typedIds = staff
       .filter((employee) => text.includes(`@${employee.name}`))
       .map(getEmployeeId)
       .filter((id) => id !== null);
-    return [...new Set([...selectedIds, ...typedIds])];
+    return [...new Set(typedIds)];
   };
 
   const toggleMention = (employee) => {
     const id = getEmployeeId(employee);
     if (id === null) return;
+    const mention = `@${employee.name}`;
     setMentionedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
-    if (!input.includes(`@${employee.name}`)) {
+    if (input.includes(mention)) {
+      setInput((current) => current.replace(mention, '').replace(/\s{2,}/g, ' ').trimStart());
+    } else {
       setInput((current) => `${current}${current.trim() ? ' ' : ''}@${employee.name} `);
     }
   };
@@ -153,38 +192,100 @@ function ChatPanel({ initialMessages, staff }) {
 
     const now = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
     const text = input.trim();
-    setMessages((current) => [...current, { id: Date.now(), sender: '我', avatar: '#2f6bff', text, time: now }]);
+    const messageId = Date.now();
+    const pendingByEmployee = new Map();
+    const replyMessageById = new Map();
+    const pendingReplies = targetEmployeeIds.map((employeeId) => {
+      const employee = staff.find((item) => getEmployeeId(item) === employeeId);
+      const pendingId = `pending-${messageId}-${employeeId}`;
+      pendingByEmployee.set(employeeId, pendingId);
+      return {
+        id: pendingId,
+        employeeId,
+        sender: employee?.name || '员工',
+        avatar: employee?.color || '#2f6bff',
+        text: '',
+        time: now,
+        pending: true,
+      };
+    });
+    setMessages((current) => [...current, { id: messageId, sender: '我', avatar: '#2f6bff', text, time: now, fromUser: true }, ...pendingReplies]);
     setSending(true);
     setMentionOpen(false);
+    setInput('');
+    setMentionedIds([]);
     try {
-      const res = await officeApi.sendCollaborationMessage({
-        message: text,
-        mentionedEmployeeIds: targetEmployeeIds,
-        history: messages.slice(-8).map((message) => ({
-          role: message.sender === '我' ? 'user' : 'assistant',
-          content: message.text,
-        })),
+      const token = localStorage.getItem('token') || JSON.parse(localStorage.getItem('agent-office-storage') || '{}')?.state?.token;
+      const response = await fetch('/api/office/collaboration/messages/stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          message: text,
+          mentionedEmployeeIds: targetEmployeeIds,
+          history: messages.slice(-8).map((message) => ({
+            role: message.sender === '我' ? 'user' : 'assistant',
+            content: message.text,
+          })),
+        }),
       });
-      const replyTime = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-      const replies = (res.data.replies || []).map((reply, index) => ({
-        id: `${Date.now()}-${index}`,
-        sender: reply.sender,
-        avatar: reply.avatar,
-        text: reply.text,
-        time: replyTime,
-      }));
-      setMessages((current) => [...current, ...replies]);
-      setInput('');
-      setMentionedIds([]);
+      if (!response.ok || !response.body) throw new Error('流式回复连接失败');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop() || '';
+        parts.forEach((part) => handleStreamEvent(part, pendingByEmployee, replyMessageById));
+      }
     } catch (error) {
-      setMessages((current) => [...current, { id: `${Date.now()}-error`, sender: '系统', avatar: '#ff5c5c', text: error.message || '发送失败，请稍后重试', time: now }]);
+      setMessages((current) => current.map((message) => (
+        message.pending && targetEmployeeIds.includes(message.employeeId)
+          ? { ...message, pending: false, text: error.message || '发送失败，请稍后重试', avatar: '#ff5c5c' }
+          : message
+      )));
     } finally {
       setSending(false);
     }
   };
 
-  const renderMessageText = (text) => {
-    if (!text?.includes('@')) return <span className="text-[#5f6d83]">{text}</span>;
+  const handleStreamEvent = (raw, pendingByEmployee, replyMessageById) => {
+    const event = raw.split('\n').find((line) => line.startsWith('event:'))?.slice(6).trim();
+    const dataText = raw.split('\n').filter((line) => line.startsWith('data:')).map((line) => line.slice(5).trim()).join('\n');
+    if (!event || !dataText) return;
+    const data = JSON.parse(dataText);
+    if (event === 'reply_start') {
+      const messageId = pendingByEmployee.get(Number(data.employeeId));
+      replyMessageById.set(data.replyId, messageId);
+      setMessages((current) => current.map((message) => (
+        message.id === messageId ? { ...message, sender: data.sender, avatar: data.avatar, pending: true } : message
+      )));
+    }
+    if (event === 'reply_delta') {
+      const messageId = replyMessageById.get(data.replyId);
+      setMessages((current) => current.map((message) => (
+        message.id === messageId ? { ...message, text: `${message.text || ''}${data.delta || ''}`, pending: false } : message
+      )));
+    }
+    if (event === 'reply_done') {
+      const messageId = replyMessageById.get(data.replyId);
+      setMessages((current) => current.map((message) => (
+        message.id === messageId ? { ...message, pending: false } : message
+      )));
+    }
+    if (event === 'error') {
+      throw new Error(data.message || '回复失败');
+    }
+  };
+
+  const renderMessageText = (text, highlightMentions = false) => {
+    if (!highlightMentions || !text?.includes('@')) return <span className="text-[#5f6d83]">{text}</span>;
     const names = staff.map((item) => item.name).filter(Boolean).sort((a, b) => b.length - a.length);
     const pattern = names.length
       ? new RegExp(`(@(?:${names.map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}))`, 'g')
@@ -222,18 +323,19 @@ function ChatPanel({ initialMessages, staff }) {
                 <span className="text-[11px] text-[#b8c0d0]">{msg.time}</span>
               </div>
               <div className="mt-1 rounded-[10px] rounded-tl-sm border border-[#edf1f8] bg-white px-3 py-2 text-[13px] shadow-sm">
-                {renderMessageText(msg.text)}
+                {msg.pending && !msg.text ? <TypingDots /> : renderMessageText(msg.text, msg.fromUser)}
               </div>
             </div>
           </div>
         ))}
+        <div ref={messagesEndRef} />
       </div>
       <div className="mt-3 flex gap-2">
-        <div className="relative">
+        <div className="relative" ref={mentionRef}>
           <button
             type="button"
             onClick={() => setMentionOpen((open) => !open)}
-            className={`flex h-9 w-9 items-center justify-center rounded-[10px] border text-[15px] font-semibold transition-colors ${mentionedIds.length ? 'border-[#2f6bff] bg-[#eef4ff] text-[#2f6bff]' : 'border-[#dde4f0] bg-white text-[#66758f]'}`}
+            className={`flex h-9 w-9 items-center justify-center rounded-[10px] border text-[15px] font-semibold transition-colors ${parseMentionedEmployeeIds(input).length ? 'border-[#2f6bff] bg-[#eef4ff] text-[#2f6bff]' : 'border-[#dde4f0] bg-white text-[#66758f]'}`}
           >
             @
           </button>
@@ -244,7 +346,7 @@ function ChatPanel({ initialMessages, staff }) {
                   key={getEmployeeId(employee) ?? employee.id ?? employee.name}
                   type="button"
                   onClick={() => toggleMention(employee)}
-                  className={`flex w-full items-center gap-2 rounded-[8px] px-2 py-2 text-left ${mentionedIds.includes(getEmployeeId(employee)) ? 'bg-[#eef4ff]' : 'hover:bg-[#f7f9fc]'}`}
+                  className={`flex w-full items-center gap-2 rounded-[8px] px-2 py-2 text-left ${parseMentionedEmployeeIds(input).includes(getEmployeeId(employee)) ? 'bg-[#eef4ff]' : 'hover:bg-[#f7f9fc]'}`}
                 >
                   <span className="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold text-white" style={{ background: employee.color || '#2f6bff' }}>{employee.name?.slice(0, 1)}</span>
                   <span className="min-w-0 flex-1">
