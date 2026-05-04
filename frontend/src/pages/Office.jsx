@@ -126,6 +126,95 @@ function TypingDots() {
   );
 }
 
+function MarkdownMessage({ text, staff, highlightMentions }) {
+  const renderInline = (value, keyPrefix) => {
+    const mentionNames = staff.map((item) => item.name).filter(Boolean).sort((a, b) => b.length - a.length);
+    const pattern = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\)|@[^\s@]+)/g;
+    return String(value || '').split(pattern).filter(Boolean).map((part, index) => {
+      const key = `${keyPrefix}-${index}`;
+      if (part.startsWith('`') && part.endsWith('`')) {
+        return <code key={key} className="rounded bg-[#f1f5fb] px-1 py-0.5 text-[12px] text-[#d14]">{part.slice(1, -1)}</code>;
+      }
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={key} className="font-semibold text-[#1d2740]">{renderInline(part.slice(2, -2), `${key}-strong`)}</strong>;
+      }
+      if (part.startsWith('*') && part.endsWith('*')) {
+        return <em key={key}>{renderInline(part.slice(1, -1), `${key}-em`)}</em>;
+      }
+      if (part.startsWith('[')) {
+        const match = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+        if (match) {
+          const href = match[2];
+          const safeHref = /^https?:\/\//i.test(href) ? href : undefined;
+          return safeHref ? <a key={key} href={safeHref} target="_blank" rel="noreferrer" className="text-[#2f6bff] underline">{match[1]}</a> : <span key={key}>{match[1]}</span>;
+        }
+      }
+      if (highlightMentions && part.startsWith('@')) {
+        const name = mentionNames.find((item) => part === `@${item}`);
+        const employee = staff.find((item) => item.name === name);
+        if (employee) {
+          return <span key={key} className="font-medium" style={{ color: employee.color || '#2f6bff' }}>{part}</span>;
+        }
+      }
+      return <span key={key}>{part}</span>;
+    });
+  };
+
+  const blocks = [];
+  const lines = String(text || '').split('\n');
+  let index = 0;
+  while (index < lines.length) {
+    const line = lines[index];
+    if (line.trim().startsWith('```')) {
+      const codeLines = [];
+      index += 1;
+      while (index < lines.length && !lines[index].trim().startsWith('```')) {
+        codeLines.push(lines[index]);
+        index += 1;
+      }
+      blocks.push(<pre key={`code-${index}`} className="my-2 overflow-auto rounded-[8px] bg-[#111827] p-3 text-[12px] leading-5 text-[#e5e7eb]"><code>{codeLines.join('\n')}</code></pre>);
+      index += 1;
+      continue;
+    }
+    if (!line.trim()) {
+      index += 1;
+      continue;
+    }
+    const heading = line.match(/^(#{1,3})\s+(.+)$/);
+    if (heading) {
+      const Tag = heading[1].length === 1 ? 'h3' : heading[1].length === 2 ? 'h4' : 'h5';
+      blocks.push(<Tag key={`h-${index}`} className="mb-1 mt-2 font-semibold text-[#1d2740]">{renderInline(heading[2], `h-${index}`)}</Tag>);
+      index += 1;
+      continue;
+    }
+    if (/^>\s+/.test(line)) {
+      blocks.push(<blockquote key={`q-${index}`} className="my-2 border-l-2 border-[#cfe0ff] pl-3 text-[#6b778c]">{renderInline(line.replace(/^>\s+/, ''), `q-${index}`)}</blockquote>);
+      index += 1;
+      continue;
+    }
+    if (/^\s*[-*]\s+/.test(line) || /^\s*\d+\.\s+/.test(line)) {
+      const ordered = /^\s*\d+\.\s+/.test(line);
+      const items = [];
+      while (index < lines.length && (ordered ? /^\s*\d+\.\s+/.test(lines[index]) : /^\s*[-*]\s+/.test(lines[index]))) {
+        items.push(lines[index].replace(/^\s*(?:[-*]|\d+\.)\s+/, ''));
+        index += 1;
+      }
+      const ListTag = ordered ? 'ol' : 'ul';
+      blocks.push(<ListTag key={`list-${index}`} className={`my-2 ${ordered ? 'list-decimal' : 'list-disc'} space-y-1 pl-5`}>{items.map((item, itemIndex) => <li key={itemIndex}>{renderInline(item, `li-${index}-${itemIndex}`)}</li>)}</ListTag>);
+      continue;
+    }
+    const paragraph = [line];
+    index += 1;
+    while (index < lines.length && lines[index].trim() && !lines[index].trim().startsWith('```') && !/^(#{1,3})\s+/.test(lines[index]) && !/^>\s+/.test(lines[index]) && !/^\s*[-*]\s+/.test(lines[index]) && !/^\s*\d+\.\s+/.test(lines[index])) {
+      paragraph.push(lines[index]);
+      index += 1;
+    }
+    blocks.push(<p key={`p-${index}`} className="my-1 leading-6 text-[#5f6d83]">{renderInline(paragraph.join(' '), `p-${index}`)}</p>);
+  }
+
+  return <div className="max-w-none text-[#5f6d83]">{blocks}</div>;
+}
+
 function ChatPanel({ initialMessages, staff }) {
   const [messages, setMessages] = useState(initialMessages);
   const [input, setInput] = useState('');
@@ -284,25 +373,6 @@ function ChatPanel({ initialMessages, staff }) {
     }
   };
 
-  const renderMessageText = (text, highlightMentions = false) => {
-    if (!highlightMentions || !text?.includes('@')) return <span className="text-[#5f6d83]">{text}</span>;
-    const names = staff.map((item) => item.name).filter(Boolean).sort((a, b) => b.length - a.length);
-    const pattern = names.length
-      ? new RegExp(`(@(?:${names.map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}))`, 'g')
-      : /(@\S+)/g;
-    return text.split(pattern).map((part, index) => {
-      if (part.startsWith('@')) {
-        const emp = staff.find((item) => item.name === part.slice(1));
-        return (
-          <span key={`${part}-${index}`} className="font-medium" style={{ color: emp?.color || '#2f6bff' }}>
-            {part}
-          </span>
-        );
-      }
-      return <span key={`${part}-${index}`} className="text-[#5f6d83]">{part}</span>;
-    });
-  };
-
   return (
     <div className="flex h-full flex-col rounded-[16px] border border-[#edf1f8] bg-[#fbfcff] p-4 shadow-sm">
       <div className="mb-3 border-b border-[#edf1f8] pb-3">
@@ -323,7 +393,7 @@ function ChatPanel({ initialMessages, staff }) {
                 <span className="text-[11px] text-[#b8c0d0]">{msg.time}</span>
               </div>
               <div className="mt-1 rounded-[10px] rounded-tl-sm border border-[#edf1f8] bg-white px-3 py-2 text-[13px] shadow-sm">
-                {msg.pending && !msg.text ? <TypingDots /> : renderMessageText(msg.text, msg.fromUser)}
+                {msg.pending && !msg.text ? <TypingDots /> : <MarkdownMessage text={msg.text} staff={staff} highlightMentions={msg.fromUser} />}
               </div>
             </div>
           </div>
