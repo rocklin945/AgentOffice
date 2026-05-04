@@ -8,8 +8,14 @@ export const useAppStore = create(
       user: null,
       token: null,
       setUser: (user) => set({ user }),
-      setToken: (token) => set({ token }),
-      logout: () => set({ user: null, token: null }),
+      setToken: (token) => {
+        localStorage.setItem('token', token);
+        set({ token });
+      },
+      logout: () => {
+        localStorage.removeItem('token');
+        set({ user: null, token: null });
+      },
 
       // 侧边栏折叠状态
       collapsed: false,

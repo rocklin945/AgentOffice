@@ -161,15 +161,51 @@ function CreateEmployeeModal({ onClose, roleCards, onCreated }) {
 }
 
 function EditEmployeeModal({ employee, onClose, onSaved }) {
+  const steps = ['选择角色', '配置员工', '工作权限'];
+  const basePermissions = [
+    { code: 'task.view', name: '查看任务' },
+    { code: 'task.execute', name: '执行任务' },
+    { code: 'log.view', name: '查看日志' },
+    { code: 'report.write', name: '输出报告' },
+    { code: 'dev.code', name: '代码开发' },
+    { code: 'deploy.manage', name: '部署服务' },
+    { code: 'task.assign', name: '任务拆解' },
+    { code: 'product.plan', name: '产品规划' },
+  ];
+  const rolePermissionMap = {
+    开发工程师: ['task.view', 'task.execute', 'dev.code', 'log.view'],
+    测试工程师: ['task.view', 'task.execute', 'report.write', 'log.view'],
+    运维工程师: ['task.view', 'deploy.manage', 'log.view'],
+    产品经理: ['task.view', 'task.assign', 'product.plan', 'report.write'],
+  };
   const [form, setForm] = useState({
     name: employee.name || '',
     role: employee.role || '',
     position: employee.duty === '-' ? '' : employee.duty || '',
     status: employee.status || '空闲',
+    permissions: (employee.permissions || []).filter((item) => item.enabled).map((item) => item.code),
   });
+  const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const selectRole = (role) => {
+    setForm((current) => ({ ...current, role, permissions: rolePermissionMap[role] || current.permissions }));
+  };
+  const togglePermission = (code) => {
+    setForm((current) => ({
+      ...current,
+      permissions: current.permissions.includes(code) ? current.permissions.filter((item) => item !== code) : [...current.permissions, code],
+    }));
+  };
+  const next = () => {
+    if (step === 1 && !form.name.trim()) {
+      setError('请填写员工姓名');
+      return;
+    }
+    setError('');
+    setStep((current) => Math.min(current + 1, steps.length - 1));
+  };
 
   const submit = async () => {
     if (!form.name.trim()) {
@@ -186,6 +222,10 @@ function EditEmployeeModal({ employee, onClose, onSaved }) {
         status: form.status,
         taskCount: Number(employee.tasks || 0),
         efficiency: Number(String(employee.efficiency || '0').replace('%', '')),
+        permissions: basePermissions.map((permission) => ({
+          ...permission,
+          enabled: form.permissions.includes(permission.code),
+        })),
       });
       await onSaved();
       onClose();
@@ -198,21 +238,20 @@ function EditEmployeeModal({ employee, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(12,18,28,0.26)] px-6">
-      <div className="w-full max-w-[640px] rounded-[18px] bg-white px-8 py-7 shadow-[0_32px_80px_rgba(18,30,52,0.18)]">
+      <div className="w-full max-w-[1080px] rounded-[18px] bg-white px-8 py-7 shadow-[0_32px_80px_rgba(18,30,52,0.18)]">
         <div className="flex items-center justify-between">
           <div className="text-[18px] font-semibold text-[#1d2740]">编辑员工</div>
           <button type="button" onClick={onClose} className="text-[22px] text-[#97a3b8]">×</button>
         </div>
-        <div className="mt-6 grid grid-cols-2 gap-4">
-          <label className="text-[13px] text-[#5f6d83]">员工姓名<input value={form.name} onChange={(event) => update('name', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]" /></label>
-          <label className="text-[13px] text-[#5f6d83]">角色<input value={form.role} onChange={(event) => update('role', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]" /></label>
-          <label className="text-[13px] text-[#5f6d83]">职位<input value={form.position} onChange={(event) => update('position', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]" /></label>
-          <label className="text-[13px] text-[#5f6d83]">状态<select value={form.status} onChange={(event) => update('status', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]">{['空闲', '在线', '工作中', '思考中', '部署中'].map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
-        </div>
+        <div className="mt-7 flex items-center">{steps.map((stepLabel, index) => <React.Fragment key={stepLabel}><div className="flex items-center gap-2"><span className={`flex h-7 w-7 items-center justify-center rounded-full text-[12px] font-medium ${index <= step ? 'bg-[#2f6bff] text-white' : 'bg-[#eef3fb] text-[#7e8ca4]'}`}>{index + 1}</span><span className={`text-[13px] ${index === step ? 'font-medium text-[#1d2740]' : 'text-[#8d99ae]'}`}>{stepLabel}</span></div>{index !== steps.length - 1 ? <div className="mx-4 h-px flex-1 bg-[#edf1f8]" /> : null}</React.Fragment>)}</div>
+        {step === 0 ? <div className="mt-8 grid grid-cols-3 gap-4">{Object.keys(rolePermissionMap).map((role) => <button key={role} type="button" onClick={() => selectRole(role)} className={`rounded-[14px] border px-5 py-6 text-left ${form.role === role ? 'border-[#2f6bff] bg-[#f7fbff] shadow-[inset_0_0_0_1px_#a8c8ff]' : 'border-[#edf1f8] bg-white'}`}><div className="flex items-center gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#eef4ff] text-[#2f6bff]"><UserOutlined /></span><span className="text-[15px] font-semibold text-[#1d2740]">{role}</span></div></button>)}</div> : null}
+        {step === 1 ? <div className="mt-8 grid grid-cols-3 gap-4"><label className="text-[13px] text-[#5f6d83]">员工姓名<input value={form.name} onChange={(event) => update('name', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]" /></label><label className="text-[13px] text-[#5f6d83]">职位<input value={form.position} onChange={(event) => update('position', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]" /></label><label className="text-[13px] text-[#5f6d83]">状态<select value={form.status} onChange={(event) => update('status', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]">{['空闲', '在线', '工作中', '思考中', '部署中'].map((status) => <option key={status} value={status}>{status}</option>)}</select></label></div> : null}
+        {step === 2 ? <div className="mt-8 grid grid-cols-4 gap-3">{basePermissions.map((permission) => <button key={permission.code} type="button" onClick={() => togglePermission(permission.code)} className={`rounded-[12px] border px-4 py-3 text-left text-[13px] ${form.permissions.includes(permission.code) ? 'border-[#2f6bff] bg-[#f7fbff] text-[#2f6bff]' : 'border-[#edf1f8] text-[#5f6d83]'}`}>{permission.name}</button>)}</div> : null}
         {error ? <div className="mt-4 text-[13px] text-[#ff5c5c]">{error}</div> : null}
         <div className="mt-8 flex justify-end gap-3">
           <button type="button" onClick={onClose} className="h-[40px] w-[92px] rounded-[8px] border border-[#dfe7f5] text-[14px] text-[#5d6a82]">取消</button>
-          <button type="button" onClick={submit} disabled={saving} className="h-[40px] w-[104px] rounded-[8px] bg-[#2f6bff] text-[14px] font-medium text-white">{saving ? '保存中' : '保存'}</button>
+          {step > 0 ? <button type="button" onClick={() => setStep((current) => current - 1)} className="h-[40px] w-[92px] rounded-[8px] border border-[#dfe7f5] text-[14px] text-[#5d6a82]">上一步</button> : null}
+          {step < steps.length - 1 ? <button type="button" onClick={next} className="h-[40px] w-[104px] rounded-[8px] bg-[#2f6bff] text-[14px] font-medium text-white">下一步</button> : <button type="button" onClick={submit} disabled={saving} className="h-[40px] w-[104px] rounded-[8px] bg-[#2f6bff] text-[14px] font-medium text-white">{saving ? '保存中' : '保存'}</button>}
         </div>
       </div>
     </div>

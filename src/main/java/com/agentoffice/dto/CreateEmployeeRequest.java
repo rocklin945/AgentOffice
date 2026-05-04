@@ -11,6 +11,7 @@ public class CreateEmployeeRequest {
     private String role;
     private String position;
     private String status;
+    private Integer taskCount;
     private BigDecimal efficiency;
     private Long deskId;
     private List<PermissionItem> permissions;

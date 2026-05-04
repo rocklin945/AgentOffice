@@ -157,8 +157,10 @@ public class UiDataService {
 
     public Map<String, Object> admin() {
         Map<String, Object> data = new HashMap<>();
+        List<AgentEmployee> employees = employeeMapper.findAll();
+        employees.forEach(employee -> employee.setPermissions(employeePermissionMapper.findByEmployeeId(employee.getId())));
         data.put("users", userMapper.findAll());
-        data.put("employees", employeeMapper.findAll());
+        data.put("employees", employees);
         data.put("tasks", taskMapper.findList(null, null, null));
         data.put("services", deployMapper.findAll());
         data.put("dashboard", analyticsService.getDashboard());

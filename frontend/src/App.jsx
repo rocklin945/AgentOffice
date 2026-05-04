@@ -19,10 +19,13 @@ import Admin from './pages/Admin';
 import { useAppStore } from './store';
 import './styles/global.css';
 
-function ProtectedRoute({ children }) {
-  const { token } = useAppStore();
+function ProtectedRoute({ children, adminOnly = false }) {
+  const { token, user } = useAppStore();
   if (!token) {
     return <Navigate to="/login" replace />;
+  }
+  if (adminOnly && user?.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
   }
   return children;
 }
@@ -61,7 +64,7 @@ export default function App() {
             <Route path="analytics" element={<Analytics />} />
             <Route path="settings" element={<Settings />} />
             <Route path="profile" element={<Profile />} />
-            <Route path="admin" element={<Admin />} />
+            <Route path="admin" element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
           </Route>
         </Routes>
       </BrowserRouter>

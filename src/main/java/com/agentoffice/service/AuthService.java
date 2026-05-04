@@ -44,6 +44,7 @@ public class AuthService {
         userInfo.setNickname(user.getNickname());
         userInfo.setAvatar(user.getAvatar());
         userInfo.setEmail(user.getEmail());
+        userInfo.setRole(user.getRole());
         response.setUser(userInfo);
 
         return response;
@@ -60,6 +61,7 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setNickname(request.getNickname() != null ? request.getNickname() : request.getUsername());
         user.setEmail(request.getEmail());
+        user.setRole("user");
         user.setStatus(1);
 
         userMapper.insert(user);
@@ -77,8 +79,28 @@ public class AuthService {
         userInfo.setNickname(user.getNickname());
         userInfo.setAvatar(user.getAvatar());
         userInfo.setEmail(user.getEmail());
+        userInfo.setRole(user.getRole());
 
         return userInfo;
+    }
+
+    public SysUser requireAdmin(String token) {
+        if (token != null && token.startsWith("Bearer ")) {
+            token = token.substring(7);
+        }
+        if (token == null || token.isBlank() || !jwtService.validateToken(token)) {
+            throw new BusinessException(401, "Unauthorized");
+        }
+
+        Long userId = jwtService.getUserIdFromToken(token);
+        SysUser user = userMapper.findById(userId);
+        if (user == null || user.getStatus() == null || user.getStatus() != 1) {
+            throw new BusinessException(401, "Unauthorized");
+        }
+        if (!"admin".equals(user.getRole())) {
+            throw new BusinessException(403, "Forbidden");
+        }
+        return user;
     }
 
     public void resetPassword(String email, String password) {

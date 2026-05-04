@@ -39,7 +39,7 @@ public class EmployeeController {
     }
 
     @PutMapping("/{id}")
-    public Result<AgentEmployee> update(@PathVariable Long id, @RequestBody AgentEmployee employee) {
+    public Result<AgentEmployee> update(@PathVariable Long id, @RequestBody CreateEmployeeRequest employee) {
         AgentEmployee result = employeeService.update(id, employee);
         return Result.success(result);
     }

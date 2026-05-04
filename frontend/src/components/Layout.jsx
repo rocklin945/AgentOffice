@@ -59,7 +59,9 @@ export default function Layout() {
   const userItems = {
     items: [
       { key: 'profile', label: '个人中心', icon: <UserOutlined />, onClick: () => navigate('/profile') },
-      { key: 'settings', label: '后台管理', icon: <SettingOutlined />, onClick: () => navigate('/admin') },
+      ...(user?.role === 'admin'
+        ? [{ key: 'settings', label: '后台管理', icon: <SettingOutlined />, onClick: () => navigate('/admin') }]
+        : []),
       { type: 'divider' },
       { key: 'logout', label: '退出登录', icon: <LogoutOutlined />, danger: true, onClick: () => {
         useAppStore.getState().logout?.();

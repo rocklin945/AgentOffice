@@ -94,11 +94,20 @@ public class EmployeeService {
     }
 
     @Transactional
-    public AgentEmployee update(Long id, AgentEmployee employee) {
+    public AgentEmployee update(Long id, CreateEmployeeRequest request) {
         AgentEmployee exist = employeeMapper.findById(id);
         if (exist == null) {
             throw new BusinessException(404, "员工不存在");
         }
+        AgentEmployee employee = new AgentEmployee();
+        employee.setName(request.getName());
+        employee.setAvatar(request.getAvatar());
+        employee.setRole(request.getRole());
+        employee.setPosition(request.getPosition());
+        employee.setStatus(request.getStatus());
+        employee.setTaskCount(request.getTaskCount() == null ? exist.getTaskCount() : request.getTaskCount());
+        employee.setEfficiency(request.getEfficiency() == null ? exist.getEfficiency() : request.getEfficiency());
+        employee.setDeskId(request.getDeskId() == null ? exist.getDeskId() : request.getDeskId());
 
         // 如果更换了工位
         if (employee.getDeskId() != null && !employee.getDeskId().equals(exist.getDeskId())) {
@@ -112,6 +121,11 @@ public class EmployeeService {
 
         employee.setId(id);
         employeeMapper.update(employee);
+        if (request.getPermissions() != null) {
+            permissionMapper.deleteByEmployeeId(id);
+            savePermissions(id, request.getPermissions());
+        }
+        fillPermissions(employee);
 
         return employee;
     }

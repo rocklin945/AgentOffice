@@ -1,10 +1,12 @@
 package com.agentoffice.controller;
 
 import com.agentoffice.common.result.Result;
+import com.agentoffice.service.AuthService;
 import com.agentoffice.service.UiDataService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
@@ -15,6 +17,9 @@ public class UiController {
 
     @Autowired
     private UiDataService uiDataService;
+
+    @Autowired
+    private AuthService authService;
 
     @GetMapping("/dashboard")
     public Result<Map<String, Object>> dashboard() {
@@ -47,7 +52,9 @@ public class UiController {
     }
 
     @GetMapping("/admin")
-    public Result<Map<String, Object>> admin() {
+    public Result<Map<String, Object>> admin(
+            @RequestHeader(value = "Authorization", required = false) String token) {
+        authService.requireAdmin(token);
         return Result.success(uiDataService.admin());
     }
 }

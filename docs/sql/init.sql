@@ -28,12 +28,14 @@ CREATE TABLE sys_user (
     nickname VARCHAR(50) DEFAULT NULL COMMENT '昵称',
     avatar VARCHAR(255) DEFAULT NULL COMMENT '头像 URL',
     email VARCHAR(100) DEFAULT NULL COMMENT '邮箱',
+    role VARCHAR(20) DEFAULT 'user' COMMENT 'role user/admin',
     phone VARCHAR(20) DEFAULT NULL COMMENT '手机号',
     status TINYINT DEFAULT 1 COMMENT '状态: 0 禁用, 1 正常',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     UNIQUE KEY uk_username (username),
-    KEY idx_status (status)
+    KEY idx_status (status),
+    KEY idx_role (role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
 CREATE TABLE agent_employee (
@@ -203,8 +205,8 @@ CREATE TABLE chat_message (
     KEY idx_session_id (session_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='消息表';
 
-INSERT INTO sys_user (username, password, nickname, email, status) VALUES
-('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', '管理员', 'admin@agent.com', 1);
+INSERT INTO sys_user (username, password, nickname, email, role, status) VALUES
+('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', '管理员', 'admin@agent.com', 'admin', 1);
 
 INSERT INTO office_desk (desk_code, row_num, col_num, status) VALUES
 ('A1', 1, 1, 1), ('A2', 1, 2, 1), ('A3', 1, 3, 1), ('A4', 1, 4, 1),
