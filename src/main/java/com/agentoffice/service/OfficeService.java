@@ -536,12 +536,19 @@ public class OfficeService {
     }
 
     private String agentSystemPrompt(AgentEmployee employee) {
+        String teamRoster = employeeMapper.findAll().stream()
+                .filter(item -> item.getId() != null && !item.getId().equals(employee.getId()))
+                .map(item -> "@" + item.getName()
+                        + "（" + (item.getRole() == null ? "成员" : item.getRole())
+                        + "，" + (item.getPosition() == null ? roleDuty(item.getRole()) : item.getPosition()) + "）")
+                .collect(Collectors.joining("；"));
         return "你是 AgentOffice 团队协作群聊中的数字员工。"
                 + "你的姓名是 " + employee.getName() + "，角色是 " + employee.getRole() + "，职责是 " + roleDuty(employee.getRole()) + "。"
                 + "当前状态是 " + employee.getStatus() + "，职位是 " + (employee.getPosition() == null ? "-" : employee.getPosition()) + "。"
                 + "只有当用户明确 @ 你时你才会收到消息；现在这条消息已经 @ 到你。"
+                + "当前可指派的其他员工名单是：" + (teamRoster.isBlank() ? "暂无其他员工" : teamRoster) + "。"
                 + "请用第一人称、中文、简洁地回复，并给出你会如何执行或推进。"
-                + "如果下一步需要其他员工接力，请在回复中用 @员工姓名 明确指派，但不要替其他员工发言。";
+                + "如果下一步需要其他员工接力，只能从上述名单中选择，并在回复中使用完整的 @员工姓名 明确指派；不要编造名单外员工，也不要替其他员工发言。";
     }
 
     private List<Map<String, Object>> workProducts(Long employeeId) {
