@@ -284,47 +284,10 @@ public class OfficeService {
 
         CompletableFuture.runAsync(() -> {
             try {
-                for (Long employeeId : request.getMentionedEmployeeIds()) {
-                    AgentEmployee employee = employeeMapper.findById(employeeId);
-                    if (employee == null) {
-                        continue;
-                    }
-
-                    String replyId = "reply_" + UUID.randomUUID().toString().substring(0, 8);
-                    Map<String, Object> start = new HashMap<>();
-                    start.put("replyId", replyId);
-                    start.put("employeeId", employee.getId());
-                    start.put("sender", employee.getName());
-                    start.put("avatar", avatarColor(employee));
-                    sendEvent(emitter, "reply_start", start);
-
-                    LlmResponse response = llmService.chatCompletion(LlmRequest.builder()
-                            .messages(List.of(
-                                    LlmMessage.builder()
-                                            .role("system")
-                                            .content(agentSystemPrompt(employee))
-                                            .build(),
-                                    LlmMessage.builder()
-                                            .role("user")
-                                            .content(request.getMessage())
-                                            .build()
-                            ))
-                            .temperature(0.6)
-                            .maxTokens(600)
-                            .build());
-
-                    String content = cleanLlmReply(response.getContent());
-                    for (String chunk : splitReply(content)) {
-                        Map<String, Object> delta = new HashMap<>();
-                        delta.put("replyId", replyId);
-                        delta.put("employeeId", employee.getId());
-                        delta.put("delta", chunk);
-                        sendEvent(emitter, "reply_delta", delta);
-                        Thread.sleep(20L);
-                    }
-
-                    sendEvent(emitter, "reply_done", Map.of("replyId", replyId, "employeeId", employee.getId()));
-                }
+                List<CompletableFuture<Void>> replyTasks = request.getMentionedEmployeeIds().stream()
+                        .map(employeeId -> CompletableFuture.runAsync(() -> streamEmployeeReply(emitter, employeeId, request.getMessage())))
+                        .toList();
+                CompletableFuture.allOf(replyTasks.toArray(new CompletableFuture[0])).join();
                 sendEvent(emitter, "complete", Map.of("ok", true));
                 emitter.complete();
             } catch (Exception e) {
@@ -339,6 +302,57 @@ public class OfficeService {
         return emitter;
     }
 
+    private void streamEmployeeReply(SseEmitter emitter, Long employeeId, String message) {
+        AgentEmployee employee = employeeMapper.findById(employeeId);
+        if (employee == null) {
+            return;
+        }
+        try {
+            String replyId = "reply_" + UUID.randomUUID().toString().substring(0, 8);
+            Map<String, Object> start = new HashMap<>();
+            start.put("replyId", replyId);
+            start.put("employeeId", employee.getId());
+            start.put("sender", employee.getName());
+            start.put("avatar", avatarColor(employee));
+            sendEvent(emitter, "reply_start", start);
+
+            LlmResponse response = llmService.chatCompletion(LlmRequest.builder()
+                    .messages(List.of(
+                            LlmMessage.builder()
+                                    .role("system")
+                                    .content(agentSystemPrompt(employee))
+                                    .build(),
+                            LlmMessage.builder()
+                                    .role("user")
+                                    .content(message)
+                                    .build()
+                    ))
+                    .temperature(0.6)
+                    .maxTokens(600)
+                    .build());
+
+            String content = cleanLlmReply(response.getContent());
+            for (String chunk : splitReply(content)) {
+                Map<String, Object> delta = new HashMap<>();
+                delta.put("replyId", replyId);
+                delta.put("employeeId", employee.getId());
+                delta.put("delta", chunk);
+                sendEvent(emitter, "reply_delta", delta);
+                Thread.sleep(20L);
+            }
+
+            sendEvent(emitter, "reply_done", Map.of("replyId", replyId, "employeeId", employee.getId()));
+        } catch (Exception e) {
+            try {
+                sendEvent(emitter, "reply_error", Map.of(
+                        "employeeId", employee.getId(),
+                        "message", e.getMessage() == null ? "回复失败" : e.getMessage()
+                ));
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
     private void validateCollaborationChat(CollaborationChatRequest request) {
         if (request.getMessage() == null || request.getMessage().isBlank()) {
             throw new BusinessException(400, "消息内容不能为空");
@@ -348,7 +362,7 @@ public class OfficeService {
         }
     }
 
-    private void sendEvent(SseEmitter emitter, String name, Object data) throws IOException {
+    private synchronized void sendEvent(SseEmitter emitter, String name, Object data) throws IOException {
         emitter.send(SseEmitter.event().name(name).data(data));
     }
 

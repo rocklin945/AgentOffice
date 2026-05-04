@@ -368,6 +368,13 @@ function ChatPanel({ initialMessages, staff }) {
         message.id === messageId ? { ...message, pending: false } : message
       )));
     }
+    if (event === 'reply_error') {
+      setMessages((current) => current.map((message) => (
+        message.employeeId === Number(data.employeeId)
+          ? { ...message, pending: false, text: data.message || '回复失败', avatar: '#ff5c5c' }
+          : message
+      )));
+    }
     if (event === 'error') {
       throw new Error(data.message || '回复失败');
     }
