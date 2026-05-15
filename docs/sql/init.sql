@@ -9,6 +9,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS chat_message;
 DROP TABLE IF EXISTS chat_session;
 DROP TABLE IF EXISTS operation_log;
+DROP TABLE IF EXISTS notification_message;
 DROP TABLE IF EXISTS system_config;
 DROP TABLE IF EXISTS deploy_service;
 DROP TABLE IF EXISTS dev_file;
@@ -174,6 +175,24 @@ CREATE TABLE operation_log (
     KEY idx_create_time (create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='操作日志表';
 
+CREATE TABLE notification_message (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    user_id BIGINT DEFAULT NULL COMMENT '用户 ID，NULL 表示全局消息',
+    category VARCHAR(30) NOT NULL DEFAULT 'system' COMMENT '消息分类 task/test/deploy/system',
+    title VARCHAR(120) NOT NULL COMMENT '标题',
+    content VARCHAR(500) NOT NULL COMMENT '内容',
+    source_type VARCHAR(50) DEFAULT NULL COMMENT '来源类型',
+    source_id BIGINT DEFAULT NULL COMMENT '来源 ID',
+    read_status TINYINT DEFAULT 0 COMMENT '是否已读 0/1',
+    priority VARCHAR(20) DEFAULT 'normal' COMMENT '优先级 normal/high',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    KEY idx_user_id (user_id),
+    KEY idx_category (category),
+    KEY idx_read_status (read_status),
+    KEY idx_create_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通知消息表';
+
 CREATE TABLE system_config (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
     config_key VARCHAR(50) NOT NULL COMMENT '配置键',
@@ -260,6 +279,12 @@ INSERT INTO deploy_service (service_name, image, version, status, port, containe
 ('order-service', 'agentoffice/order-service', 'v1.2.0', '运行中', 8081, 'container_order_001', 18.30, 35.00, 172800),
 ('payment-service', 'agentoffice/payment-service', 'v1.1.0', '已停止', 8082, NULL, 0.00, 0.00, 0),
 ('message-service', 'agentoffice/message-service', 'v2.0.0', '异常', 8083, 'container_msg_001', 95.00, 85.00, 1000);
+
+INSERT INTO notification_message (user_id, category, title, content, source_type, source_id, read_status, priority) VALUES
+(1, 'task', '任务进度更新', '用户登录功能开发已推进到测试验证阶段，请关注后续测试结果。', 'task', 1, 0, 'high'),
+(1, 'test', '测试任务启动', '自动化测试用例编写任务已开始执行，TestBot 正在准备回归用例。', 'task', 3, 0, 'normal'),
+(1, 'deploy', '服务部署异常', 'message-service 当前资源占用较高，请在运维部署中查看服务详情。', 'deploy_service', 4, 0, 'high'),
+(1, 'system', '系统设置已同步', '后台管理中的实时推送配置已启用，消息通知页面会持续展示系统事件。', 'system_config', NULL, 1, 'normal');
 
 INSERT INTO system_config (config_key, config_label, config_desc, config_value) VALUES
 ('maintenanceMode', '维护模式', '启用后普通用户无法访问系统', 'false'),

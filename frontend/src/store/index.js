@@ -22,7 +22,7 @@ export const useAppStore = create(
       toggleCollapsed: () => set((state) => ({ collapsed: !state.collapsed })),
 
       // 当前选中的菜单
-      selectedMenu: '/dashboard',
+      selectedMenu: '/office',
       setSelectedMenu: (menu) => set({ selectedMenu: menu }),
     }),
     {

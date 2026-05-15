@@ -47,6 +47,13 @@ export const officeApi = {
   assignDesk: (deskId, employeeId) => request.patch(`/office/desks/${deskId}/employee`, { employeeId }),
 };
 
+// 消息通知
+export const notificationApi = {
+  getList: (params) => request.get('/notifications', { params }),
+  markRead: (id) => request.patch(`/notifications/${id}/read`),
+  delete: (id) => request.delete(`/notifications/${id}`),
+};
+
 // 云端开发
 export const devApi = {
   getProjectList: () => request.get('/dev/projects'),
@@ -98,6 +105,7 @@ export const uiApi = {
   getTasks: () => request.get('/ui/tasks'),
   getDeploy: () => request.get('/ui/deploy'),
   getDev: () => request.get('/ui/dev'),
+  getTestDebug: () => request.get('/ui/test-debug'),
   getAnalytics: () => request.get('/ui/analytics'),
   getAdmin: () => request.get('/ui/admin'),
 };

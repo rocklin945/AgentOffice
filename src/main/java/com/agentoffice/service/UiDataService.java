@@ -143,6 +143,40 @@ public class UiDataService {
         return data;
     }
 
+    public Map<String, Object> testDebug() {
+        List<TaskInfo> tasks = taskMapper.findList(null, null, null);
+        List<TaskInfo> testTasks = tasks.stream()
+                .filter(task -> "testing".equals(task.getTaskType())
+                        || n(task.getTaskName()).contains("测试")
+                        || n(task.getDescription()).contains("测试"))
+                .toList();
+        Map<String, Object> devData = dev();
+        Map<String, Object> data = new HashMap<>();
+        data.put("projectName", devData.get("projectName"));
+        data.put("fileName", devData.get("fileName"));
+        data.put("runResult", devData.get("runResult"));
+        data.put("summary", Map.of(
+                "total", testTasks.size(),
+                "running", testTasks.stream().filter(task -> n(task.getStatus()).contains("进行") || n(task.getStatus()).contains("测试")).count(),
+                "completed", testTasks.stream().filter(task -> n(task.getStatus()).contains("完成")).count(),
+                "failed", testTasks.stream().filter(task -> n(task.getStatus()).contains("失败")).count()
+        ));
+        data.put("testTasks", testTasks.stream().map(task -> Map.of(
+                "id", task.getId(),
+                "name", n(task.getTaskName()),
+                "description", empty(task.getDescription()),
+                "priority", n(task.getPriority()),
+                "status", uiTaskStatus(task.getStatus()),
+                "owner", empty(task.getExecutorName()),
+                "progress", nz(task.getProgress()),
+                "createdAt", time(task.getCreateTime())
+        )).toList());
+        data.put("debugLogs", testTasks.stream()
+                .map(task -> time(task.getUpdateTime()) + " " + n(task.getTaskName()) + " / " + uiTaskStatus(task.getStatus()))
+                .toList());
+        return data;
+    }
+
     public Map<String, Object> analytics() {
         DashboardResponse metrics = analyticsService.getDashboard();
         List<AgentEmployee> employees = employeeMapper.findAll();

@@ -72,7 +72,7 @@ export default function Login() {
       const res = await authApi.login({ username, password });
       setToken(res.data.token);
       setUser(res.data.user);
-      navigate('/dashboard');
+      navigate('/office');
     } catch (err) {
       setError(err.message || '登录失败');
     } finally {

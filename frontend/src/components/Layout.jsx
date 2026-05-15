@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { Avatar, Badge, Dropdown } from 'antd';
+import { Avatar, Dropdown } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  AppstoreOutlined,
   BarChartOutlined,
   BellOutlined,
+  BugOutlined,
   CheckSquareOutlined,
   CloudOutlined,
   CodeOutlined,
-  HomeOutlined,
+  DeploymentUnitOutlined,
   SearchOutlined,
   SettingOutlined,
   TeamOutlined,
@@ -18,113 +18,93 @@ import {
 import { useAppStore } from '../store';
 
 const menuItems = [
-  { key: '/dashboard', label: '首页', icon: <HomeOutlined /> },
-  { key: '/office', label: '团队协作', icon: <AppstoreOutlined /> },
+  { key: '/office', label: '团队协作', icon: <DeploymentUnitOutlined /> },
   { key: '/employees', label: '员工管理', icon: <TeamOutlined /> },
   { key: '/tasks', label: '任务管理', icon: <CheckSquareOutlined /> },
   { key: '/dev', label: '云端开发', icon: <CodeOutlined /> },
-  { key: '/deploy', label: '部署与运维', icon: <CloudOutlined /> },
-  { key: '/analytics', label: '成果与分析', icon: <BarChartOutlined /> },
-  { key: '/settings', label: '推送设置', icon: <SettingOutlined /> },
-];
-
-const notifications = [
-  { id: 1, title: 'Alex 完成了任务', desc: '开发用户登录接口', time: '5分钟前', type: 'task' },
-  { id: 2, title: '部署成功', desc: 'order-service 已部署到测试环境', time: '10分钟前', type: 'deploy' },
-  { id: 3, title: 'TestBot 开始测试', desc: '登录接口测试用例已开始执行', time: '20分钟前', type: 'test' },
+  { key: '/test-debug', label: '测试调试', icon: <BugOutlined /> },
+  { key: '/deploy', label: '运维部署', icon: <CloudOutlined /> },
+  { key: '/analytics', label: '成果分析', icon: <BarChartOutlined /> },
+  { key: '/notifications', label: '消息通知', icon: <BellOutlined /> },
 ];
 
 export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAppStore();
-  const [notifOpen, setNotifOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
 
   const officeShell = location.pathname === '/office';
-
-  const notificationItems = {
-    items: notifications.map((n) => ({
-      key: n.id,
-      label: (
-        <div className="py-1">
-          <div className="text-[13px] font-medium text-[#1d2740]">{n.title}</div>
-          <div className="text-[12px] text-[#8d99ae]">{n.desc}</div>
-          <div className="mt-1 text-[11px] text-[#b0bac8]">{n.time}</div>
-        </div>
-      ),
-    })),
-  };
 
   const userItems = {
     items: [
       { key: 'profile', label: '个人中心', icon: <UserOutlined />, onClick: () => navigate('/profile') },
       ...(user?.role === 'admin'
-        ? [{ key: 'settings', label: '后台管理', icon: <SettingOutlined />, onClick: () => navigate('/admin') }]
+        ? [{ key: 'admin', label: '后台管理', icon: <SettingOutlined />, onClick: () => navigate('/admin') }]
         : []),
       { type: 'divider' },
-      { key: 'logout', label: '退出登录', icon: <LogoutOutlined />, danger: true, onClick: () => {
-        useAppStore.getState().logout?.();
-        navigate('/login');
-      }},
+      {
+        key: 'logout',
+        label: '退出登录',
+        icon: <LogoutOutlined />,
+        danger: true,
+        onClick: () => {
+          useAppStore.getState().logout?.();
+          navigate('/login');
+        },
+      },
     ],
   };
 
   return (
     <div className="h-screen overflow-hidden bg-[#f6f8fc]">
-      <header className="fixed inset-x-0 top-0 z-30 border-b border-[#edf1f7] bg-white/92 backdrop-blur">
-        <div className="flex h-[76px] items-center gap-6 px-8">
-          <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto rounded-full bg-[#f6f8fc] p-1">
-          {menuItems.map((item) => {
-            const active = location.pathname === item.key;
-            return (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => navigate(item.key)}
-                  className={`flex h-[40px] shrink-0 items-center gap-2 rounded-full px-4 text-[14px] font-medium transition ${
-                  active
-                      ? 'bg-[#2f6bff] text-white shadow-[0_10px_22px_rgba(47,107,255,0.18)]'
-                    : 'text-[#5d6a82] hover:bg-[#f6f8fc] hover:text-[#2f6bff]'
-                }`}
-              >
-                <span className="text-[16px]">{item.icon}</span>
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
+      <header className="fixed inset-x-0 top-0 z-30 border-b border-[#edf1f7] bg-white/94 backdrop-blur">
+        <div className="flex h-[76px] items-center gap-4 px-7">
+          <button type="button" onClick={() => navigate('/office')} className="flex shrink-0 items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#2f6bff] text-[18px] font-semibold text-white shadow-[0_12px_26px_rgba(47,107,255,0.22)]">A</span>
+            <span className="hidden text-[18px] font-semibold tracking-tight text-[#1d2740] 2xl:inline">AgentOffice</span>
+          </button>
 
-          <div className="relative hidden w-[220px] shrink-0 xl:block">
+          <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto rounded-[16px] border border-[#edf1f8] bg-[#f8fbff] p-1.5">
+            {menuItems.map((item) => {
+              const active = location.pathname === item.key;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => navigate(item.key)}
+                  className={`flex h-[42px] shrink-0 items-center gap-2 rounded-[12px] px-3.5 text-[14px] font-medium transition ${
+                    active
+                      ? 'bg-white text-[#2f6bff] shadow-[0_10px_24px_rgba(42,64,101,0.10)]'
+                      : 'text-[#65738d] hover:bg-white/70 hover:text-[#2f6bff]'
+                  }`}
+                >
+                  <span className="text-[16px]">{item.icon}</span>
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="relative hidden w-[210px] shrink-0 xl:block">
             <SearchOutlined className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9aa5b8]" />
             <input
               type="text"
-              placeholder="搜索员工、任务、文档..."
+              placeholder="搜索员工、任务、消息..."
               className="h-[42px] w-full rounded-full border border-[#e8edf6] bg-white pl-11 pr-4 text-[13px] text-[#1d2740] outline-none transition focus:border-[#cfe0ff]"
             />
           </div>
 
-          <Badge count={12} size="small">
-            <Dropdown menu={notificationItems} trigger={['click']} open={notifOpen} onOpenChange={setNotifOpen}>
-              <button
-                type="button"
-                className="flex h-[42px] w-[42px] items-center justify-center rounded-full border border-[#e8edf6] bg-white text-[#66758f]"
-              >
-                <BellOutlined />
-              </button>
-            </Dropdown>
-          </Badge>
-
           <Dropdown menu={userItems} trigger={['click']} open={userOpen} onOpenChange={setUserOpen}>
             <button
               type="button"
-              className="flex items-center gap-3 rounded-full border border-[#e8edf6] bg-white px-3 py-1.5"
+              className="flex shrink-0 items-center gap-3 rounded-full border border-[#e8edf6] bg-white px-3 py-1.5"
             >
               <Avatar
                 size={34}
                 src={user?.avatar || 'https://api.dicebear.com/7.x/adventurer/svg?seed=zhangsan'}
               />
-              <span className="text-[14px] font-medium text-[#1d2740]">{user?.nickname || '张三'}</span>
+              <span className="hidden text-[14px] font-medium text-[#1d2740] md:inline">{user?.nickname || '张三'}</span>
             </button>
           </Dropdown>
         </div>

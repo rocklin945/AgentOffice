@@ -46,6 +46,11 @@ public class UiController {
         return Result.success(uiDataService.dev());
     }
 
+    @GetMapping("/test-debug")
+    public Result<Map<String, Object>> testDebug() {
+        return Result.success(uiDataService.testDebug());
+    }
+
     @GetMapping("/analytics")
     public Result<Map<String, Object>> analytics() {
         return Result.success(uiDataService.analytics());

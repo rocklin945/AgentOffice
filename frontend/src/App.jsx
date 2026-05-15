@@ -6,14 +6,15 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
-import Dashboard from './pages/Dashboard';
 import Office from './pages/Office';
 import Employees from './pages/Employees';
 import Tasks from './pages/Tasks';
 import Dev from './pages/Dev';
+import TestDebug from './pages/TestDebug';
 import Deploy from './pages/Deploy';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
+import Notifications from './pages/Notifications';
 import Profile from './pages/Profile';
 import Admin from './pages/Admin';
 import { useAppStore } from './store';
@@ -25,7 +26,7 @@ function ProtectedRoute({ children, adminOnly = false }) {
     return <Navigate to="/login" replace />;
   }
   if (adminOnly && user?.role !== 'admin') {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/office" replace />;
   }
   return children;
 }
@@ -54,15 +55,16 @@ export default function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
+            <Route index element={<Navigate to="/office" replace />} />
             <Route path="office" element={<Office />} />
             <Route path="employees" element={<Employees />} />
             <Route path="tasks" element={<Tasks />} />
             <Route path="dev" element={<Dev />} />
+            <Route path="test-debug" element={<TestDebug />} />
             <Route path="deploy" element={<Deploy />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="notifications" element={<Notifications />} />
             <Route path="profile" element={<Profile />} />
             <Route path="admin" element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
           </Route>
