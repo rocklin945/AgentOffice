@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Avatar, Dropdown } from 'antd';
+import { Dropdown } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   BarChartOutlined,
@@ -27,6 +27,49 @@ const menuItems = [
   { key: '/analytics', label: '成果分析', icon: <BarChartOutlined /> },
   { key: '/notifications', label: '消息通知', icon: <BellOutlined /> },
 ];
+
+function UserSvgAvatar({ user }) {
+  const name = user?.nickname || user?.username || '管理员';
+  const initial = name.slice(0, 1).toUpperCase();
+  const isAdmin = user?.role === 'admin';
+
+  return (
+    <span className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#dbe7ff] bg-[#eef4ff] shadow-[0_10px_24px_rgba(47,107,255,0.16)]">
+      <svg viewBox="0 0 48 48" className="h-full w-full" aria-hidden="true">
+        <defs>
+          <linearGradient id="userAvatarBg" x1="8" x2="40" y1="5" y2="44" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#76A7FF" />
+            <stop offset="0.54" stopColor="#2F6BFF" />
+            <stop offset="1" stopColor="#183FBC" />
+          </linearGradient>
+          <linearGradient id="userAvatarLight" x1="12" x2="34" y1="8" y2="36" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#FFFFFF" stopOpacity="0.96" />
+            <stop offset="1" stopColor="#DDE9FF" stopOpacity="0.82" />
+          </linearGradient>
+        </defs>
+        <rect width="48" height="48" rx="24" fill="url(#userAvatarBg)" />
+        <circle cx="16" cy="13" r="10" fill="#FFFFFF" opacity="0.16" />
+        <path d="M14 38.5C15.5 31 19.2 27.5 24 27.5C28.8 27.5 32.5 31 34 38.5C31.4 40.7 27.9 42 24 42C20.1 42 16.6 40.7 14 38.5Z" fill="url(#userAvatarLight)" />
+        <circle cx="24" cy="19" r="7.2" fill="url(#userAvatarLight)" />
+        <path d="M31.2 18.6C28.7 17.7 26.8 16.2 25.5 14.1C23.4 17.4 20.7 19.2 17.3 19.6C17.6 15.4 20.2 11.8 24.1 11.8C28.3 11.8 31 14.7 31.2 18.6Z" fill="#1D3F9B" opacity="0.66" />
+      </svg>
+      <span className="absolute bottom-[3px] right-[3px] flex h-[15px] min-w-[15px] items-center justify-center rounded-full border-2 border-white bg-[#21c87a] px-[3px] text-[8px] font-bold leading-none text-white">
+        {isAdmin ? 'A' : initial}
+      </span>
+    </span>
+  );
+}
+
+function BrandMark() {
+  return (
+    <span className="flex h-[54px] shrink-0 items-center rounded-[18px] border border-[#e5ebf5] bg-white px-5 shadow-[0_12px_30px_rgba(31,45,76,0.07)] transition hover:border-[#cfe0ff] hover:shadow-[0_16px_36px_rgba(47,107,255,0.13)]">
+      <span className="leading-none">
+        <span className="block text-[20px] font-bold tracking-normal text-[#18233d]">AgentOffice</span>
+        <span className="mt-1 block text-[11px] font-medium tracking-[0.18em] text-[#8a98b2]">AI WORKSPACE</span>
+      </span>
+    </span>
+  );
+}
 
 export default function Layout() {
   const navigate = useNavigate();
@@ -61,8 +104,7 @@ export default function Layout() {
       <header className="fixed inset-x-0 top-0 z-30 border-b border-[#edf1f7] bg-white/94 backdrop-blur">
         <div className="flex h-[76px] items-center gap-4 px-7">
           <button type="button" onClick={() => navigate('/office')} className="flex shrink-0 items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#2f6bff] text-[18px] font-semibold text-white shadow-[0_12px_26px_rgba(47,107,255,0.22)]">A</span>
-            <span className="hidden text-[18px] font-semibold tracking-tight text-[#1d2740] 2xl:inline">AgentOffice</span>
+            <BrandMark />
           </button>
 
           <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto rounded-[16px] border border-[#edf1f8] bg-[#f8fbff] p-1.5">
@@ -98,13 +140,13 @@ export default function Layout() {
           <Dropdown menu={userItems} trigger={['click']} open={userOpen} onOpenChange={setUserOpen}>
             <button
               type="button"
-              className="flex shrink-0 items-center gap-3 rounded-full border border-[#e8edf6] bg-white px-3 py-1.5"
+              className="flex shrink-0 items-center gap-3 rounded-full border border-[#e5ebf5] bg-white py-1 pl-1.5 pr-3 shadow-[0_10px_28px_rgba(31,45,76,0.07)] transition hover:border-[#cfe0ff] hover:shadow-[0_14px_32px_rgba(47,107,255,0.12)]"
             >
-              <Avatar
-                size={34}
-                src={user?.avatar || 'https://api.dicebear.com/7.x/adventurer/svg?seed=zhangsan'}
-              />
-              <span className="hidden text-[14px] font-medium text-[#1d2740] md:inline">{user?.nickname || '张三'}</span>
+              <UserSvgAvatar user={user} />
+              <span className="hidden min-w-0 text-left md:block">
+                <span className="block max-w-[108px] truncate text-[14px] font-semibold leading-4 text-[#1d2740]">{user?.nickname || user?.username || '管理员'}</span>
+                <span className="mt-0.5 block text-[11px] leading-3 text-[#8d99ae]">{user?.role === 'admin' ? '系统管理员' : '普通用户'}</span>
+              </span>
             </button>
           </Dropdown>
         </div>
