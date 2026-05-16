@@ -84,6 +84,11 @@ function WorkProductsPanel({ selectedEmployee }) {
     );
   }
 
+  const renderContent = (content) => {
+    if (!content) return <span className="text-[#b8becb]">该产物暂无可查看内容</span>;
+    return <MarkdownMessage text={content} staff={[]} highlightMentions={false} />;
+  };
+
   return (
     <div className="flex h-full flex-col rounded-[16px] border border-[#edf1f8] bg-[#fbfcff] p-4 shadow-sm">
       <div className="mb-3 border-b border-[#edf1f8] pb-3">
@@ -128,9 +133,9 @@ function WorkProductsPanel({ selectedEmployee }) {
               </div>
               <button type="button" onClick={() => setActiveProduct(null)} className="text-[22px] text-[#97a3b8]">×</button>
             </div>
-            <pre className="max-h-[68vh] overflow-auto whitespace-pre-wrap bg-[#f8fafc] px-5 py-4 text-[13px] leading-6 text-[#40516d]">
-              {activeProduct.content || '该产物暂无可查看内容'}
-            </pre>
+            <div className="max-h-[68vh] overflow-auto bg-[#f8fafc] px-5 py-4">
+              {renderContent(activeProduct.content)}
+            </div>
           </div>
         </div>
       ) : null}
@@ -202,6 +207,44 @@ function MarkdownMessage({ text, staff, highlightMentions }) {
       index += 1;
       continue;
     }
+    // Table detection: lines starting and ending with | containing | separators
+    if (line.trim().startsWith('|') && line.trim().endsWith('|') && line.includes('|')) {
+      const tableLines = [];
+      while (index < lines.length && lines[index].trim().startsWith('|') && lines[index].trim().endsWith('|') && lines[index].includes('|')) {
+        tableLines.push(lines[index].trim());
+        index += 1;
+      }
+      // Skip the separator line (contains ---|---|)
+      if (tableLines.length >= 2) {
+        const headers = tableLines[0].split('|').filter((_, i) => i > 0 && i < tableLines[0].split('|').length - 1).map(h => h.trim());
+        const rows = [];
+        for (let i = 1; i < tableLines.length; i++) {
+          if (!tableLines[i].match(/^\|\s*[-:\s]+\s*\|/)) {
+            const cells = tableLines[i].split('|').filter((_, j) => j > 0 && j < tableLines[i].split('|').length - 1).map(c => c.trim());
+            rows.push(cells);
+          }
+        }
+        blocks.push(
+          <div key={`table-${index}`} className="my-3 overflow-x-auto">
+            <table className="min-w-full border-collapse border border-[#e5e7eb] text-[13px]">
+              <thead>
+                <tr className="bg-[#f6f8fc]">
+                  {headers.map((header, hi) => <th key={hi} className="border border-[#e5e7eb] px-3 py-2 font-semibold text-[#1d2740]">{renderInline(header, `th-${hi}`)}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, ri) => (
+                  <tr key={ri} className={ri % 2 === 0 ? 'bg-white' : 'bg-[#fafbfc]'}>
+                    {row.map((cell, ci) => <td key={ci} className="border border-[#e5e7eb] px-3 py-2 text-[#5f6d83]">{renderInline(cell, `td-${ri}-${ci}`)}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+        continue;
+      }
+    }
     if (!line.trim()) {
       index += 1;
       continue;
@@ -229,9 +272,10 @@ function MarkdownMessage({ text, staff, highlightMentions }) {
       blocks.push(<ListTag key={`list-${index}`} className={`my-2 ${ordered ? 'list-decimal' : 'list-disc'} space-y-1 pl-5`}>{items.map((item, itemIndex) => <li key={itemIndex}>{renderInline(item, `li-${index}-${itemIndex}`)}</li>)}</ListTag>);
       continue;
     }
+    const isTableRow = (l) => l.trim().startsWith('|') && l.trim().endsWith('|') && l.includes('|');
     const paragraph = [line];
     index += 1;
-    while (index < lines.length && lines[index].trim() && !lines[index].trim().startsWith('```') && !/^(#{1,3})\s+/.test(lines[index]) && !/^>\s+/.test(lines[index]) && !/^\s*[-*]\s+/.test(lines[index]) && !/^\s*\d+\.\s+/.test(lines[index])) {
+    while (index < lines.length && lines[index].trim() && !lines[index].trim().startsWith('```') && !/^(#{1,3})\s+/.test(lines[index]) && !/^>\s+/.test(lines[index]) && !/^\s*[-*]\s+/.test(lines[index]) && !/^\s*\d+\.\s+/.test(lines[index]) && !isTableRow(lines[index])) {
       paragraph.push(lines[index]);
       index += 1;
     }
@@ -734,9 +778,11 @@ export default function Office() {
           </div>
         </div>
         <div className="flex-1">
-          <WorkProductsPanel selectedEmployee={selected} />
+          <div className="h-full">
+            <WorkProductsPanel selectedEmployee={selected} />
+          </div>
         </div>
-        <div className="w-[380px] shrink-0">
+        <div className="w-[780px] shrink-0">
           <ChatPanel initialMessages={messages} staff={staff} onWorkflowComplete={loadCollaboration} />
         </div>
       </div>
