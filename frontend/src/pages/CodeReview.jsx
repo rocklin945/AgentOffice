@@ -72,7 +72,7 @@ function ReviewResultPanel({ result }) {
 
   return (
     <>
-      <div className="flex flex-col bg-white text-[13px] text-[#5f6d83]">
+      <div className="bg-white text-[13px] text-[#5f6d83]">
         <div className="flex items-center justify-between gap-3 border-b border-[#edf1f8] px-5 py-4">
           <div className="min-w-0">
             <div className="truncate text-[15px] font-medium text-[#1d2740]">{result.title}</div>
@@ -82,28 +82,30 @@ function ReviewResultPanel({ result }) {
             {result.verdict}
           </StatusPill>
         </div>
-        <div className="relative px-5 py-4">
+        <div className="px-5 py-4">
           {result.filePath ? (
             <div className="mb-3 text-[11px] text-[#8d99ae]">报告文件：{result.filePath}</div>
           ) : null}
-          <div ref={contentRef} className="overflow-hidden" style={{ height: 240 }}>
-            {isMarkdown ? (
-              <MarkdownMessage text={result.content} staff={[]} highlightMentions={false} />
-            ) : (
-              <pre className="whitespace-pre-wrap font-mono text-[12px] leading-6 text-[#40516d]">{result.content}</pre>
+          <div className="relative overflow-hidden" style={{ height: 400 }}>
+            <div ref={contentRef} className="h-full overflow-hidden">
+              {isMarkdown ? (
+                <MarkdownMessage text={result.content} staff={[]} highlightMentions={false} />
+              ) : (
+                <pre className="whitespace-pre-wrap font-mono text-[12px] leading-6 text-[#40516d]">{result.content}</pre>
+              )}
+            </div>
+            {clamped && (
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-center bg-gradient-to-t from-white from-0% via-white/80 via-60% to-transparent pb-3 pt-16">
+                <button
+                  type="button"
+                  onClick={() => setShowAll(true)}
+                  className="pointer-events-auto rounded-[8px] bg-transparent border border-[#2f6bff] px-4 py-2 text-[12px] font-medium text-[#2f6bff] hover:bg-[#2f6bff] hover:text-white transition-colors"
+                >
+                  查看全部
+                </button>
+              </div>
             )}
           </div>
-          {clamped && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-center bg-gradient-to-t from-white via-white/90 to-transparent pb-3 pt-12">
-              <button
-                type="button"
-                onClick={() => setShowAll(true)}
-                className="pointer-events-auto rounded-[8px] bg-[#2f6bff] px-4 py-2 text-[12px] font-medium text-white hover:bg-[#1e5af5]"
-              >
-                查看全部
-              </button>
-            </div>
-          )}
         </div>
       </div>
       {showAll && (
