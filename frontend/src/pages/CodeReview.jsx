@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { BugOutlined, CheckCircleOutlined, ClockCircleOutlined, CodeOutlined, ReloadOutlined } from '@ant-design/icons';
-import { devApi, taskApi } from '../api';
+import { codeReviewApi, devApi, taskApi } from '../api';
 import { Panel, ProgressTrack, StatusPill } from '../components/AppPrimitives';
 import { buildCodeReviewData, taskDetail } from '../pageData';
 
@@ -11,54 +11,22 @@ const statusColor = (status) => {
   return 'gray';
 };
 
-const isDirectory = (file) => file?.directory || file?.isDirectory === 1;
-
-const flattenFiles = (nodes = []) => {
-  let result = [];
-  for (const node of nodes) {
-    result.push(node);
-    if (node.children?.length) {
-      result = result.concat(flattenFiles(node.children));
-    }
+function buildReviewFromReport(report, task) {
+  if (!report || !report.found) {
+    return {
+      title: task ? `${task.name} Review 结果` : '暂无 Review 报告',
+      verdict: '未开始',
+      reviewedAt: '-',
+      content: '尚未生成 Code Review 报告，可点击「重新Review」触发 ReviewBot。',
+      filePath: '',
+    };
   }
-  return result;
-};
-
-function buildReviewResult(task, detail, codeFiles, reviewedAt) {
-  if (!task) return null;
-  const files = codeFiles.filter((file) => !isDirectory(file));
-  const steps = detail?.executionSteps || [];
-  const logs = detail?.executionLogs || [];
-  const failed = task.status === '已失败';
-  const pending = task.progress < 60 && task.status !== '已完成';
-  const issueCount = failed ? 3 : pending ? 2 : task.progress < 100 ? 1 : 0;
-  const verdict = issueCount === 0 ? '通过' : issueCount >= 3 ? '阻塞' : '需修改';
-
-  const findings = [];
-  if (!files.length) {
-    findings.push('未在 workspace_artifacts/code 中发现代码文件，请先完成开发产物写入。');
-  }
-  if (pending) {
-    findings.push('任务进度不足 60%，建议 CodeReviewer 等开发提交完整文件后再做最终 Review。');
-  }
-  if (task.description && task.description !== '-') {
-    findings.push(`已按任务描述核对：${task.description}`);
-  }
-  if (!findings.length) {
-    findings.push('未发现阻塞项，可以进入后续部署准备。');
-  }
-
   return {
-    title: `${task.name} Review 结果`,
-    verdict,
-    issueCount,
-    reviewedAt,
-    duration: `${Math.max(3, files.length * 2 + steps.length)} min`,
-    checkedItems: Math.max(files.length + steps.length, 1),
-    passedItems: Math.max(files.length + steps.length - issueCount, 0),
-    files,
-    findings,
-    logs: logs.length ? logs : [`${task.createdAt} ${task.name} / ${task.status}`],
+    title: report.title || 'Code Review 报告',
+    verdict: report.verdict || '需修改',
+    reviewedAt: report.reviewedAt || '-',
+    content: report.content || '',
+    filePath: report.filePath || '',
   };
 }
 
@@ -66,8 +34,7 @@ export default function CodeReview() {
   const [data, setData] = useState({ summary: {}, reviewTasks: [], projectName: '-' });
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [details, setDetails] = useState({});
-  const [codeFiles, setCodeFiles] = useState([]);
-  const [reviewedAt, setReviewedAt] = useState('');
+  const [report, setReport] = useState(null);
   const [reviewing, setReviewing] = useState(false);
 
   const load = async (preferredTaskId) => {
@@ -77,28 +44,25 @@ export default function CodeReview() {
     ]);
     const projects = projectsRes.data || [];
     const project = projects[0];
-    const fileTreeRes = project ? await devApi.getFileTree(project.id) : { data: [] };
     const nextData = buildCodeReviewData(tasksRes.data || [], project?.projectName || 'workspace_artifacts/code');
-    const nextFiles = flattenFiles(fileTreeRes.data || []);
     const nextSelected = nextData.reviewTasks.find((task) => task.id === preferredTaskId)
       || nextData.reviewTasks[0]
       || null;
 
     setData(nextData);
-    setCodeFiles(nextFiles);
     setSelectedTaskId(nextSelected?.id || null);
 
     if (nextSelected) {
       const detailRes = await taskApi.getDetail(nextSelected.id);
       setDetails((current) => ({ ...current, [nextSelected.id]: taskDetail(detailRes.data) }));
-      setReviewedAt(new Date().toLocaleString('zh-CN', { hour12: false }));
     }
+    const reportRes = await codeReviewApi.getLatest();
+    setReport(reportRes.data || null);
   };
 
   useEffect(() => {
     load().catch(() => {
       setData({ summary: {}, reviewTasks: [], projectName: '-' });
-      setCodeFiles([]);
     });
   }, []);
 
@@ -108,8 +72,8 @@ export default function CodeReview() {
   );
 
   const reviewResult = useMemo(
-    () => buildReviewResult(selectedTask, details[selectedTaskId], codeFiles, reviewedAt),
-    [selectedTask, details, selectedTaskId, codeFiles, reviewedAt],
+    () => buildReviewFromReport(report, selectedTask),
+    [report, selectedTask],
   );
 
   const selectTask = async (task) => {
@@ -118,14 +82,16 @@ export default function CodeReview() {
       const detailRes = await taskApi.getDetail(task.id);
       setDetails((current) => ({ ...current, [task.id]: taskDetail(detailRes.data) }));
     }
-    setReviewedAt(new Date().toLocaleString('zh-CN', { hour12: false }));
   };
 
   const rerunReview = async () => {
     if (!selectedTask || reviewing) return;
     setReviewing(true);
     try {
-      await load(selectedTask.id);
+      const res = await codeReviewApi.rerun(selectedTask.id);
+      setReport(res.data || null);
+    } catch (e) {
+      console.error('重新Review失败', e);
     } finally {
       setReviewing(false);
     }
@@ -213,8 +179,8 @@ export default function CodeReview() {
             </button>
           </div>
           {reviewResult ? (
-            <div className="bg-[#111d30] px-5 py-5 text-[13px] text-[#a9c0db]">
-              <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="flex h-full flex-col bg-[#111d30] text-[13px] text-[#a9c0db]">
+              <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
                 <div className="min-w-0">
                   <div className="truncate text-[15px] font-medium text-white">{reviewResult.title}</div>
                   <div className="mt-1 text-[12px] text-[#6f829f]">最后 Review：{reviewResult.reviewedAt || '-'}</div>
@@ -223,41 +189,11 @@ export default function CodeReview() {
                   {reviewResult.verdict}
                 </StatusPill>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  ['审查耗时', reviewResult.duration],
-                  ['检查项', reviewResult.checkedItems],
-                  ['通过项', reviewResult.passedItems],
-                  ['问题项', reviewResult.issueCount],
-                  ['代码文件', reviewResult.files.length],
-                  ['关联项目', data.projectName || '-'],
-                ].map(([label, value]) => (
-                  <div key={label} className="rounded-[10px] bg-white/5 px-3 py-2">
-                    <div className="text-[11px] text-[#6f829f]">{label}</div>
-                    <div className="mt-1 text-[14px] font-medium text-white">{value}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-5 border-t border-white/10 pt-4">
-                <div className="mb-2 text-[14px] font-medium text-white">Review 发现</div>
-                <div className="space-y-2">
-                  {reviewResult.findings.map((finding, index) => (
-                    <div key={`${index}-${finding}`} className="rounded-[8px] bg-white/5 px-3 py-2 text-[12px] leading-5">{finding}</div>
-                  ))}
-                </div>
-              </div>
-              <div className="mt-5 border-t border-white/10 pt-4">
-                <div className="mb-2 text-[14px] font-medium text-white">关联代码文件</div>
-                <div className="max-h-[140px] space-y-1 overflow-auto font-mono text-[12px]">
-                  {reviewResult.files.slice(0, 8).map((file) => <div key={file.id || file.filePath}>{file.filePath || file.fileName}</div>)}
-                  {!reviewResult.files.length ? <div>workspace_artifacts/code 暂无文件</div> : null}
-                </div>
-              </div>
-              <div className="mt-5 border-t border-white/10 pt-4">
-                <div className="mb-2 text-[14px] font-medium text-white">Review 记录</div>
-                <div className="max-h-[180px] space-y-1 overflow-auto font-mono text-[12px]">
-                  {reviewResult.logs.map((log, index) => <div key={`${index}-${log}`}>{log}</div>)}
-                </div>
+              <div className="flex-1 overflow-auto px-5 py-4">
+                {reviewResult.filePath ? (
+                  <div className="mb-3 text-[11px] text-[#6f829f]">报告文件：{reviewResult.filePath}</div>
+                ) : null}
+                <pre className="whitespace-pre-wrap font-mono text-[12px] leading-6 text-[#c7dcff]">{reviewResult.content}</pre>
               </div>
             </div>
           ) : (

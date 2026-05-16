@@ -7,14 +7,12 @@ const categoryColor = {
   task: 'blue',
   test: 'purple',
   deploy: 'green',
-  system: 'gray',
 };
 
 const categoryLabel = {
   task: '任务',
   test: '测试',
   deploy: '部署',
-  system: '系统',
 };
 
 export default function Notifications() {
@@ -60,7 +58,6 @@ export default function Notifications() {
     { key: 'task', label: '任务', count: notifications.filter((item) => item.category === 'task').length },
     { key: 'test', label: '测试', count: notifications.filter((item) => item.category === 'test').length },
     { key: 'deploy', label: '部署', count: notifications.filter((item) => item.category === 'deploy').length },
-    { key: 'system', label: '系统', count: notifications.filter((item) => item.category === 'system').length },
   ];
 
   return (
@@ -89,7 +86,7 @@ export default function Notifications() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="text-[18px] font-semibold text-[#1d2740]">消息通知</div>
-            <div className="mt-1 text-[12px] text-[#8d99ae]">展示来自任务、测试、部署和系统事件的通知消息</div>
+            <div className="mt-1 text-[12px] text-[#8d99ae]">展示来自任务、Code Review、部署和调度员事件的通知消息</div>
           </div>
           <div className="flex flex-wrap gap-2">
             {filters.map((filter) => (

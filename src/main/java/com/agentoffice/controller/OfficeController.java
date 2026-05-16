@@ -93,6 +93,16 @@ public class OfficeController {
         return Result.success();
     }
 
+    @GetMapping("/code-reviews/latest")
+    public Result<Map<String, Object>> getLatestCodeReview() {
+        return Result.success(officeService.getLatestCodeReviewReport());
+    }
+
+    @PostMapping("/code-reviews/{taskId}/rerun")
+    public Result<Map<String, Object>> rerunCodeReview(@PathVariable Long taskId) {
+        return Result.success(officeService.rerunCodeReview(taskId));
+    }
+
     private Long extractUserId(String token) {
         if (token != null && token.startsWith("Bearer ")) {
             token = token.substring(7);

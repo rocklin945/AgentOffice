@@ -31,14 +31,16 @@ function CreateEmployeeModal({ onClose, roleCards, modelConfigs, onCreated }) {
     { code: 'code.review', name: 'Code Review' },
   ];
   const rolePermissionMap = {
-    开发工程师: ['task.view', 'task.execute', 'dev.code', 'log.view'],
+    产品经理: ['task.view', 'task.assign', 'product.plan', 'report.write'],
+    调度员: ['task.view', 'task.assign', 'task.execute'],
+    前端开发工程师: ['task.view', 'task.execute', 'dev.code', 'log.view'],
+    后端开发工程师: ['task.view', 'task.execute', 'dev.code', 'log.view'],
     CodeReviewer: ['task.view', 'task.execute', 'code.review', 'report.write', 'log.view'],
     运维工程师: ['task.view', 'deploy.manage', 'log.view'],
-    产品经理: ['task.view', 'task.assign', 'product.plan', 'report.write'],
   };
   const [form, setForm] = useState({
     name: '',
-    role: roleCards[0]?.[0] || '开发工程师',
+    role: roleCards[0]?.[0] || '产品经理',
     position: '',
     status: '空闲',
     modelConfigId: modelConfigs.find((item) => item.isDefault)?.id || '',
@@ -181,10 +183,12 @@ function EditEmployeeModal({ employee, modelConfigs, onClose, onSaved }) {
     { code: 'code.review', name: 'Code Review' },
   ];
   const rolePermissionMap = {
-    开发工程师: ['task.view', 'task.execute', 'dev.code', 'log.view'],
+    产品经理: ['task.view', 'task.assign', 'product.plan', 'report.write'],
+    调度员: ['task.view', 'task.assign', 'task.execute'],
+    前端开发工程师: ['task.view', 'task.execute', 'dev.code', 'log.view'],
+    后端开发工程师: ['task.view', 'task.execute', 'dev.code', 'log.view'],
     CodeReviewer: ['task.view', 'task.execute', 'code.review', 'report.write', 'log.view'],
     运维工程师: ['task.view', 'deploy.manage', 'log.view'],
-    产品经理: ['task.view', 'task.assign', 'product.plan', 'report.write'],
   };
   const [form, setForm] = useState({
     name: employee.name || '',

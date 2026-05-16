@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircleFilled, ClockCircleFilled, DeleteOutlined, PlusOutlined, SendOutlined, TeamOutlined } from '@ant-design/icons';
 import { officeApi } from '../api';
 import { DonutChart, Panel, ProgressTrack, StatusPill } from '../components/AppPrimitives';
@@ -566,17 +566,6 @@ function ChatPanel({ initialMessages, staff, onWorkflowComplete }) {
           pending: true,
         }];
       });
-    }
-    if (event === 'handoff') {
-      const employee = staff.find((item) => getEmployeeId(item) === Number(data.employeeId));
-      setMessages((current) => [...current, {
-        id: `handoff-${Date.now()}-${data.employeeId}`,
-        sender: 'System',
-        avatar: '#8d99ae',
-        text: data.text || `${data.fromSender || '员工'} 指派下一步给 @${employee?.name || data.employeeId}`,
-        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-        system: true,
-      }]);
     }
     if (event === 'reply_delta') {
       const messageId = replyMessageById.get(data.replyId);

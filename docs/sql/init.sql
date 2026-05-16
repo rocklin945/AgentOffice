@@ -197,7 +197,7 @@ CREATE TABLE operation_log (
 CREATE TABLE notification_message (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
     user_id BIGINT DEFAULT NULL COMMENT '用户 ID，NULL 表示全局消息',
-    category VARCHAR(30) NOT NULL DEFAULT 'system' COMMENT '消息分类 task/test/deploy/system',
+    category VARCHAR(30) NOT NULL DEFAULT 'task' COMMENT '消息分类 task/test/deploy',
     title VARCHAR(120) NOT NULL COMMENT '标题',
     content VARCHAR(500) NOT NULL COMMENT '内容',
     source_type VARCHAR(50) DEFAULT NULL COMMENT '来源类型',
@@ -252,7 +252,7 @@ INSERT INTO sys_user (username, password, nickname, email, role, status) VALUES
 
 INSERT INTO office_desk (desk_code, row_num, col_num, status) VALUES
 ('A1', 1, 1, 1), ('A2', 1, 2, 1), ('A3', 1, 3, 1), ('A4', 1, 4, 1),
-('B1', 2, 1, 0), ('B2', 2, 2, 0), ('B3', 2, 3, 0), ('B4', 2, 4, 0),
+('B1', 2, 1, 1), ('B2', 2, 2, 1), ('B3', 2, 3, 0), ('B4', 2, 4, 0),
 ('C1', 3, 1, 0), ('C2', 3, 2, 0), ('C3', 3, 3, 0), ('C4', 3, 4, 0);
 
 INSERT INTO model_config (config_name, provider, model_name, api_base, api_key, is_default, enabled, remark) VALUES
@@ -260,28 +260,34 @@ INSERT INTO model_config (config_name, provider, model_name, api_base, api_key, 
 ('代码审查模型', 'OpenAI Compatible', 'gpt-4o-mini', 'https://api.openai.com/v1', NULL, 0, 1, '适合开发、Code Review 和测试分析');
 
 INSERT INTO agent_employee (name, avatar, role, position, status, task_count, efficiency, desk_id, model_config_id) VALUES
-('Alex', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex', '开发工程师', '后端开发', '工作中', 5, 92.50, 1, 2),
-('TestBot', 'https://api.dicebear.com/7.x/avataaars/svg?seed=TestBot', '测试工程师', '自动化测试', '思考中', 3, 88.00, 2, 1),
-('OpsMaster', 'https://api.dicebear.com/7.x/avataaars/svg?seed=OpsMaster', '运维工程师', '容器运维', '部署中', 2, 95.00, 3, 1),
-('ProductKing', 'https://api.dicebear.com/7.x/avataaars/svg?seed=ProductKing', '产品经理', '产品负责人', '在线', 4, 90.00, 4, 1);
+('ProductKing', 'https://api.dicebear.com/7.x/avataaars/svg?seed=ProductKing', '产品经理', '产品负责人', '在线', 4, 90.00, 1, 1),
+('Dispatcher', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Dispatcher', '调度员', '任务调度', '在线', 6, 96.00, 2, 1),
+('AlexBE', 'https://api.dicebear.com/7.x/avataaars/svg?seed=AlexBE', '后端开发工程师', '后端开发', '工作中', 5, 92.50, 3, 2),
+('LilyFE', 'https://api.dicebear.com/7.x/avataaars/svg?seed=LilyFE', '前端开发工程师', '前端开发', '工作中', 4, 91.00, 4, 2),
+('ReviewBot', 'https://api.dicebear.com/7.x/avataaars/svg?seed=ReviewBot', 'CodeReviewer', '代码审查', 'Review中', 3, 93.00, 5, 2),
+('OpsMaster', 'https://api.dicebear.com/7.x/avataaars/svg?seed=OpsMaster', '运维工程师', '容器运维', '部署中', 2, 95.00, 6, 1);
 
 UPDATE office_desk SET employee_id = 1 WHERE id = 1;
 UPDATE office_desk SET employee_id = 2 WHERE id = 2;
 UPDATE office_desk SET employee_id = 3 WHERE id = 3;
 UPDATE office_desk SET employee_id = 4 WHERE id = 4;
+UPDATE office_desk SET employee_id = 5 WHERE id = 5;
+UPDATE office_desk SET employee_id = 6 WHERE id = 6;
 
 INSERT INTO employee_permission (employee_id, permission_code, permission_name, enabled) VALUES
-(1, 'task.view', '查看任务', 1), (1, 'task.execute', '执行任务', 1), (1, 'dev.code', '代码开发', 1),
-(2, 'task.view', '查看任务', 1), (2, 'test.run', '执行测试', 1), (2, 'report.write', '输出报告', 1),
-(3, 'task.view', '查看任务', 1), (3, 'deploy.manage', '部署服务', 1), (3, 'log.view', '查看日志', 1),
-(4, 'task.view', '查看任务', 1), (4, 'product.plan', '产品规划', 1), (4, 'task.assign', '任务拆解', 1);
+(1, 'task.view', '查看任务', 1), (1, 'product.plan', '产品规划', 1), (1, 'task.assign', '任务拆解', 1), (1, 'report.write', '输出报告', 1),
+(2, 'task.view', '查看任务', 1), (2, 'task.assign', '任务拆解', 1), (2, 'task.execute', '执行任务', 1),
+(3, 'task.view', '查看任务', 1), (3, 'task.execute', '执行任务', 1), (3, 'dev.code', '代码开发', 1),
+(4, 'task.view', '查看任务', 1), (4, 'task.execute', '执行任务', 1), (4, 'dev.code', '代码开发', 1),
+(5, 'task.view', '查看任务', 1), (5, 'code.review', 'Code Review', 1), (5, 'report.write', '输出报告', 1),
+(6, 'task.view', '查看任务', 1), (6, 'deploy.manage', '部署服务', 1), (6, 'log.view', '查看日志', 1);
 
 INSERT INTO task_info (task_name, task_type, description, priority, executor_id, status, progress, create_user) VALUES
-('用户登录功能开发', 'development', '实现用户登录注册和 JWT 鉴权能力', '高', 1, '进行中', 60, 1),
-('接口性能优化', 'development', '优化核心接口响应时间', '中', 1, '已完成', 100, 1),
-('自动化测试用例编写', 'testing', '编写核心业务回归测试用例', '中', 2, '进行中', 30, 1),
-('CI/CD 流程搭建', 'deployment', '搭建持续集成和部署流程', '高', 3, '待分配', 0, 1),
-('数据库索引优化', 'development', '优化慢查询 SQL', '低', NULL, '已失败', 0, 1);
+('登录功能需求拆解', 'product', '由产品经理输出 PRD 并交由调度员分发', '高', 1, '已完成', 100, 1),
+('登录功能后端开发', 'development', '实现用户登录注册和 JWT 鉴权能力', '高', 3, '进行中', 60, 1),
+('登录功能前端开发', 'development', '实现登录页面与表单交互', '高', 4, '进行中', 50, 1),
+('登录功能 Code Review', 'review', '审查前后端代码质量与风险', '中', 5, '待分配', 0, 1),
+('CI/CD 流程搭建', 'deployment', '搭建持续集成和部署流程', '高', 6, '待分配', 0, 1);
 
 INSERT INTO task_step (task_id, step_name, step_order, status, complete_time) VALUES
 (1, '需求分析', 1, '已完成', NOW()),
@@ -291,11 +297,11 @@ INSERT INTO task_step (task_id, step_name, step_order, status, complete_time) VA
 (1, '部署上线', 5, '待处理', NULL);
 
 INSERT INTO work_product (employee_id, task_id, name, product_type, status, file_url, content) VALUES
-(1, 1, '登录接口实现代码', '代码', '进行中', '/products/login-api-code', '登录接口代码已进入开发中，当前完成 JWT 鉴权入口和用户校验逻辑。'),
-(1, 2, '接口性能优化报告', '报告', '已完成', '/products/performance-report', '接口性能优化完成：慢查询已增加索引，核心接口响应时间下降。'),
-(2, 3, '自动化测试用例清单', '测试用例', '进行中', '/products/login-test-cases', '已覆盖登录成功、密码错误、Token 过期和权限不足场景。'),
-(3, 4, 'CI/CD 部署配置', '部署配置', '进行中', '/products/cicd-config', 'CI/CD 配置正在搭建，包含构建、镜像推送和部署健康检查步骤。'),
-(4, 1, '登录功能需求说明', '需求文档', '已完成', '/products/login-prd', '目标：完成用户登录注册与 JWT 鉴权。验收：登录成功返回 Token，失败提示清晰，接口可追踪。');
+(1, 1, '登录功能需求说明', '需求文档', '已完成', '/products/login-prd', '目标：完成用户登录注册与 JWT 鉴权。验收：登录成功返回 Token，失败提示清晰，接口可追踪。'),
+(3, 2, '登录后端实现代码', '代码', '进行中', '/products/login-api-code', '登录后端代码已进入开发中，当前完成 JWT 鉴权入口和用户校验逻辑。'),
+(4, 3, '登录前端页面代码', '代码', '进行中', '/products/login-page-code', '登录前端页面正在开发中，包含表单校验与登录态管理。'),
+(5, 4, '登录功能 Code Review 报告', 'Code Review报告', '进行中', '/products/login-review', '已识别 JWT 过期处理与表单校验若干优化点，等待开发反馈。'),
+(6, 5, 'CI/CD 部署配置', '部署记录', '进行中', '/products/cicd-config', 'CI/CD 配置正在搭建，包含构建、镜像推送和部署健康检查步骤。');
 
 INSERT INTO deploy_service (service_name, image, version, status, port, container_id, cpu_usage, memory_usage, running_time) VALUES
 ('user-service', 'agentoffice/user-service', 'v1.0.0', '运行中', 8080, 'container_user_001', 25.50, 40.20, 86400),
@@ -304,10 +310,10 @@ INSERT INTO deploy_service (service_name, image, version, status, port, containe
 ('message-service', 'agentoffice/message-service', 'v2.0.0', '异常', 8083, 'container_msg_001', 95.00, 85.00, 1000);
 
 INSERT INTO notification_message (user_id, category, title, content, source_type, source_id, read_status, priority) VALUES
-(1, 'task', '任务进度更新', '用户登录功能开发已推进到测试验证阶段，请关注后续测试结果。', 'task', 1, 0, 'high'),
-(1, 'test', '测试任务启动', '自动化测试用例编写任务已开始执行，TestBot 正在准备回归用例。', 'task', 3, 0, 'normal'),
+(1, 'task', '任务进度更新', '登录功能 PRD 已交付，调度员已分发前后端开发任务。', 'task', 1, 0, 'high'),
+(1, 'test', 'Code Review 启动', 'ReviewBot 已开始登录功能的代码审查。', 'task', 4, 0, 'normal'),
 (1, 'deploy', '服务部署异常', 'message-service 当前资源占用较高，请在运维部署中查看服务详情。', 'deploy_service', 4, 0, 'high'),
-(1, 'system', '系统设置已同步', '后台管理中的实时推送配置已启用，消息通知页面会持续展示系统事件。', 'system_config', NULL, 1, 'normal');
+(1, 'task', '调度员已接管流程', '团队协作已切换为调度员统一调度模式，后续由调度员负责阶段流转。', 'dispatcher', 2, 1, 'normal');
 
 INSERT INTO system_config (config_key, config_label, config_desc, config_value) VALUES
 ('maintenanceMode', '维护模式', '启用后普通用户无法访问系统', 'false'),

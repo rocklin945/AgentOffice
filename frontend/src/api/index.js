@@ -92,6 +92,11 @@ export const adminApi = {
   updateSystemSettings: (data) => request.put('/admin/system-settings', data),
 };
 
+export const codeReviewApi = {
+  getLatest: () => request.get('/office/code-reviews/latest'),
+  rerun: (taskId) => request.post(`/office/code-reviews/${taskId}/rerun`),
+};
+
 export const analyticsApi = {
   getDashboard: () => request.get('/analytics/dashboard'),
   getEmployeeEfficiency: () => request.get('/analytics/employees'),

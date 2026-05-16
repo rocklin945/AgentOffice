@@ -160,7 +160,7 @@ public class ToolExecutor {
                         )),
                 createTool("notify_user", "创建真实消息通知。",
                         Map.of(
-                                "category", new LlmTool.Parameter("string", "通知分类 task/test/deploy/system"),
+                                "category", new LlmTool.Parameter("string", "通知分类 task/test/deploy"),
                                 "title", new LlmTool.Parameter("string", "通知标题"),
                                 "content", new LlmTool.Parameter("string", "通知内容"),
                                 "source_type", new LlmTool.Parameter("string", "来源类型"),
@@ -318,7 +318,7 @@ public class ToolExecutor {
     private WorkflowResult notifyUserTool(Map<String, Object> args) {
         Long sourceId = optionalLong(args, "source_id");
         notifyUser(
-                value(text(args, "category"), "system"),
+                value(text(args, "category"), "task"),
                 value(text(args, "title"), "工作流通知"),
                 value(text(args, "content"), ""),
                 value(text(args, "source_type"), "workflow"),
@@ -576,8 +576,24 @@ public class ToolExecutor {
         }
         String lowerRole = role.toLowerCase();
         String lowerKeyword = keyword.toLowerCase();
+        if (lowerRole.contains(lowerKeyword)) {
+            return true;
+        }
         boolean reviewerKeyword = lowerKeyword.contains("review") || keyword.contains("评审") || keyword.contains("审查");
-        return reviewerKeyword && (lowerRole.contains("review") || role.contains("评审") || role.contains("审查"));
+        if (reviewerKeyword && (lowerRole.contains("review") || role.contains("评审") || role.contains("审查"))) {
+            return true;
+        }
+        boolean dispatcherKeyword = keyword.contains("调度") || lowerKeyword.contains("dispatcher");
+        if (dispatcherKeyword && (role.contains("调度") || lowerRole.contains("dispatcher"))) {
+            return true;
+        }
+        if (keyword.contains("前端") && role.contains("前端")) {
+            return true;
+        }
+        if (keyword.contains("后端") && role.contains("后端")) {
+            return true;
+        }
+        return false;
     }
 
     private Long requiredLong(Map<String, Object> args, String key) {

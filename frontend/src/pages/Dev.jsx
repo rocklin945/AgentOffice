@@ -88,7 +88,7 @@ export default function Dev() {
         </button>
       </div>
       <div className="grid h-[calc(100vh-220px)] grid-cols-[220px_minmax(0,1fr)]">
-        <div className="border-r border-[#edf1f8] bg-[#fbfcff] px-4 py-5">
+        <div className="overflow-hidden border-r border-[#edf1f8] bg-[#fbfcff] px-4 py-5">
           <div className="mb-4 font-medium text-[#1d2740]">项目列表</div>
           <div className="mb-4 space-y-1">
             {projects.map((p) => (
@@ -102,7 +102,7 @@ export default function Dev() {
             ))}
           </div>
           <div className="mb-3 font-medium text-[#1d2740]">文件资源管理器</div>
-          <div className="space-y-1">
+          <div className="max-h-[calc(100vh-420px)] space-y-1 overflow-auto pr-1">
             {files.map((file, index) => (
               <div
                 key={`${file.id}-${index}`}
@@ -121,11 +121,11 @@ export default function Dev() {
         <div className="flex flex-col overflow-hidden">
           {selectedFile ? (
             <>
-              <div className="flex-1 overflow-auto bg-[#081426] px-5 py-5">
+              <div className="flex-1 overflow-hidden bg-[#081426] px-5 py-5">
                 <textarea
                   value={fileContent}
                   onChange={(e) => setFileContent(e.target.value)}
-                  className="min-h-full w-full resize-none bg-transparent font-mono text-[13px] leading-7 text-[#c7dcff] outline-none"
+                  className="h-full w-full resize-none overflow-auto whitespace-pre bg-transparent font-mono text-[13px] leading-7 text-[#c7dcff] outline-none"
                   spellCheck={false}
                 />
               </div>
