@@ -290,7 +290,7 @@ public class OfficeService {
 
     public SseEmitter streamCollaborationMessage(CollaborationChatRequest request, Long userId) {
         validateCollaborationChat(request);
-        SseEmitter emitter = new SseEmitter(120000L);
+        SseEmitter emitter = new SseEmitter(300000L);
         ChatSession session = resolveCollaborationSession(userId, request.getSessionId(), request.getMessage());
         saveChatMessage(session.getId(), "user", "我", null, request.getMessage());
 
@@ -456,13 +456,65 @@ public class OfficeService {
         String role = value(employee.getRole(), "团队成员");
         String toolInstruction;
         if (role.contains("产品")) {
-            toolInstruction = "你必须按顺序组合工具真实工作：1) 用 write_file 写 PRD Markdown 文件；2) 用 register_work_product 登记需求文档；3) 用 create_task 创建开发任务并分配给开发；4) 用 notify_user 发送 PRD 完成提醒。";
+            toolInstruction = """
+                你必须按顺序执行以下步骤，每一步都必须调用对应工具：
+
+                步骤1：用 write_file 工具写 PRD Markdown 文件，路径格式为 prd/xxx.md，例如 prd/login.md
+                   - 直接使用 write_file 工具写入文件
+                步骤2：用 register_work_product 工具登记需求文档，product_type 填"需求文档"
+                步骤3：用 create_task 工具创建开发任务，task_type 填"development"，executor_role 填"开发"，这会自动分配给开发工程师
+                步骤4：用 notify_user 工具发送通知，category 填"task"，title 填"PRD 已完成"，content 填写PRD文件名
+
+                重要：必须按顺序执行上述4个步骤，只有上一步成功才能执行下一步。
+                """;
         } else if (role.contains("开发")) {
-            toolInstruction = "你必须按顺序组合工具真实工作：1) 用 find_latest_work_product 查询最新需求文档；2) 用 read_file 读取该 PRD 文件；3) 用 write_file 写代码文件；4) 用 register_work_product 登记代码产物；5) 用 create_task 创建测试任务并分配给测试；6) 用 notify_user 发送开发完成提醒。";
+            toolInstruction = """
+                你必须按顺序执行以下步骤，每一步都必须调用对应工具：
+
+                步骤1：用 find_latest_work_product 工具查询需求文档，product_type 填"需求文档"
+                   - 必须等待工具返回文件路径，不能跳过此步骤
+                   - 不要使用别人告诉你的文件路径，必须用工具查询
+                步骤2：用 read_file 工具读取上一步找到的PRD文件
+                   - file_path 必须使用步骤1返回的 filePath，不能自行猜测路径
+                步骤3：用 write_file 工具写代码文件，路径格式为 code/xxx.java，例如 code/LoginService.java
+                步骤4：用 register_work_product 工具登记代码产物，product_type 填"代码"
+                步骤5：用 create_task 工具创建测试任务，task_type 填"testing"，executor_role 填"测试"，这会自动分配给测试工程师
+                步骤6：用 notify_user 工具发送通知，category 填"task"，title 填"开发已完成"，content 填写代码文件名
+
+                重要：必须按顺序执行上述6个步骤，只有上一步成功才能执行下一步。
+                """;
         } else if (role.contains("测试")) {
-            toolInstruction = "你必须按顺序组合工具真实工作：1) 用 find_latest_work_product 查询最新代码产物；2) 用 read_file 读取开发文件；3) 用 write_file 写测试报告；4) 用 register_work_product 登记测试报告；5) 用 create_task 创建部署任务并分配给运维；6) 用 notify_user 发送测试完成提醒。";
+            toolInstruction = """
+                你必须按顺序执行以下步骤，每一步都必须调用对应工具：
+
+                步骤1：用 find_latest_work_product 工具查询代码产物，product_type 填"代码"
+                   - 必须等待工具返回文件路径，不能跳过此步骤
+                   - 不要使用别人告诉你的文件路径，必须用工具查询
+                步骤2：用 read_file 工具读取上一步找到的代码文件
+                   - file_path 必须使用步骤1返回的 filePath，不能自行猜测路径
+                步骤3：用 write_file 工具写测试报告，路径格式为 test/xxx.md，例如 test/LoginTest.md
+                步骤4：用 register_work_product 工具登记测试报告，product_type 填"测试报告"
+                步骤5：用 create_task 工具创建部署任务，task_type 填"deployment"，executor_role 填"运维"，这会自动分配给运维工程师
+                步骤6：用 notify_user 工具发送通知，category 填"task"，title 填"测试已完成"，content 填写测试报告文件名
+
+                重要：必须按顺序执行上述6个步骤，只有上一步成功才能执行下一步。
+                """;
         } else if (role.contains("运维")) {
-            toolInstruction = "你必须按顺序组合工具真实工作：1) 用 find_latest_work_product 查询最新测试报告；2) 用 read_file 读取测试报告文件；3) 用 create_deploy_service 在部署模块创建运行中服务；4) 用 write_file 写部署记录；5) 用 register_work_product 登记部署记录；6) 用 notify_user 发送部署完成提醒。";
+            toolInstruction = """
+                你必须按顺序执行以下步骤，每一步都必须调用对应工具：
+
+                步骤1：用 find_latest_work_product 工具查询测试报告，product_type 填"测试报告"
+                   - 必须等待工具返回文件路径，不能跳过此步骤
+                   - 不要使用别人告诉你的文件路径，必须用工具查询
+                步骤2：用 read_file 工具读取上一步找到的测试报告文件
+                   - file_path 必须使用步骤1返回的 filePath，不能自行猜测路径
+                步骤3：用 create_deploy_service 工具创建部署服务
+                步骤4：用 write_file 工具写部署记录，路径格式为 deploy/xxx.md，例如 deploy/LoginDeploy.md
+                步骤5：用 register_work_product 工具登记部署记录，product_type 填"部署记录"
+                步骤6：用 notify_user 工具发送通知，category 填"deploy"，title 填"部署已完成"，content 填写部署记录文件名
+
+                重要：必须按顺序执行上述6个步骤，只有上一步成功才能执行下一步。
+                """;
         } else {
             toolInstruction = "你必须根据自己的职责选择一个可用工具完成任务，然后根据工具返回结果回复。";
         }

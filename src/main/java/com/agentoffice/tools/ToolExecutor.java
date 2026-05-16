@@ -248,14 +248,20 @@ public class ToolExecutor {
 
     private WorkflowResult createWorkflowTask(Map<String, Object> args) {
         String roleKeyword = text(args, "executor_role");
+        if (roleKeyword == null || roleKeyword.isBlank()) {
+            return new WorkflowResult(false, "executor_role 不能为空，必须指定执行员工角色（如：开发、测试、运维）", Map.of());
+        }
         AgentEmployee executor = findEmployeeByRole(roleKeyword).orElse(null);
+        if (executor == null) {
+            return new WorkflowResult(false, "未找到角色为「" + roleKeyword + "」的员工，请先在员工管理中添加对应角色的员工", Map.of("roleKeyword", roleKeyword));
+        }
         TaskInfo task = createTask(
                 value(text(args, "task_name"), "协作任务"),
                 value(text(args, "task_type"), "custom"),
                 value(text(args, "description"), ""),
                 value(text(args, "priority"), "中"),
-                executor == null ? null : executor.getId(),
-                executor == null ? "待分配" : "进行中",
+                executor.getId(),
+                "进行中",
                 0,
                 defaultSteps(value(text(args, "task_type"), "custom"))
         );
@@ -263,11 +269,9 @@ public class ToolExecutor {
         Map<String, Object> data = new java.util.HashMap<>();
         data.put("taskId", task.getId());
         data.put("taskName", task.getTaskName());
-        if (executor != null) {
-            data.put("executorId", executor.getId());
-            data.put("executorName", executor.getName());
-        }
-        return new WorkflowResult(true, "任务创建成功", data);
+        data.put("executorId", executor.getId());
+        data.put("executorName", executor.getName());
+        return new WorkflowResult(true, "任务创建成功并已分配给 " + executor.getName(), data);
     }
 
     private WorkflowResult registerWorkProduct(Map<String, Object> args) {

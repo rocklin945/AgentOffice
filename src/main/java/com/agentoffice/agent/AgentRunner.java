@@ -43,7 +43,7 @@ public class AgentRunner {
                 .model(agent.getModelName())
                 .messages(messages)
                 .temperature(0.7)
-                .maxTokens(2048)
+                .maxTokens(100000)
                 .tools(tools)
                 .build();
 
@@ -78,7 +78,7 @@ public class AgentRunner {
                     .model(agent.getModelName())
                     .messages(messages)
                     .temperature(0.7)
-                    .maxTokens(2048)
+                    .maxTokens(100000)
                     .tools(tools)
                     .build();
 
