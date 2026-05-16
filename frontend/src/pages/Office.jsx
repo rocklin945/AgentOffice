@@ -195,8 +195,18 @@ function MarkdownMessage({ text, staff, highlightMentions }) {
     });
   };
 
+  // Extract think blocks first and remove them from text
+  const thinkBlocks = [];
+  let processedText = String(text || '').replace(/<think>[\s\S]*?<\/think>/gi, (match) => {
+    const innerContent = match.replace(/<think>/gi, '').replace(/<\/think>/gi, '').trim();
+    if (innerContent) {
+      thinkBlocks.push(innerContent);
+    }
+    return '';
+  });
+
   const blocks = [];
-  const lines = String(text || '').split('\n');
+  const lines = processedText.split('\n');
   let index = 0;
   while (index < lines.length) {
     const line = lines[index];
@@ -286,7 +296,15 @@ function MarkdownMessage({ text, staff, highlightMentions }) {
     blocks.push(<p key={`p-${index}`} className="my-1 leading-6 text-[#5f6d83]">{renderInline(paragraph.join(' '), `p-${index}`)}</p>);
   }
 
-  return <div className="max-w-none text-[#5f6d83]">{blocks}</div>;
+  // Prepend think blocks at the top
+  const thinkBlockElements = thinkBlocks.map((content, i) => (
+    <div key={`think-${i}`} className="my-3 rounded-[10px] border border-[#e8d5b5] bg-[#fffbf0] px-4 py-3">
+      <div className="mb-2 text-[12px] font-medium text-[#b8860b]">思考过程</div>
+      <div className="text-[13px] leading-6 text-[#7a6820]">{content}</div>
+    </div>
+  ));
+
+  return <div className="max-w-none text-[#5f6d83]">{[...thinkBlockElements, ...blocks]}</div>;
 }
 
 function ChatPanel({ initialMessages, staff, onWorkflowComplete }) {
