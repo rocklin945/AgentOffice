@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { FileOutlined, FolderOpenOutlined, FolderOutlined } from '@ant-design/icons';
 import { devApi } from '../api';
 import { Panel } from '../components/AppPrimitives';
 
@@ -29,19 +30,21 @@ export default function Dev() {
     }).catch(() => {});
   };
 
-  const flattenFiles = (nodes) => {
+  const isDirectory = (file) => file?.directory || file?.isDirectory === 1;
+
+  const flattenFiles = (nodes, depth = 0) => {
     let result = [];
     for (const node of nodes) {
-      result.push(node);
+      result.push({ ...node, depth });
       if (node.children?.length) {
-        result = result.concat(flattenFiles(node.children));
+        result = result.concat(flattenFiles(node.children, depth + 1));
       }
     }
     return result;
   };
 
   const selectFile = (file) => {
-    if (file.directory) return;
+    if (isDirectory(file)) return;
     setSelectedFile(file);
     devApi.getFile(file.id).then((res) => {
       setFileContent(res.data?.content || '');
@@ -104,9 +107,13 @@ export default function Dev() {
               <div
                 key={`${file.id}-${index}`}
                 onClick={() => selectFile(file)}
-                className={`cursor-pointer rounded-[8px] px-3 py-2 text-[13px] ${file.directory ? 'font-medium text-[#1d2740]' : ''} ${selectedFile?.id === file.id ? 'bg-[#eef4ff] text-[#2f6bff]' : 'hover:bg-[#f0f4ff]'}`}
+                className={`flex cursor-pointer items-center gap-2 rounded-[8px] py-2 pr-3 text-[13px] ${isDirectory(file) ? 'font-medium text-[#1d2740]' : ''} ${selectedFile?.id === file.id ? 'bg-[#eef4ff] text-[#2f6bff]' : 'hover:bg-[#f0f4ff]'}`}
+                style={{ paddingLeft: `${12 + (file.depth || 0) * 16}px` }}
               >
-                {file.fileName || file.name}
+                <span className="shrink-0 text-[14px] text-[#7d8aa2]">
+                  {isDirectory(file) ? (file.children?.length ? <FolderOpenOutlined /> : <FolderOutlined />) : <FileOutlined />}
+                </span>
+                <span className="min-w-0 truncate">{file.fileName || file.name}</span>
               </div>
             ))}
           </div>
