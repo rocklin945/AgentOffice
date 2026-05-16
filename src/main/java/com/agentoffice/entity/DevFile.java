@@ -11,7 +11,6 @@ public class DevFile {
     private String fileName;
     private String filePath;
     private String fileType;
-    private String content;
     private Long parentId;
     private Integer isDirectory;
     private LocalDateTime createTime;

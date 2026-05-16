@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { UserOutlined, CheckCircleFilled, CloseCircleFilled, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { employeeApi, uiApi } from '../api';
+import { employeeApi } from '../api';
 import { Panel, ProgressTrack, StatusPill } from '../components/AppPrimitives';
 import { getAvatarColor } from '../utils';
+import { buildEmployeePageData } from '../pageData';
 
 function AvatarToken({ employee }) {
   const name = employee?.name || '';
@@ -300,11 +301,25 @@ export default function Employees() {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [editingEmployee, setEditingEmployee] = useState(null);
 
-  const reload = () => {
-    uiApi.getEmployees().then((res) => {
-      setEmployees(res.data.employees || []);
-      setRoleCards(res.data.roleCards || []);
-    }).catch(() => {});
+  const reload = async () => {
+    try {
+      const res = await employeeApi.getList();
+      const list = res.data || [];
+      const detailed = await Promise.all(list.map(async (employee) => {
+        try {
+          const detail = await employeeApi.getById(employee.id);
+          return detail.data || employee;
+        } catch {
+          return employee;
+        }
+      }));
+      const next = buildEmployeePageData(detailed);
+      setEmployees(next.employees);
+      setRoleCards(next.roleCards);
+    } catch {
+      setEmployees([]);
+      setRoleCards([]);
+    }
   };
 
   useEffect(() => {

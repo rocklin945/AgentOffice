@@ -138,7 +138,6 @@ CREATE TABLE dev_file (
     file_name VARCHAR(255) NOT NULL COMMENT '文件名',
     file_path VARCHAR(500) NOT NULL COMMENT '文件路径',
     file_type VARCHAR(20) DEFAULT NULL COMMENT '文件类型',
-    content LONGTEXT COMMENT '文件内容',
     parent_id BIGINT DEFAULT NULL COMMENT '父目录 ID',
     is_directory TINYINT DEFAULT 0 COMMENT '是否目录',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -299,9 +298,9 @@ INSERT INTO dev_project (project_name, description, language, owner_id, status) 
 ('agent-core', 'AI 智能代理核心', 'java', 1, 1),
 ('web-frontend', '前端管理系统', 'javascript', 1, 1);
 
-INSERT INTO dev_file (project_id, file_name, file_path, file_type, content, parent_id, is_directory) VALUES
-(1, 'src', '/src', 'directory', NULL, NULL, 1),
-(1, 'Main.java', '/src/Main.java', 'java', 'public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello AgentOffice");\n    }\n}', 1, 0),
-(1, 'README.md', '/README.md', 'markdown', '# user-center\n\nAgentOffice sample service.', NULL, 0);
+INSERT INTO dev_file (project_id, file_name, file_path, file_type, parent_id, is_directory) VALUES
+(1, 'src', '/src', 'directory', NULL, 1),
+(1, 'Main.java', '/src/Main.java', 'java', 1, 0),
+(1, 'README.md', '/README.md', 'markdown', NULL, 0);
 
 SET FOREIGN_KEY_CHECKS = 1;

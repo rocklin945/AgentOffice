@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { employeeApi, taskApi, uiApi } from '../api';
+import { employeeApi, taskApi } from '../api';
 import { Panel, ProgressTrack, StatusPill } from '../components/AppPrimitives';
+import { taskDetail, taskRow } from '../pageData';
 
 function CreateTaskModal({ onClose, onCreated }) {
   const [types, setTypes] = useState([]);
@@ -197,7 +198,25 @@ export default function Tasks() {
   const [employees, setEmployees] = useState([]);
   const tabs = [{ key: 'all', label: '全部任务' }, { key: 'mine', label: '我的任务' }, { key: 'developing', label: '开发中' }, { key: 'deploying', label: '部署中' }, { key: 'done', label: '已完成' }, { key: 'failed', label: '已失败' }];
 
-  const reload = () => uiApi.getTasks().then((res) => { setTasks(res.data.tasks || []); setDetails(res.data.details || {}); }).catch(() => {});
+  const reload = async () => {
+    try {
+      const res = await taskApi.getList();
+      const rows = (res.data || []).map(taskRow);
+      const detailEntries = await Promise.all(rows.map(async (task) => {
+        try {
+          const detailRes = await taskApi.getDetail(task.id);
+          return [String(task.id), taskDetail(detailRes.data)];
+        } catch {
+          return [String(task.id), null];
+        }
+      }));
+      setTasks(rows);
+      setDetails(Object.fromEntries(detailEntries.filter(([, detail]) => detail)));
+    } catch {
+      setTasks([]);
+      setDetails({});
+    }
+  };
   useEffect(() => { reload(); employeeApi.getList().then((res) => setEmployees(res.data || [])).catch(() => {}); }, []);
   const visible = tasks.filter((task) => activeTab === 'all' || (activeTab === 'mine' && task.owner === 'Alex') || (activeTab === 'developing' && task.status === '开发中') || (activeTab === 'deploying' && task.status === '部署中') || (activeTab === 'done' && task.status === '已完成') || (activeTab === 'failed' && task.status === '已失败'));
   const deleteTask = async (task, event) => {

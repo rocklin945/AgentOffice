@@ -1,6 +1,5 @@
 import request from './request';
 
-// 认证相关
 export const authApi = {
   login: (data) => request.post('/auth/login', data),
   register: (data) => request.post('/auth/register', data),
@@ -8,7 +7,6 @@ export const authApi = {
   logout: () => request.post('/auth/logout'),
 };
 
-// 员工相关
 export const employeeApi = {
   getList: (params) => request.get('/employees', { params }),
   getById: (id) => request.get(`/employees/${id}`),
@@ -18,7 +16,6 @@ export const employeeApi = {
   updateStatus: (id, status) => request.patch(`/employees/${id}/status`, { status }),
 };
 
-// 任务相关
 export const taskApi = {
   getList: (params) => request.get('/tasks', { params }),
   getTypes: () => request.get('/tasks/types'),
@@ -33,7 +30,6 @@ export const taskApi = {
   assign: (id, executorId) => request.post(`/tasks/${id}/assign`, { executorId }),
 };
 
-// 虚拟办公室
 export const officeApi = {
   getLayout: () => request.get('/office/layout'),
   getEmployeeStatusOverview: () => request.get('/office/employees/status'),
@@ -47,14 +43,12 @@ export const officeApi = {
   assignDesk: (deskId, employeeId) => request.patch(`/office/desks/${deskId}/employee`, { employeeId }),
 };
 
-// 消息通知
 export const notificationApi = {
   getList: (params) => request.get('/notifications', { params }),
   markRead: (id) => request.patch(`/notifications/${id}/read`),
   delete: (id) => request.delete(`/notifications/${id}`),
 };
 
-// 云端开发
 export const devApi = {
   getProjectList: () => request.get('/dev/projects'),
   getProject: (id) => request.get(`/dev/projects/${id}`),
@@ -64,12 +58,11 @@ export const devApi = {
   getFileTree: (projectId) => request.get(`/dev/projects/${projectId}/files`),
   getFile: (id) => request.get(`/dev/files/${id}`),
   createFile: (projectId, data) => request.post(`/dev/projects/${projectId}/files`, data),
-  updateFile: (id, data) => request.put(`/dev/files/${id}`, data),
+  updateFileContent: (id, content) => request.put(`/dev/files/${id}/content`, { content }),
   deleteFile: (id) => request.delete(`/dev/files/${id}`),
   runCode: (fileId, language) => request.post('/dev/run', { fileId, language }),
 };
 
-// 部署运维
 export const deployApi = {
   getServiceList: (params) => request.get('/deploy/services', { params }),
   getService: (id) => request.get(`/deploy/services/${id}`),
@@ -82,30 +75,17 @@ export const deployApi = {
   getServiceLogs: (id, lines) => request.get(`/deploy/services/${id}/logs`, { params: { lines } }),
 };
 
-// 后台管理
 export const adminApi = {
+  getUsers: () => request.get('/admin/users'),
   updateUser: (id, data) => request.put(`/admin/users/${id}`, data),
   deleteUser: (id) => request.delete(`/admin/users/${id}`),
   getSystemSettings: () => request.get('/admin/system-settings'),
   updateSystemSettings: (data) => request.put('/admin/system-settings', data),
 };
 
-// 数据分析
 export const analyticsApi = {
   getDashboard: () => request.get('/analytics/dashboard'),
   getEmployeeEfficiency: () => request.get('/analytics/employees'),
   getTaskTrend: (params) => request.get('/analytics/tasks/trend', { params }),
   getKpi: () => request.get('/analytics/kpi'),
-};
-
-// 页面聚合数据：保持前端原页面结构，由后端适配字段
-export const uiApi = {
-  getDashboard: () => request.get('/ui/dashboard'),
-  getEmployees: () => request.get('/ui/employees'),
-  getTasks: () => request.get('/ui/tasks'),
-  getDeploy: () => request.get('/ui/deploy'),
-  getDev: () => request.get('/ui/dev'),
-  getTestDebug: () => request.get('/ui/test-debug'),
-  getAnalytics: () => request.get('/ui/analytics'),
-  getAdmin: () => request.get('/ui/admin'),
 };

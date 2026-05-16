@@ -11,7 +11,7 @@ import {
   TeamOutlined,
   UserOutlined,
 } from '@ant-design/icons';
-import { adminApi, deployApi, employeeApi, taskApi, uiApi } from '../api';
+import { adminApi, analyticsApi, deployApi, employeeApi, taskApi } from '../api';
 
 const menuItems = [
   { key: 'dashboard', label: '管理面板', icon: <DashboardOutlined /> },
@@ -124,7 +124,29 @@ export default function Admin() {
   const [employeeStep, setEmployeeStep] = useState(0);
   const [employeeDraft, setEmployeeDraft] = useState(null);
 
-  const reload = () => uiApi.getAdmin().then((res) => setData((prev) => ({ ...prev, ...res.data }))).catch(() => {});
+  const reload = async () => {
+    try {
+      const [users, employees, tasks, services, dashboard, systemSettings] = await Promise.all([
+        adminApi.getUsers(),
+        employeeApi.getList(),
+        taskApi.getList(),
+        deployApi.getServiceList(),
+        analyticsApi.getDashboard(),
+        adminApi.getSystemSettings(),
+      ]);
+      setData((prev) => ({
+        ...prev,
+        users: users.data || [],
+        employees: employees.data || [],
+        tasks: tasks.data || [],
+        services: services.data || [],
+        dashboard: dashboard.data || {},
+        systemSettings: systemSettings.data || [],
+      }));
+    } catch {
+      setData((prev) => ({ ...prev }));
+    }
+  };
   useEffect(() => { reload(); }, []);
 
   const openEdit = (type, record) => {

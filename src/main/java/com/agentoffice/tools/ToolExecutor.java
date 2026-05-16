@@ -495,13 +495,12 @@ public class ToolExecutor {
         return product;
     }
 
-    private DevFile createDevFile(Long projectId, String fileName, String filePath, String fileType, String content, Long parentId, int directory) {
+    private DevFile createDevFile(Long projectId, String fileName, String filePath, String fileType, Long parentId, int directory) {
         DevFile file = new DevFile();
         file.setProjectId(projectId);
         file.setFileName(fileName);
         file.setFilePath(filePath);
         file.setFileType(fileType);
-        file.setContent(content);
         file.setParentId(parentId);
         file.setIsDirectory(directory);
         fileMapper.insert(file);
@@ -526,7 +525,7 @@ public class ToolExecutor {
                     return created;
                 });
         String normalized = artifactPath.replace("\\", "/");
-        String devPath = "/" + normalized.substring("code/".length());
+        String devPath = "/" + normalized;
         String fileName = Paths.get(devPath).getFileName().toString();
         String fileType = fileName.contains(".") ? fileName.substring(fileName.lastIndexOf('.') + 1) : "text";
         DevFile existing = fileMapper.findByProjectId(project.getId()).stream()
@@ -535,10 +534,7 @@ public class ToolExecutor {
                 .findFirst()
                 .orElse(null);
         if (existing == null) {
-            createDevFile(project.getId(), fileName, devPath, fileType, content, null, 0);
-        } else {
-            existing.setContent(content);
-            fileMapper.updateContent(existing);
+            createDevFile(project.getId(), fileName, devPath, fileType, null, 0);
         }
         logOperation("sync_code_to_cloud_dev", "dev_project", project.getId(), devPath);
     }
@@ -642,4 +638,3 @@ public class ToolExecutor {
     private record WorkflowResult(boolean ok, String message, Map<String, Object> data) {
     }
 }
-

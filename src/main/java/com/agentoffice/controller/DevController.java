@@ -54,20 +54,28 @@ public class DevController {
     }
 
     @GetMapping("/files/{id}")
-    public Result<DevFile> getFile(@PathVariable Long id) {
-        DevFile file = devService.getFileById(id);
+    public Result<Map<String, Object>> getFile(@PathVariable Long id) {
+        Map<String, Object> file = devService.getFileWithContent(id);
         return Result.success(file);
     }
 
     @PostMapping("/projects/{id}/files")
-    public Result<DevFile> createFile(@PathVariable Long id, @RequestBody DevFile file) {
-        DevFile result = devService.createFile(id, file);
+    public Result<DevFile> createFile(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        DevFile file = new DevFile();
+        file.setFileName((String) body.get("fileName"));
+        file.setFilePath((String) body.get("filePath"));
+        file.setFileType((String) body.get("fileType"));
+        file.setParentId(body.get("parentId") != null ? Long.valueOf(body.get("parentId").toString()) : null);
+        file.setIsDirectory(body.get("isDirectory") != null ? Integer.valueOf(body.get("isDirectory").toString()) : 0);
+        String content = (String) body.get("content");
+        DevFile result = devService.createFile(id, file, content);
         return Result.success(result);
     }
 
-    @PutMapping("/files/{id}")
-    public Result<DevFile> updateFile(@PathVariable Long id, @RequestBody DevFile file) {
-        DevFile result = devService.updateFile(id, file);
+    @PutMapping("/files/{id}/content")
+    public Result<DevFile> updateFileContent(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        String content = (String) body.get("content");
+        DevFile result = devService.updateFileContent(id, content);
         return Result.success(result);
     }
 

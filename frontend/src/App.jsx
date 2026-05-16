@@ -10,7 +10,7 @@ import Office from './pages/Office';
 import Employees from './pages/Employees';
 import Tasks from './pages/Tasks';
 import Dev from './pages/Dev';
-import TestDebug from './pages/TestDebug';
+import CodeReview from './pages/TestDebug';
 import Deploy from './pages/Deploy';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
@@ -60,7 +60,8 @@ export default function App() {
             <Route path="employees" element={<Employees />} />
             <Route path="tasks" element={<Tasks />} />
             <Route path="dev" element={<Dev />} />
-            <Route path="test-debug" element={<TestDebug />} />
+            <Route path="code-review" element={<CodeReview />} />
+            <Route path="test-debug" element={<Navigate to="/code-review" replace />} />
             <Route path="deploy" element={<Deploy />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="settings" element={<Settings />} />

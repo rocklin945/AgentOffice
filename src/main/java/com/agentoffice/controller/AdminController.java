@@ -25,6 +25,13 @@ public class AdminController {
     @Autowired
     private AuthService authService;
 
+    @GetMapping("/users")
+    public Result<List<SysUser>> getUsers(
+            @RequestHeader(value = "Authorization", required = false) String token) {
+        authService.requireAdmin(token);
+        return Result.success(userMapper.findAll());
+    }
+
     @PutMapping("/users/{id}")
     public Result<SysUser> updateUser(
             @PathVariable Long id,

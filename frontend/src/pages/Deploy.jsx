@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { uiApi } from '../api';
+import { deployApi } from '../api';
 import { Panel } from '../components/AppPrimitives';
+import { buildDeployData } from '../pageData';
 
 function ServiceManagement({ services, selectedService, onSelectService }) {
   return (
@@ -38,7 +39,30 @@ export default function Deploy() {
   const [activeTab, setActiveTab] = useState('services');
   const [data, setData] = useState({ services: [], containers: [], images: [], logs: [] });
   const [selectedService, setSelectedService] = useState(null);
-  useEffect(() => { uiApi.getDeploy().then((res) => { setData(res.data); setSelectedService(res.data.services?.[0] || null); }).catch(() => {}); }, []);
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await deployApi.getServiceList();
+        const services = res.data || [];
+        let logs = '';
+        if (services[0]?.id) {
+          try {
+            const logRes = await deployApi.getServiceLogs(services[0].id, 50);
+            logs = logRes.data || '';
+          } catch {
+            logs = '';
+          }
+        }
+        const next = buildDeployData(services, logs);
+        setData(next);
+        setSelectedService(next.services?.[0] || null);
+      } catch {
+        setData({ services: [], containers: [], images: [], logs: [] });
+        setSelectedService(null);
+      }
+    };
+    load();
+  }, []);
   const tabs = [{ key: 'services', label: '服务管理' }, { key: 'containers', label: '容器管理' }, { key: 'images', label: '镜像管理' }, { key: 'logs', label: '日志监控' }];
   return <Panel className="p-5"><div className="flex items-center justify-between"><div className="text-[18px] font-semibold text-[#1d2740]">部署与运维</div><button type="button" className="text-[18px] text-[#8d99ae] hover:text-[#5f6d83]">×</button></div><div className="mt-4 flex gap-6 border-b border-[#edf1f8] pb-2 text-[13px]">{tabs.map((tab) => <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)} className={`pb-2 font-medium transition-colors ${activeTab === tab.key ? 'border-b-2 border-[#2f6bff] text-[#2f6bff]' : 'text-[#8d99ae] hover:text-[#5f6d83]'}`}>{tab.label}</button>)}</div><div className="mt-5">{activeTab === 'services' && <ServiceManagement services={data.services} selectedService={selectedService} onSelectService={setSelectedService} />}{activeTab === 'containers' && <ContainerManagement containers={data.containers} />}{activeTab === 'images' && <ImageManagement images={data.images} />}{activeTab === 'logs' && <LogMonitoring logs={data.logs} />}</div></Panel>;
 }

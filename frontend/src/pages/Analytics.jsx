@@ -1,11 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { uiApi } from '../api';
+import { analyticsApi, employeeApi, taskApi } from '../api';
 import { BarChart, LineChart, Panel } from '../components/AppPrimitives';
+import { buildAnalyticsData } from '../pageData';
 
 export default function Analytics() {
   const [activeTab, setActiveTab] = useState('overview');
   const [data, setData] = useState({ metrics: {}, employeeEfficiency: [], taskCounts: {} });
-  useEffect(() => { uiApi.getAnalytics().then((res) => setData(res.data)).catch(() => {}); }, []);
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [metrics, employees, tasks] = await Promise.all([
+          analyticsApi.getDashboard(),
+          employeeApi.getList(),
+          taskApi.getList(),
+        ]);
+        setData(buildAnalyticsData(metrics.data || {}, employees.data || [], tasks.data || []));
+      } catch {
+        setData({ metrics: {}, employeeEfficiency: [], taskCounts: {} });
+      }
+    };
+    load();
+  }, []);
   const tabs = [{ key: 'overview', label: '概览' }, { key: 'tasks', label: '任务分析' }, { key: 'employees', label: '员工分析' }, { key: 'efficiency', label: '效率分析' }, { key: 'report', label: '报告' }];
   const trend = data.metrics?.trend || [];
   const labels = trend.map((item) => item.date?.slice(5) || item.date);

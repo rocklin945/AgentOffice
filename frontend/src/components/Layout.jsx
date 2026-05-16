@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dropdown } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   BarChartOutlined,
   BellOutlined,
-  BugOutlined,
   CheckSquareOutlined,
   CloudOutlined,
   CodeOutlined,
@@ -16,13 +15,14 @@ import {
   LogoutOutlined,
 } from '@ant-design/icons';
 import { useAppStore } from '../store';
+import { notificationApi } from '../api';
 
 const menuItems = [
   { key: '/office', label: '团队协作', icon: <DeploymentUnitOutlined /> },
   { key: '/employees', label: '员工管理', icon: <TeamOutlined /> },
   { key: '/tasks', label: '任务管理', icon: <CheckSquareOutlined /> },
   { key: '/dev', label: '云端开发', icon: <CodeOutlined /> },
-  { key: '/test-debug', label: '测试调试', icon: <BugOutlined /> },
+  { key: '/code-review', label: 'Code Review', icon: <SearchOutlined /> },
   { key: '/deploy', label: '运维部署', icon: <CloudOutlined /> },
   { key: '/analytics', label: '成果分析', icon: <BarChartOutlined /> },
   { key: '/notifications', label: '消息通知', icon: <BellOutlined /> },
@@ -76,6 +76,19 @@ export default function Layout() {
   const location = useLocation();
   const { user } = useAppStore();
   const [userOpen, setUserOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const fetchUnread = () => {
+      notificationApi.getList().then((res) => {
+        const unread = (res.data || []).filter((n) => !n.readStatus).length;
+        setUnreadCount(unread);
+      }).catch(() => {});
+    };
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const officeShell = location.pathname === '/office';
 
@@ -110,12 +123,13 @@ export default function Layout() {
           <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto rounded-[16px] border border-[#edf1f8] bg-[#f8fbff] p-1.5">
             {menuItems.map((item) => {
               const active = location.pathname === item.key;
+              const isNotification = item.key === '/notifications';
               return (
                 <button
                   key={item.key}
                   type="button"
                   onClick={() => navigate(item.key)}
-                  className={`flex h-[42px] shrink-0 items-center gap-2 rounded-[12px] px-3.5 text-[14px] font-medium transition ${
+                  className={`relative flex h-[42px] shrink-0 items-center gap-2 rounded-[12px] px-3.5 text-[14px] font-medium transition ${
                     active
                       ? 'bg-white text-[#2f6bff] shadow-[0_10px_24px_rgba(42,64,101,0.10)]'
                       : 'text-[#65738d] hover:bg-white/70 hover:text-[#2f6bff]'
@@ -123,6 +137,11 @@ export default function Layout() {
                 >
                   <span className="text-[16px]">{item.icon}</span>
                   <span>{item.label}</span>
+                  {isNotification && unreadCount > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#ff4d4f] px-1 text-[10px] font-bold text-white">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </button>
               );
             })}
