@@ -28,10 +28,11 @@ function CreateEmployeeModal({ onClose, roleCards, modelConfigs, onCreated }) {
     { code: 'deploy.manage', name: '部署服务' },
     { code: 'task.assign', name: '任务拆解' },
     { code: 'product.plan', name: '产品规划' },
+    { code: 'code.review', name: 'Code Review' },
   ];
   const rolePermissionMap = {
     开发工程师: ['task.view', 'task.execute', 'dev.code', 'log.view'],
-    测试工程师: ['task.view', 'task.execute', 'report.write', 'log.view'],
+    CodeReviewer: ['task.view', 'task.execute', 'code.review', 'report.write', 'log.view'],
     运维工程师: ['task.view', 'deploy.manage', 'log.view'],
     产品经理: ['task.view', 'task.assign', 'product.plan', 'report.write'],
   };
@@ -177,10 +178,11 @@ function EditEmployeeModal({ employee, modelConfigs, onClose, onSaved }) {
     { code: 'deploy.manage', name: '部署服务' },
     { code: 'task.assign', name: '任务拆解' },
     { code: 'product.plan', name: '产品规划' },
+    { code: 'code.review', name: 'Code Review' },
   ];
   const rolePermissionMap = {
     开发工程师: ['task.view', 'task.execute', 'dev.code', 'log.view'],
-    测试工程师: ['task.view', 'task.execute', 'report.write', 'log.view'],
+    CodeReviewer: ['task.view', 'task.execute', 'code.review', 'report.write', 'log.view'],
     运维工程师: ['task.view', 'deploy.manage', 'log.view'],
     产品经理: ['task.view', 'task.assign', 'product.plan', 'report.write'],
   };
@@ -286,7 +288,7 @@ function EmployeeDetailPanel({ employee, onClose }) {
         <div className="mt-4 space-y-4">
           <div><div className="mb-2 text-[13px] font-medium text-[#1d2740]">当前任务</div><div className="flex items-center gap-3"><span className="text-[14px] text-[#5f6d83]">{employee.task}</span><span className="text-[12px] text-[#8d99ae]">({employee.progress}%)</span></div><ProgressTrack value={employee.progress} className="mt-2" /></div>
           <div className="grid grid-cols-4 gap-3">
-            {['workingTime', 'commits', 'testPass', 'deployCount'].map((key, index) => <div key={key} className="rounded-[10px] bg-white p-3"><div className="text-[11px] text-[#98a3b7]">{['工作时长', '提交次数', '测试通过', '部署次数'][index]}</div><div className="mt-1 text-[14px] font-medium text-[#1d2740]">{employee[key]}</div></div>)}
+            {['workingTime', 'commits', 'testPass', 'deployCount'].map((key, index) => <div key={key} className="rounded-[10px] bg-white p-3"><div className="text-[11px] text-[#98a3b7]">{['工作时长', '提交次数', 'Review 通过', '部署次数'][index]}</div><div className="mt-1 text-[14px] font-medium text-[#1d2740]">{employee[key]}</div></div>)}
           </div>
           <div><div className="mb-2 text-[13px] font-medium text-[#1d2740]">职责</div><div className="text-[13px] text-[#6d7b92]">{employee.duty}</div></div>
           <div><div className="mb-2 text-[13px] font-medium text-[#1d2740]">技能</div><div className="flex flex-wrap gap-2">{employee.skills.map((skill) => <span key={skill} className="rounded-full bg-[#f0f4ff] px-3 py-1 text-[12px] text-[#2f6bff]">{skill}</span>)}</div></div>
@@ -338,7 +340,7 @@ export default function Employees() {
 
   const getStatusColor = (status) => {
     if (status === '编码中') return 'green';
-    if (status === '测试中') return 'blue';
+    if (status === 'Review中') return 'blue';
     if (status === '部署中') return 'purple';
     if (status === '思考中') return 'orange';
     return 'gray';

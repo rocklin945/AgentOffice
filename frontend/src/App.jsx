@@ -10,7 +10,7 @@ import Office from './pages/Office';
 import Employees from './pages/Employees';
 import Tasks from './pages/Tasks';
 import Dev from './pages/Dev';
-import CodeReview from './pages/TestDebug';
+import CodeReview from './pages/CodeReview';
 import Deploy from './pages/Deploy';
 import ModelConfig from './pages/ModelConfig';
 import Analytics from './pages/Analytics';

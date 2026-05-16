@@ -111,7 +111,7 @@ public class ToolExecutor {
                         Map.of(
                                 "file_path", new LlmTool.Parameter("string", "相对文件路径，例如 prd/login.md")
                         )),
-                createTool("write_file", "写入一个真实文件。用于创建 PRD、代码、测试报告、部署记录等交付物。",
+                createTool("write_file", "写入一个真实文件。用于创建 PRD、代码、Code Review 报告、部署记录等交付物。",
                         Map.of(
                                 "file_path", new LlmTool.Parameter("string", "相对文件路径，例如 prd/login.md"),
                                 "content", new LlmTool.Parameter("string", "要写入文件的完整内容")
@@ -126,31 +126,31 @@ public class ToolExecutor {
                         Map.of(
                                 "file_path", new LlmTool.Parameter("string", "相对文件路径")
                         )),
-                createTool("find_latest_work_product", "从数据库查找指定类型的最新工作产物，用于获取上游 PRD、代码、测试报告或部署记录的真实文件路径。",
+                createTool("find_latest_work_product", "从数据库查找指定类型的最新工作产物，用于获取上游 PRD、代码、Code Review 报告或部署记录的真实文件路径。",
                         Map.of(
-                                "product_type", new LlmTool.Parameter("string", "产物类型关键词，例如 需求文档、代码、测试报告、部署记录")
+                                "product_type", new LlmTool.Parameter("string", "产物类型关键词，例如 需求文档、代码、Code Review报告、部署记录")
                         )),
                 createTool("create_task", "在任务管理中创建真实任务，并可按角色自动分配员工。",
                         Map.of(
                                 "task_name", new LlmTool.Parameter("string", "任务名称"),
-                                "task_type", new LlmTool.Parameter("string", "任务类型 product/development/testing/deployment/custom"),
+                                "task_type", new LlmTool.Parameter("string", "任务类型 product/development/review/deployment/custom"),
                                 "description", new LlmTool.Parameter("string", "任务描述"),
                                 "priority", new LlmTool.Parameter("string", "优先级 高/中/低"),
-                                "executor_role", new LlmTool.Parameter("string", "执行员工角色关键词，例如 开发、测试、运维、产品")
+                                "executor_role", new LlmTool.Parameter("string", "执行员工角色关键词，例如 开发、CodeReviewer、运维、产品")
                         )),
                 createTool("register_work_product", "把真实文件登记为工作产物，登记后前端工作产物区可点击查看。",
                         Map.of(
                                 "employee_id", new LlmTool.Parameter("integer", "产出该文件的员工 ID"),
                                 "task_id", new LlmTool.Parameter("integer", "关联任务 ID，可省略"),
                                 "name", new LlmTool.Parameter("string", "工作产物名称"),
-                                "product_type", new LlmTool.Parameter("string", "产物类型，例如 需求文档、代码、测试报告、部署记录"),
+                                "product_type", new LlmTool.Parameter("string", "产物类型，例如 需求文档、代码、Code Review报告、部署记录"),
                                 "file_path", new LlmTool.Parameter("string", "write_file 写入的相对文件路径")
                         )),
                 createTool("create_work_product_in_progress", "在工作产物区创建一个进行中的工作产物，用于开始工作时展示进度。",
                         Map.of(
                                 "employee_id", new LlmTool.Parameter("integer", "产出该文件的员工 ID"),
                                 "name", new LlmTool.Parameter("string", "工作产物名称"),
-                                "product_type", new LlmTool.Parameter("string", "产物类型，例如 需求文档、代码、测试报告、部署记录"),
+                                "product_type", new LlmTool.Parameter("string", "产物类型，例如 需求文档、代码、Code Review报告、部署记录"),
                                 "file_path", new LlmTool.Parameter("string", "将写入的相对文件路径")
                         )),
                 createTool("update_work_product_status", "更新工作产物的状态。",
@@ -263,7 +263,7 @@ public class ToolExecutor {
     private WorkflowResult createWorkflowTask(Map<String, Object> args) {
         String roleKeyword = text(args, "executor_role");
         if (roleKeyword == null || roleKeyword.isBlank()) {
-            return new WorkflowResult(false, "executor_role 不能为空，必须指定执行员工角色（如：开发、测试、运维）", Map.of());
+            return new WorkflowResult(false, "executor_role 不能为空，必须指定执行员工角色（如：开发、CodeReviewer、运维）", Map.of());
         }
         AgentEmployee executor = findEmployeeByRole(roleKeyword).orElse(null);
         if (executor == null) {
@@ -564,9 +564,20 @@ public class ToolExecutor {
     }
 
     private Optional<AgentEmployee> findEmployeeByRole(String roleKeyword) {
+        String normalizedKeyword = value(roleKeyword, "");
         return employeeMapper.findAll().stream()
-                .filter(employee -> value(employee.getRole(), "").contains(roleKeyword))
+                .filter(employee -> roleMatches(value(employee.getRole(), ""), normalizedKeyword))
                 .findFirst();
+    }
+
+    private boolean roleMatches(String role, String keyword) {
+        if (role.contains(keyword)) {
+            return true;
+        }
+        String lowerRole = role.toLowerCase();
+        String lowerKeyword = keyword.toLowerCase();
+        boolean reviewerKeyword = lowerKeyword.contains("review") || keyword.contains("评审") || keyword.contains("审查");
+        return reviewerKeyword && (lowerRole.contains("review") || role.contains("评审") || role.contains("审查"));
     }
 
     private Long requiredLong(Map<String, Object> args, String key) {
@@ -604,7 +615,7 @@ public class ToolExecutor {
         return switch (taskType) {
             case "product" -> List.of("需求梳理", "文档编写", "任务拆解");
             case "development" -> List.of("阅读需求", "代码开发", "自测提交");
-            case "testing" -> List.of("用例设计", "执行测试", "输出报告");
+            case "review" -> List.of("读取代码", "静态审查", "风险记录", "输出Review报告");
             case "deployment" -> List.of("构建发布", "健康检查", "部署记录");
             default -> List.of("任务执行");
         };

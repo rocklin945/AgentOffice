@@ -74,7 +74,7 @@ function WindowSet({ x, y, width = 150, height = 96 }) {
 const labels = [
   { id: 'xiaoyu', name: '产品经理-小雨', status: '思考中', color: '#2bb36b', left: '17%', top: '25%' },
   { id: 'alex', name: '开发工程师-Alex', status: '工作中', color: '#2f6bff', left: '40%', top: '25%' },
-  { id: 'testbot', name: '测试工程师-TestBot', status: '编译中', color: '#ff8a32', left: '72%', top: '33%' },
+  { id: 'reviewbot', name: 'CodeReviewer-ReviewBot', status: 'Review中', color: '#ff8a32', left: '72%', top: '33%' },
   { id: 'ops', name: '运维工程师-Ops', status: '部署中', color: '#8b5cf6', left: '16%', top: '61%' },
   { id: 'json', name: '开发工程师-Json', status: '工作中', color: '#2f6bff', left: '40%', top: '59%' },
 ];

@@ -10,6 +10,7 @@ const permissionCatalog = [
   { code: 'log.view', name: '查看日志' },
   { code: 'report.write', name: '输出报告' },
   { code: 'dev.code', name: '代码开发' },
+  { code: 'code.review', name: 'Code Review' },
   { code: 'deploy.manage', name: '部署服务' },
   { code: 'task.assign', name: '任务拆解' },
   { code: 'product.plan', name: '产品规划' },
@@ -40,7 +41,7 @@ export function buildEmployeePageData(rawEmployees = []) {
       progress: number(employee.efficiency),
       workingTime: `${number(employee.taskCount)}项任务`,
       commits: '真实代码产物见云端开发',
-      testPass: '测试产物见工作产物',
+      testPass: 'Review 产物见工作产物',
       deployCount: '部署记录见运维部署',
       permissions: permissionCatalog.map((permission) => ({
         ...permission,
@@ -149,13 +150,14 @@ export function buildCodeReviewData(tasks = [], projectName = '-') {
   const reviewTasks = tasks.filter((task) => (
     task.taskType === 'review'
     || task.taskType === 'development'
-    || task.taskType === 'testing'
     || text(task.taskName, '').toLowerCase().includes('review')
     || text(task.description, '').toLowerCase().includes('review')
+    || text(task.taskName, '').includes('评审')
+    || text(task.description, '').includes('评审')
+    || text(task.taskName, '').includes('审查')
+    || text(task.description, '').includes('审查')
     || text(task.taskName, '').includes('代码')
     || text(task.description, '').includes('代码')
-    || text(task.taskName, '').includes('测试')
-    || text(task.description, '').includes('测试')
   )).map(taskRow);
   return {
     projectName,

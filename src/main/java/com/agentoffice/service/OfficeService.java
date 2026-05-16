@@ -214,7 +214,7 @@ public class OfficeService {
             item.put("nextEmployee", null);
             item.put("workingTime", taskMapper.findList(null, null, employee.getId()).size() + "项任务");
             item.put("commits", countProducts(employee.getId(), "代码") + "个代码产物");
-            item.put("testPass", countProducts(employee.getId(), "测试") + "个测试产物");
+            item.put("testPass", countProducts(employee.getId(), "Code Review") + "个Review产物");
             item.put("deployCount", countProducts(employee.getId(), "部署") + "个部署产物");
             item.put("avatar", employee.getAvatar());
             item.put("workProducts", workProducts(employee.getId()));
@@ -512,31 +512,31 @@ public class OfficeService {
                    - file_path 填步骤0中的file_path
                    - status 填"已完成"
                 步骤5：用 register_work_product 工具登记代码产物，product_type 填"代码"
-                步骤6：用 create_task 工具创建测试任务，task_type 填"testing"，executor_role 填"测试"，这会自动分配给测试工程师
-                步骤7：用 notify_user 工具发送通知，category 填"task"，title 填"开发已完成"，content 填写代码文件名
+                步骤6：用 create_task 工具创建 Code Review 任务，task_type 填"review"，executor_role 填"CodeReviewer"，这会自动分配给 CodeReviewer
+                步骤7：用 notify_user 工具发送通知，category 填"task"，title 填"开发已完成，等待 Code Review"，content 填写代码文件名
 
                 重要：必须按顺序执行上述8个步骤，只有上一步成功才能执行下一步。
                 """;
-        } else if (role.contains("测试")) {
+        } else if (isReviewerRole(role)) {
             toolInstruction = """
                 你必须按顺序执行以下步骤，每一步都必须调用对应工具：
 
                 步骤0：用 create_work_product_in_progress 工具创建一个进行中的工作产物
-                   - name 填产物名称（如"贪吃蛇游戏 测试报告"）
-                   - product_type 填"测试报告"
-                   - file_path 填将创建的文件路径（如 test/snake-game.md）
+                   - name 填产物名称（如"贪吃蛇游戏 Code Review报告"）
+                   - product_type 填"Code Review报告"
+                   - file_path 填将创建的文件路径（如 review/snake-game.md）
                 步骤1：用 find_latest_work_product 工具查询代码产物，product_type 填"代码"
                    - 必须等待工具返回文件路径，不能跳过此步骤
                    - 不要使用别人告诉你的文件路径，必须用工具查询
                 步骤2：用 read_file 工具读取上一步找到的代码文件
                    - file_path 必须使用步骤1返回的 filePath，不能自行猜测路径
-                步骤3：用 write_file 工具写测试报告，路径格式为 test/xxx.md，例如 test/snake-game.md
+                步骤3：用 write_file 工具写 Code Review 报告，路径格式为 review/xxx.md，例如 review/snake-game.md
                 步骤4：用 update_work_product_status 工具将工作产物状态更新为已完成
                    - file_path 填步骤0中的file_path
                    - status 填"已完成"
-                步骤5：用 register_work_product 工具登记测试报告，product_type 填"测试报告"
+                步骤5：用 register_work_product 工具登记 Code Review 报告，product_type 填"Code Review报告"
                 步骤6：用 create_task 工具创建部署任务，task_type 填"deployment"，executor_role 填"运维"，这会自动分配给运维工程师
-                步骤7：用 notify_user 工具发送通知，category 填"task"，title 填"测试已完成"，content 填写测试报告文件名
+                步骤7：用 notify_user 工具发送通知，category 填"task"，title 填"Code Review 已完成"，content 填写 Review 报告文件名
 
                 重要：必须按顺序执行上述8个步骤，只有上一步成功才能执行下一步。
                 """;
@@ -548,10 +548,10 @@ public class OfficeService {
                    - name 填产物名称（如"贪吃蛇游戏 部署记录"）
                    - product_type 填"部署记录"
                    - file_path 填将创建的文件路径（如 deploy/snake-game.md）
-                步骤1：用 find_latest_work_product 工具查询测试报告，product_type 填"测试报告"
+                步骤1：用 find_latest_work_product 工具查询 Code Review 报告，product_type 填"Code Review报告"
                    - 必须等待工具返回文件路径，不能跳过此步骤
                    - 不要使用别人告诉你的文件路径，必须用工具查询
-                步骤2：用 read_file 工具读取上一步找到的测试报告文件
+                步骤2：用 read_file 工具读取上一步找到的 Code Review 报告文件
                    - file_path 必须使用步骤1返回的 filePath，不能自行猜测路径
                 步骤3：用 create_deploy_service 工具创建部署服务
                 步骤4：用 write_file 工具写部署记录，路径格式为 deploy/xxx.md，例如 deploy/snake-game.md
@@ -571,7 +571,7 @@ public class OfficeService {
                 + "，角色：" + role
                 + "，职位：" + value(employee.getPosition(), "-") + "。"
                 + toolInstruction
-                + "文件路径必须使用相对路径，例如 prd/xxx.md、code/xxx.java、test/xxx.md、deploy/xxx.md。"
+                + "文件路径必须使用相对路径，例如 prd/xxx.md、code/xxx.java、review/xxx.md、deploy/xxx.md。"
                 + "不要编造已完成结果；只有工具返回的数据才可以作为交付依据。"
                 + "最终回复必须写明登记成功的工作产物名称和 filePath，方便下一位员工继续读取。"
                 + "回复中如果有下一步员工，必须使用 @员工姓名。";
@@ -581,7 +581,7 @@ public class OfficeService {
         if (role == null) return "workspace";
         if (role.contains("产品")) return "manager";
         if (role.contains("开发")) return "dev";
-        if (role.contains("测试")) return "test";
+        if (isReviewerRole(role)) return "review";
         if (role.contains("运维")) return "ops";
         return "workspace";
     }
@@ -592,11 +592,14 @@ public class OfficeService {
                 || text.contains("PRD")
                 || text.contains("需求")
                 || text.contains("开发")
-                || text.contains("测试")
+                || text.contains("Code Review")
+                || text.contains("Review")
+                || text.contains("评审")
+                || text.contains("审查")
                 || text.contains("部署")
                 || role.contains("产品")
                 || role.contains("开发")
-                || role.contains("测试")
+                || isReviewerRole(role)
                 || role.contains("运维");
     }
 
@@ -796,7 +799,7 @@ public class OfficeService {
 
     private String statusColor(String status) {
         if ("工作中".equals(status) || "编码中".equals(status)) return "green";
-        if ("测试中".equals(status)) return "blue";
+        if ("Review中".equals(status)) return "blue";
         if ("部署中".equals(status)) return "purple";
         if ("思考中".equals(status)) return "orange";
         return "gray";
@@ -806,14 +809,14 @@ public class OfficeService {
         String status = employee.getStatus();
         String role = employee.getRole();
         if ("工作中".equals(status) && role != null && role.contains("开发")) return "编码中";
-        if ("工作中".equals(status) && role != null && role.contains("测试")) return "测试中";
+        if ("工作中".equals(status) && isReviewerRole(role)) return "Review中";
         return status;
     }
 
     private String colorForStatus(String status) {
         if ("工作中".equals(status) || "编码中".equals(status)) return "#2f6bff";
         if ("思考中".equals(status)) return "#8b5cf6";
-        if ("测试中".equals(status)) return "#2bb36b";
+        if ("Review中".equals(status)) return "#2bb36b";
         if ("部署中".equals(status)) return "#ff8a32";
         return "#b8becb";
     }
@@ -821,7 +824,7 @@ public class OfficeService {
     private String roleDuty(String role) {
         if (role == null) return "负责团队协作任务";
         if (role.contains("产品")) return "负责需求分析、原型设计、跨团队沟通与任务拆解";
-        if (role.contains("测试")) return "负责自动化测试、回归验证、用例编排和质量报告输出";
+        if (isReviewerRole(role)) return "负责代码审查、风险识别、质量建议和 Review 报告输出";
         if (role.contains("运维")) return "负责环境部署、容器编排、监控告警与日志巡检";
         return "负责接口开发、业务逻辑实现、性能优化等工作";
     }
@@ -829,9 +832,17 @@ public class OfficeService {
     private List<String> roleSkills(String role) {
         if (role == null) return List.of("协作");
         if (role.contains("产品")) return List.of("PRD", "Figma", "Roadmap");
-        if (role.contains("测试")) return List.of("Playwright", "Jest", "API Test");
+        if (isReviewerRole(role)) return List.of("Code Review", "Static Analysis", "Risk Report");
         if (role.contains("运维")) return List.of("K8s", "Nginx", "Linux");
         return List.of("Java", "Spring Boot", "MySQL", "Docker");
+    }
+
+    private boolean isReviewerRole(String role) {
+        if (role == null) {
+            return false;
+        }
+        String lowerRole = role.toLowerCase();
+        return lowerRole.contains("review") || role.contains("评审") || role.contains("审查");
     }
 
     private String value(String text, String fallback) {

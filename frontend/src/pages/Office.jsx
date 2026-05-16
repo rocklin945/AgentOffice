@@ -46,7 +46,7 @@ function EmployeeCard({ employee, isSelected, onClick, staff }) {
           <div className="grid grid-cols-2 gap-1 text-[10px]">
             <div className="text-[#8d99ae]">工时：<span className="text-[#1d2740]">{employee.workingTime}</span></div>
             <div className="text-[#8d99ae]">提交：<span className="text-[#1d2740]">{employee.commits}</span></div>
-            <div className="text-[#8d99ae]">测试：<span className="text-[#1d2740]">{employee.testPass}</span></div>
+            <div className="text-[#8d99ae]">Review：<span className="text-[#1d2740]">{employee.testPass}</span></div>
             <div className="text-[#8d99ae]">部署：<span className="text-[#1d2740]">{employee.deployCount}</span></div>
           </div>
           <div className="mt-1.5 text-[10px] text-[#8d99ae]">

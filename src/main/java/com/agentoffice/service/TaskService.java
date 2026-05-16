@@ -37,8 +37,8 @@ public class TaskService {
 
     public List<Map<String, Object>> getTaskTypes() {
         List<Map<String, Object>> types = new ArrayList<>();
-        types.add(taskType("development", "开发任务", "接口开发、页面开发、功能实现", List.of("需求分析", "接口设计", "代码开发", "测试验证", "部署上线")));
-        types.add(taskType("testing", "测试任务", "测试用例、自动化测试、回归验证", List.of("用例设计", "环境准备", "执行测试", "缺陷记录", "回归验证")));
+        types.add(taskType("development", "开发任务", "接口开发、页面开发、功能实现", List.of("需求分析", "接口设计", "代码开发", "Code Review", "部署上线")));
+        types.add(taskType("review", "Code Review任务", "代码审查、风险识别、质量建议", List.of("读取代码", "静态审查", "风险记录", "输出Review报告")));
         types.add(taskType("deployment", "部署任务", "服务部署、容器发布、环境巡检", List.of("构建镜像", "配置环境", "发布服务", "健康检查", "监控观察")));
         types.add(taskType("product", "产品任务", "需求分析、原型设计、验收规划", List.of("需求梳理", "原型设计", "评审确认", "任务拆解")));
         types.add(taskType("custom", "自定义任务", "手动填写任务步骤", List.of("任务执行")));

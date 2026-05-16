@@ -111,7 +111,7 @@ const employeePermissions = [
 
 const employeeRolePermissions = {
   开发工程师: ['task.view', 'task.execute', 'dev.code', 'log.view'],
-  测试工程师: ['task.view', 'task.execute', 'report.write', 'log.view'],
+  CodeReviewer: ['task.view', 'task.execute', 'code.review', 'report.write', 'log.view'],
   运维工程师: ['task.view', 'deploy.manage', 'log.view'],
   产品经理: ['task.view', 'task.assign', 'product.plan', 'report.write'],
 };
