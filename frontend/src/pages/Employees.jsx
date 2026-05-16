@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { UserOutlined, CheckCircleFilled, CloseCircleFilled, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { employeeApi } from '../api';
+import { employeeApi, modelConfigApi } from '../api';
 import { Panel, ProgressTrack, StatusPill } from '../components/AppPrimitives';
 import { getAvatarColor } from '../utils';
 import { buildEmployeePageData } from '../pageData';
@@ -17,7 +17,7 @@ function AvatarToken({ employee }) {
   );
 }
 
-function CreateEmployeeModal({ onClose, roleCards, onCreated }) {
+function CreateEmployeeModal({ onClose, roleCards, modelConfigs, onCreated }) {
   const steps = ['选择角色', '配置员工', '工作权限'];
   const basePermissions = [
     { code: 'task.view', name: '查看任务' },
@@ -40,6 +40,7 @@ function CreateEmployeeModal({ onClose, roleCards, onCreated }) {
     role: roleCards[0]?.[0] || '开发工程师',
     position: '',
     status: '空闲',
+    modelConfigId: modelConfigs.find((item) => item.isDefault)?.id || '',
     permissions: [],
   });
   const [step, setStep] = useState(0);
@@ -87,6 +88,7 @@ function CreateEmployeeModal({ onClose, roleCards, onCreated }) {
         role: form.role,
         position: form.position.trim(),
         status: form.status,
+        modelConfigId: form.modelConfigId ? Number(form.modelConfigId) : null,
         permissions: basePermissions.map((permission) => ({
           ...permission,
           enabled: form.permissions.includes(permission.code),
@@ -133,10 +135,11 @@ function CreateEmployeeModal({ onClose, roleCards, onCreated }) {
           </div>
         ) : null}
         {step === 1 ? (
-          <div className="mt-8 grid grid-cols-3 gap-4">
+          <div className="mt-8 grid grid-cols-4 gap-4">
             <label className="text-[13px] text-[#5f6d83]">员工姓名<input value={form.name} onChange={(event) => update('name', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]" /></label>
             <label className="text-[13px] text-[#5f6d83]">职位<input value={form.position} onChange={(event) => update('position', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]" /></label>
             <label className="text-[13px] text-[#5f6d83]">状态<select value={form.status} onChange={(event) => update('status', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]">{['空闲', '在线', '工作中', '思考中', '部署中'].map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
+            <label className="text-[13px] text-[#5f6d83]">模型<select value={form.modelConfigId || ''} onChange={(event) => update('modelConfigId', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]"><option value="">使用默认模型</option>{modelConfigs.map((model) => <option key={model.id} value={model.id}>{model.configName} / {model.modelName}</option>)}</select></label>
           </div>
         ) : null}
         {step === 2 ? (
@@ -163,7 +166,7 @@ function CreateEmployeeModal({ onClose, roleCards, onCreated }) {
   );
 }
 
-function EditEmployeeModal({ employee, onClose, onSaved }) {
+function EditEmployeeModal({ employee, modelConfigs, onClose, onSaved }) {
   const steps = ['选择角色', '配置员工', '工作权限'];
   const basePermissions = [
     { code: 'task.view', name: '查看任务' },
@@ -186,6 +189,7 @@ function EditEmployeeModal({ employee, onClose, onSaved }) {
     role: employee.role || '',
     position: employee.duty === '-' ? '' : employee.duty || '',
     status: employee.status || '空闲',
+    modelConfigId: employee.modelConfigId || '',
     permissions: (employee.permissions || []).filter((item) => item.enabled).map((item) => item.code),
   });
   const [step, setStep] = useState(0);
@@ -223,6 +227,7 @@ function EditEmployeeModal({ employee, onClose, onSaved }) {
         role: form.role,
         position: form.position.trim(),
         status: form.status,
+        modelConfigId: form.modelConfigId ? Number(form.modelConfigId) : null,
         taskCount: Number(employee.tasks || 0),
         efficiency: Number(String(employee.efficiency || '0').replace('%', '')),
         permissions: basePermissions.map((permission) => ({
@@ -248,7 +253,7 @@ function EditEmployeeModal({ employee, onClose, onSaved }) {
         </div>
         <div className="mt-7 flex items-center">{steps.map((stepLabel, index) => <React.Fragment key={stepLabel}><div className="flex items-center gap-2"><span className={`flex h-7 w-7 items-center justify-center rounded-full text-[12px] font-medium ${index <= step ? 'bg-[#2f6bff] text-white' : 'bg-[#eef3fb] text-[#7e8ca4]'}`}>{index + 1}</span><span className={`text-[13px] ${index === step ? 'font-medium text-[#1d2740]' : 'text-[#8d99ae]'}`}>{stepLabel}</span></div>{index !== steps.length - 1 ? <div className="mx-4 h-px flex-1 bg-[#edf1f8]" /> : null}</React.Fragment>)}</div>
         {step === 0 ? <div className="mt-8 grid grid-cols-3 gap-4">{Object.keys(rolePermissionMap).map((role) => <button key={role} type="button" onClick={() => selectRole(role)} className={`rounded-[14px] border px-5 py-6 text-left ${form.role === role ? 'border-[#2f6bff] bg-[#f7fbff] shadow-[inset_0_0_0_1px_#a8c8ff]' : 'border-[#edf1f8] bg-white'}`}><div className="flex items-center gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#eef4ff] text-[#2f6bff]"><UserOutlined /></span><span className="text-[15px] font-semibold text-[#1d2740]">{role}</span></div></button>)}</div> : null}
-        {step === 1 ? <div className="mt-8 grid grid-cols-3 gap-4"><label className="text-[13px] text-[#5f6d83]">员工姓名<input value={form.name} onChange={(event) => update('name', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]" /></label><label className="text-[13px] text-[#5f6d83]">职位<input value={form.position} onChange={(event) => update('position', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]" /></label><label className="text-[13px] text-[#5f6d83]">状态<select value={form.status} onChange={(event) => update('status', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]">{['空闲', '在线', '工作中', '思考中', '部署中'].map((status) => <option key={status} value={status}>{status}</option>)}</select></label></div> : null}
+        {step === 1 ? <div className="mt-8 grid grid-cols-4 gap-4"><label className="text-[13px] text-[#5f6d83]">员工姓名<input value={form.name} onChange={(event) => update('name', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]" /></label><label className="text-[13px] text-[#5f6d83]">职位<input value={form.position} onChange={(event) => update('position', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]" /></label><label className="text-[13px] text-[#5f6d83]">状态<select value={form.status} onChange={(event) => update('status', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]">{['空闲', '在线', '工作中', '思考中', '部署中'].map((status) => <option key={status} value={status}>{status}</option>)}</select></label><label className="text-[13px] text-[#5f6d83]">模型<select value={form.modelConfigId || ''} onChange={(event) => update('modelConfigId', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]"><option value="">使用默认模型</option>{modelConfigs.map((model) => <option key={model.id} value={model.id}>{model.configName} / {model.modelName}</option>)}</select></label></div> : null}
         {step === 2 ? <div className="mt-8 grid grid-cols-4 gap-3">{basePermissions.map((permission) => <button key={permission.code} type="button" onClick={() => togglePermission(permission.code)} className={`rounded-[12px] border px-4 py-3 text-left text-[13px] ${form.permissions.includes(permission.code) ? 'border-[#2f6bff] bg-[#f7fbff] text-[#2f6bff]' : 'border-[#edf1f8] text-[#5f6d83]'}`}>{permission.name}</button>)}</div> : null}
         {error ? <div className="mt-4 text-[13px] text-[#ff5c5c]">{error}</div> : null}
         <div className="mt-8 flex justify-end gap-3">
@@ -286,6 +291,7 @@ function EmployeeDetailPanel({ employee, onClose }) {
           <div><div className="mb-2 text-[13px] font-medium text-[#1d2740]">职责</div><div className="text-[13px] text-[#6d7b92]">{employee.duty}</div></div>
           <div><div className="mb-2 text-[13px] font-medium text-[#1d2740]">技能</div><div className="flex flex-wrap gap-2">{employee.skills.map((skill) => <span key={skill} className="rounded-full bg-[#f0f4ff] px-3 py-1 text-[12px] text-[#2f6bff]">{skill}</span>)}</div></div>
           <div className="grid grid-cols-2 gap-3 text-[13px]"><div className="text-[#8d99ae]">员工编号：<span className="text-[#5f6d83]">{employee.employeeNo}</span></div><div className="text-[#8d99ae]">加入时间：<span className="text-[#5f6d83]">{employee.joinedAt}</span></div></div>
+          <div className="text-[13px] text-[#8d99ae]">模型配置：<span className="text-[#5f6d83]">{employee.modelConfigName || employee.modelName || '默认模型'}</span></div>
         </div>
       ) : (
         <div className="mt-4"><div className="mb-3 text-[13px] font-medium text-[#1d2740]">工作权限</div><div className="grid grid-cols-2 gap-2">{(employee.permissions || []).map((permission) => <div key={permission.code || permission.name} className="flex items-center gap-2 rounded-[8px] bg-white px-3 py-2">{permission.enabled ? <CheckCircleFilled className="text-[#2bb36b]" /> : <CloseCircleFilled className="text-[#ff5c5c]" />}<span className={`text-[13px] ${permission.enabled ? 'text-[#5f6d83]' : 'text-[#9aa5b8]'}`}>{permission.name || permission}</span></div>)}</div></div>
@@ -298,6 +304,7 @@ export default function Employees() {
   const [open, setOpen] = useState(false);
   const [employees, setEmployees] = useState([]);
   const [roleCards, setRoleCards] = useState([]);
+  const [modelConfigs, setModelConfigs] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [editingEmployee, setEditingEmployee] = useState(null);
 
@@ -316,9 +323,12 @@ export default function Employees() {
       const next = buildEmployeePageData(detailed);
       setEmployees(next.employees);
       setRoleCards(next.roleCards);
+      const models = await modelConfigApi.getList({ enabledOnly: true });
+      setModelConfigs(models.data || []);
     } catch {
       setEmployees([]);
       setRoleCards([]);
+      setModelConfigs([]);
     }
   };
 
@@ -347,14 +357,14 @@ export default function Employees() {
         <div className={selectedEmployee ? 'w-1/2' : 'w-full'}>
           <Panel className="p-5">
             <div className="flex items-start justify-between">
-              <div><div className="text-[18px] font-semibold text-[#1d2740]">员工管理</div><div className="mt-1 text-[12px] text-[#98a3b7]">管理您的AI数字员工，已配置他们的职责和权限</div></div>
+              <div><div className="text-[18px] font-semibold text-[#1d2740]">员工管理</div><div className="mt-1 text-[12px] text-[#98a3b7]">管理 AI 数字员工的职责、权限和专属模型</div></div>
               <button type="button" onClick={() => setOpen(true)} className="rounded-[8px] bg-[#2f6bff] px-4 py-2 text-[12px] font-medium text-white">+ 创建员工</button>
             </div>
             <div className="mt-5 overflow-hidden rounded-[14px] border border-[#edf1f8]">
-              <div className="grid grid-cols-[1.5fr_1.4fr_1fr_0.7fr_0.7fr_0.7fr] bg-[#fbfcff] px-4 py-3 text-[12px] text-[#8d99ae]"><div>员工信息</div><div>角色</div><div>状态</div><div>任务</div><div>效率</div><div>操作</div></div>
+              <div className="grid grid-cols-[1.4fr_1.1fr_1fr_1.2fr_0.6fr_0.7fr_0.7fr] bg-[#fbfcff] px-4 py-3 text-[12px] text-[#8d99ae]"><div>员工信息</div><div>角色</div><div>状态</div><div>模型</div><div>任务</div><div>效率</div><div>操作</div></div>
               {employees.map((emp, index) => (
-                <div key={emp.id || emp.name} className={`grid grid-cols-[1.5fr_1.4fr_1fr_0.7fr_0.7fr_0.7fr] cursor-pointer items-center px-4 py-4 text-[13px] text-[#5f6d83] transition-colors ${index !== employees.length - 1 ? 'border-t border-[#f1f4f8]' : ''} ${selectedEmployee?.name === emp.name ? 'bg-[#f7fbff]' : 'hover:bg-[#fafbff]'}`} onClick={() => setSelectedEmployee(emp)}>
-                  <AvatarToken employee={emp} /><div>{emp.role}</div><div><StatusPill color={getStatusColor(emp.status)}>{emp.status}</StatusPill></div><div>{emp.tasks}</div><div>{emp.efficiency}</div><div className="flex gap-2"><button type="button" title="编辑" onClick={(event) => { event.stopPropagation(); setEditingEmployee(emp); }} className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[#2f6bff] hover:bg-[#eef4ff]"><EditOutlined /></button><button type="button" title="删除" onClick={(event) => deleteEmployee(emp, event)} className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[#ff5c5c] hover:bg-[#fff1f1]"><DeleteOutlined /></button></div>
+                <div key={emp.id || emp.name} className={`grid grid-cols-[1.4fr_1.1fr_1fr_1.2fr_0.6fr_0.7fr_0.7fr] cursor-pointer items-center px-4 py-4 text-[13px] text-[#5f6d83] transition-colors ${index !== employees.length - 1 ? 'border-t border-[#f1f4f8]' : ''} ${selectedEmployee?.name === emp.name ? 'bg-[#f7fbff]' : 'hover:bg-[#fafbff]'}`} onClick={() => setSelectedEmployee(emp)}>
+                  <AvatarToken employee={emp} /><div>{emp.role}</div><div><StatusPill color={getStatusColor(emp.status)}>{emp.status}</StatusPill></div><div className="truncate pr-2">{emp.modelConfigName || emp.modelName || '默认模型'}</div><div>{emp.tasks}</div><div>{emp.efficiency}</div><div className="flex gap-2"><button type="button" title="编辑" onClick={(event) => { event.stopPropagation(); setEditingEmployee(emp); }} className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[#2f6bff] hover:bg-[#eef4ff]"><EditOutlined /></button><button type="button" title="删除" onClick={(event) => deleteEmployee(emp, event)} className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[#ff5c5c] hover:bg-[#fff1f1]"><DeleteOutlined /></button></div>
                 </div>
               ))}
             </div>
@@ -362,8 +372,8 @@ export default function Employees() {
         </div>
         {selectedEmployee && <div className="w-1/2"><EmployeeDetailPanel employee={selectedEmployee} onClose={() => setSelectedEmployee(null)} /></div>}
       </div>
-      {open ? <CreateEmployeeModal onClose={() => setOpen(false)} roleCards={roleCards} onCreated={reload} /> : null}
-      {editingEmployee ? <EditEmployeeModal employee={editingEmployee} onClose={() => setEditingEmployee(null)} onSaved={reload} /> : null}
+      {open ? <CreateEmployeeModal onClose={() => setOpen(false)} roleCards={roleCards} modelConfigs={modelConfigs} onCreated={reload} /> : null}
+      {editingEmployee ? <EditEmployeeModal employee={editingEmployee} modelConfigs={modelConfigs} onClose={() => setEditingEmployee(null)} onSaved={reload} /> : null}
     </>
   );
 }

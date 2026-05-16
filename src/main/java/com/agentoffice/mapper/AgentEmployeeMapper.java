@@ -8,30 +8,33 @@ import java.util.List;
 public interface AgentEmployeeMapper {
 
     @Select("<script>" +
-            "SELECT * FROM agent_employee WHERE 1=1" +
-            "<if test='status != null'> AND status = #{status}</if>" +
-            "<if test='role != null'> AND role = #{role}</if>" +
-            "<if test='keyword != null'> AND (name LIKE CONCAT('%', #{keyword}, '%') OR position LIKE CONCAT('%', #{keyword}, '%'))</if>" +
-            " ORDER BY create_time DESC" +
+            "SELECT e.*, mc.config_name AS model_config_name, mc.model_name AS model_name FROM agent_employee e " +
+            "LEFT JOIN model_config mc ON e.model_config_id = mc.id WHERE 1=1" +
+            "<if test='status != null'> AND e.status = #{status}</if>" +
+            "<if test='role != null'> AND e.role = #{role}</if>" +
+            "<if test='keyword != null'> AND (e.name LIKE CONCAT('%', #{keyword}, '%') OR e.position LIKE CONCAT('%', #{keyword}, '%'))</if>" +
+            " ORDER BY e.create_time DESC" +
             "</script>")
     List<AgentEmployee> findList(@Param("status") String status,
                                   @Param("role") String role,
                                   @Param("keyword") String keyword);
 
-    @Select("SELECT * FROM agent_employee WHERE id = #{id}")
+    @Select("SELECT e.*, mc.config_name AS model_config_name, mc.model_name AS model_name FROM agent_employee e " +
+            "LEFT JOIN model_config mc ON e.model_config_id = mc.id WHERE e.id = #{id}")
     AgentEmployee findById(@Param("id") Long id);
 
-    @Select("SELECT * FROM agent_employee ORDER BY create_time DESC")
+    @Select("SELECT e.*, mc.config_name AS model_config_name, mc.model_name AS model_name FROM agent_employee e " +
+            "LEFT JOIN model_config mc ON e.model_config_id = mc.id ORDER BY e.create_time DESC")
     List<AgentEmployee> findAll();
 
-    @Insert("INSERT INTO agent_employee (name, avatar, role, position, status, task_count, efficiency, desk_id) " +
-            "VALUES (#{name}, #{avatar}, #{role}, #{position}, #{status}, #{taskCount}, #{efficiency}, #{deskId})")
+    @Insert("INSERT INTO agent_employee (name, avatar, role, position, status, task_count, efficiency, desk_id, model_config_id) " +
+            "VALUES (#{name}, #{avatar}, #{role}, #{position}, #{status}, #{taskCount}, #{efficiency}, #{deskId}, #{modelConfigId})")
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(AgentEmployee employee);
 
     @Update("UPDATE agent_employee SET name = #{name}, avatar = #{avatar}, role = #{role}, " +
             "position = #{position}, status = #{status}, task_count = #{taskCount}, " +
-            "efficiency = #{efficiency}, desk_id = #{deskId}, update_time = NOW() WHERE id = #{id}")
+            "efficiency = #{efficiency}, desk_id = #{deskId}, model_config_id = #{modelConfigId}, update_time = NOW() WHERE id = #{id}")
     int update(AgentEmployee employee);
 
     @Delete("DELETE FROM agent_employee WHERE id = #{id}")

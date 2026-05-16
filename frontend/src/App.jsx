@@ -12,6 +12,7 @@ import Tasks from './pages/Tasks';
 import Dev from './pages/Dev';
 import CodeReview from './pages/TestDebug';
 import Deploy from './pages/Deploy';
+import ModelConfig from './pages/ModelConfig';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 import Notifications from './pages/Notifications';
@@ -63,6 +64,7 @@ export default function App() {
             <Route path="code-review" element={<CodeReview />} />
             <Route path="test-debug" element={<Navigate to="/code-review" replace />} />
             <Route path="deploy" element={<Deploy />} />
+            <Route path="model-config" element={<ModelConfig />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="settings" element={<Settings />} />
             <Route path="notifications" element={<Notifications />} />

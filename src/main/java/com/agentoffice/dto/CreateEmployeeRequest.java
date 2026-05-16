@@ -14,6 +14,7 @@ public class CreateEmployeeRequest {
     private Integer taskCount;
     private BigDecimal efficiency;
     private Long deskId;
+    private Long modelConfigId;
     private List<PermissionItem> permissions;
 
     @Data

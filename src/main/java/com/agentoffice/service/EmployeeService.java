@@ -57,6 +57,7 @@ public class EmployeeService {
         employee.setStatus(request.getStatus());
         employee.setEfficiency(request.getEfficiency());
         employee.setDeskId(request.getDeskId());
+        employee.setModelConfigId(request.getModelConfigId());
 
         if (employee.getName() == null || employee.getName().isBlank()) {
             throw new BusinessException(400, "员工姓名不能为空");
@@ -108,6 +109,7 @@ public class EmployeeService {
         employee.setTaskCount(request.getTaskCount() == null ? exist.getTaskCount() : request.getTaskCount());
         employee.setEfficiency(request.getEfficiency() == null ? exist.getEfficiency() : request.getEfficiency());
         employee.setDeskId(request.getDeskId() == null ? exist.getDeskId() : request.getDeskId());
+        employee.setModelConfigId(request.getModelConfigId());
 
         // 如果更换了工位
         if (employee.getDeskId() != null && !employee.getDeskId().equals(exist.getDeskId())) {

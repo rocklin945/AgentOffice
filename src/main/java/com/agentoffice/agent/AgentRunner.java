@@ -41,6 +41,8 @@ public class AgentRunner {
 
         LlmRequest request = LlmRequest.builder()
                 .model(agent.getModelName())
+                .apiBase(agent.getApiBase())
+                .apiKey(agent.getApiKey())
                 .messages(messages)
                 .temperature(0.7)
                 .maxTokens(100000)
@@ -76,6 +78,8 @@ public class AgentRunner {
 
             request = LlmRequest.builder()
                     .model(agent.getModelName())
+                    .apiBase(agent.getApiBase())
+                    .apiKey(agent.getApiKey())
                     .messages(messages)
                     .temperature(0.7)
                     .maxTokens(100000)

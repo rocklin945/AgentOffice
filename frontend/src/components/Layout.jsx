@@ -24,6 +24,7 @@ const menuItems = [
   { key: '/dev', label: '云端开发', icon: <CodeOutlined /> },
   { key: '/code-review', label: 'Code Review', icon: <SearchOutlined /> },
   { key: '/deploy', label: '运维部署', icon: <CloudOutlined /> },
+  { key: '/model-config', label: '模型配置', icon: <SettingOutlined /> },
   { key: '/analytics', label: '成果分析', icon: <BarChartOutlined /> },
   { key: '/notifications', label: '消息通知', icon: <BellOutlined /> },
 ];
@@ -146,15 +147,6 @@ export default function Layout() {
               );
             })}
           </nav>
-
-          <div className="relative hidden w-[210px] shrink-0 xl:block">
-            <SearchOutlined className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9aa5b8]" />
-            <input
-              type="text"
-              placeholder="搜索员工、任务、消息..."
-              className="h-[42px] w-full rounded-full border border-[#e8edf6] bg-white pl-11 pr-4 text-[13px] text-[#1d2740] outline-none transition focus:border-[#cfe0ff]"
-            />
-          </div>
 
           <Dropdown menu={userItems} trigger={['click']} open={userOpen} onOpenChange={setUserOpen}>
             <button

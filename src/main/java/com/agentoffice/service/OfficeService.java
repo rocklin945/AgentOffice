@@ -11,6 +11,7 @@ import com.agentoffice.entity.ChatSession;
 import com.agentoffice.entity.OfficeDesk;
 import com.agentoffice.entity.TaskInfo;
 import com.agentoffice.entity.WorkProduct;
+import com.agentoffice.entity.ModelConfig;
 import com.agentoffice.llm.LlmMessage;
 import com.agentoffice.llm.LlmRequest;
 import com.agentoffice.llm.LlmResponse;
@@ -21,6 +22,7 @@ import com.agentoffice.mapper.ChatSessionMapper;
 import com.agentoffice.mapper.OfficeDeskMapper;
 import com.agentoffice.mapper.TaskInfoMapper;
 import com.agentoffice.mapper.WorkProductMapper;
+import com.agentoffice.mapper.ModelConfigMapper;
 import com.agentoffice.tools.ToolExecutor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -54,6 +56,9 @@ public class OfficeService {
 
     @Autowired
     private AgentRunner agentRunner;
+
+    @Autowired
+    private ModelConfigMapper modelConfigMapper;
 
     @Autowired
     private ChatSessionMapper chatSessionMapper;
@@ -439,6 +444,7 @@ public class OfficeService {
         if (!isWorkflowMessage(message, role)) {
             return Optional.empty();
         }
+        ModelConfig modelConfig = resolveEmployeeModel(employee);
         AgentDefinition agent = AgentDefinition.builder()
                 .slug("employee_" + employee.getId())
                 .displayName(employee.getName())
@@ -446,10 +452,24 @@ public class OfficeService {
                 .systemPrompt(workflowSystemPrompt(employee))
                 .roomId(roomForRole(employee.getRole()))
                 .phaserAgentId("emp_" + employee.getId())
+                .modelConfigId(modelConfig == null ? null : modelConfig.getId())
+                .modelName(modelConfig == null ? null : modelConfig.getModelName())
+                .apiBase(modelConfig == null ? null : modelConfig.getApiBase())
+                .apiKey(modelConfig == null ? null : modelConfig.getApiKey())
                 .toolsKey(ToolExecutor.WORKFLOW_TOOLS)
                 .build();
         AgentRunner.AgentResult result = agentRunner.runAgent(agent, message, List.of());
         return Optional.of(result.content());
+    }
+
+    private ModelConfig resolveEmployeeModel(AgentEmployee employee) {
+        if (employee.getModelConfigId() != null) {
+            ModelConfig assigned = modelConfigMapper.findById(employee.getModelConfigId());
+            if (assigned != null && (assigned.getEnabled() == null || assigned.getEnabled() == 1)) {
+                return assigned;
+            }
+        }
+        return modelConfigMapper.findDefault();
     }
 
     private String workflowSystemPrompt(AgentEmployee employee) {

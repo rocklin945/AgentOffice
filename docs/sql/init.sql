@@ -20,6 +20,7 @@ DROP TABLE IF EXISTS employee_permission;
 DROP TABLE IF EXISTS task_info;
 DROP TABLE IF EXISTS office_desk;
 DROP TABLE IF EXISTS agent_employee;
+DROP TABLE IF EXISTS model_config;
 DROP TABLE IF EXISTS sys_user;
 
 CREATE TABLE sys_user (
@@ -39,6 +40,22 @@ CREATE TABLE sys_user (
     KEY idx_role (role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
+CREATE TABLE model_config (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    config_name VARCHAR(80) NOT NULL COMMENT '配置名称',
+    provider VARCHAR(80) DEFAULT 'OpenAI Compatible' COMMENT '模型供应商',
+    model_name VARCHAR(120) NOT NULL COMMENT '模型名称',
+    api_base VARCHAR(255) DEFAULT NULL COMMENT 'API Base',
+    api_key VARCHAR(500) DEFAULT NULL COMMENT 'API Key',
+    is_default TINYINT DEFAULT 0 COMMENT '是否默认模型 0/1',
+    enabled TINYINT DEFAULT 1 COMMENT '是否启用 0/1',
+    remark VARCHAR(255) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    KEY idx_default (is_default),
+    KEY idx_enabled (enabled)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='模型配置表';
+
 CREATE TABLE agent_employee (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
     name VARCHAR(50) NOT NULL COMMENT '员工姓名',
@@ -49,11 +66,13 @@ CREATE TABLE agent_employee (
     task_count INT DEFAULT 0 COMMENT '任务数',
     efficiency DECIMAL(5,2) DEFAULT 0.00 COMMENT '效率百分比',
     desk_id BIGINT DEFAULT NULL COMMENT '工位 ID',
+    model_config_id BIGINT DEFAULT NULL COMMENT '模型配置 ID',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     KEY idx_status (status),
     KEY idx_role (role),
-    KEY idx_desk_id (desk_id)
+    KEY idx_desk_id (desk_id),
+    KEY idx_model_config_id (model_config_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='员工表';
 
 CREATE TABLE employee_permission (
@@ -236,11 +255,15 @@ INSERT INTO office_desk (desk_code, row_num, col_num, status) VALUES
 ('B1', 2, 1, 0), ('B2', 2, 2, 0), ('B3', 2, 3, 0), ('B4', 2, 4, 0),
 ('C1', 3, 1, 0), ('C2', 3, 2, 0), ('C3', 3, 3, 0), ('C4', 3, 4, 0);
 
-INSERT INTO agent_employee (name, avatar, role, position, status, task_count, efficiency, desk_id) VALUES
-('Alex', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex', '开发工程师', '后端开发', '工作中', 5, 92.50, 1),
-('TestBot', 'https://api.dicebear.com/7.x/avataaars/svg?seed=TestBot', '测试工程师', '自动化测试', '思考中', 3, 88.00, 2),
-('OpsMaster', 'https://api.dicebear.com/7.x/avataaars/svg?seed=OpsMaster', '运维工程师', '容器运维', '部署中', 2, 95.00, 3),
-('ProductKing', 'https://api.dicebear.com/7.x/avataaars/svg?seed=ProductKing', '产品经理', '产品负责人', '在线', 4, 90.00, 4);
+INSERT INTO model_config (config_name, provider, model_name, api_base, api_key, is_default, enabled, remark) VALUES
+('默认模型', 'Nacos迁移', 'MiniMax-M2.7', NULL, NULL, 1, 1, '系统默认模型，员工未单独配置时使用'),
+('代码审查模型', 'OpenAI Compatible', 'gpt-4o-mini', 'https://api.openai.com/v1', NULL, 0, 1, '适合开发、Code Review 和测试分析');
+
+INSERT INTO agent_employee (name, avatar, role, position, status, task_count, efficiency, desk_id, model_config_id) VALUES
+('Alex', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex', '开发工程师', '后端开发', '工作中', 5, 92.50, 1, 2),
+('TestBot', 'https://api.dicebear.com/7.x/avataaars/svg?seed=TestBot', '测试工程师', '自动化测试', '思考中', 3, 88.00, 2, 1),
+('OpsMaster', 'https://api.dicebear.com/7.x/avataaars/svg?seed=OpsMaster', '运维工程师', '容器运维', '部署中', 2, 95.00, 3, 1),
+('ProductKing', 'https://api.dicebear.com/7.x/avataaars/svg?seed=ProductKing', '产品经理', '产品负责人', '在线', 4, 90.00, 4, 1);
 
 UPDATE office_desk SET employee_id = 1 WHERE id = 1;
 UPDATE office_desk SET employee_id = 2 WHERE id = 2;

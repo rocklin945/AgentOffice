@@ -1,5 +1,7 @@
 package com.agentoffice.llm;
 
+import com.agentoffice.entity.ModelConfig;
+import com.agentoffice.mapper.ModelConfigMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -20,13 +22,16 @@ public class LlmService {
     private final LlmConfig llmConfig;
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
+    private final ModelConfigMapper modelConfigMapper;
 
     private static final String OPENAI_API_BASE = "https://api.openai.com/v1";
+    private static final int RESPONSE_PREVIEW_LIMIT = 800;
 
     public LlmResponse chatCompletion(LlmRequest request) {
-        String resolvedModel = request.getModel() != null ? request.getModel() : llmConfig.getModel();
-        String apiBase = request.getApiBase() != null ? request.getApiBase() : llmConfig.getApiBase();
-        String apiKey = request.getApiKey() != null ? request.getApiKey() : llmConfig.getApiKey();
+        ModelConfig defaultModel = modelConfigMapper.findDefault();
+        String resolvedModel = firstNonBlank(request.getModel(), defaultModel == null ? null : defaultModel.getModelName(), llmConfig.getModel());
+        String apiBase = firstNonBlank(request.getApiBase(), defaultModel == null ? null : defaultModel.getApiBase(), llmConfig.getApiBase());
+        String apiKey = firstNonBlank(request.getApiKey(), defaultModel == null ? null : defaultModel.getApiKey(), llmConfig.getApiKey());
 
         if (apiKey == null || apiKey.isEmpty()) {
             throw new RuntimeException("LLM API key is not configured");
@@ -44,16 +49,19 @@ public class LlmService {
                     .uri(apiBase + "/chat/completions")
                     .header("Authorization", "Bearer " + apiKey)
                     .header("Content-Type", "application/json")
+                    .header("Accept", "application/json")
+                    .header("User-Agent", "AgentOffice/1.0")
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-            log.info("response:{}",response);
+            log.info("LLM response received: {} chars", response == null ? 0 : response.length());
 
             return parseResponse(response, resolvedModel);
         } catch (WebClientResponseException e) {
-            log.error("LLM API error: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
-            throw new RuntimeException("LLM API call failed: " + e.getMessage(), e);
+            String responseBody = e.getResponseBodyAsString();
+            log.error("LLM API error: {} - {}", e.getStatusCode(), preview(responseBody));
+            throw new RuntimeException("LLM API call failed: " + extractApiErrorMessage(responseBody), e);
         }
     }
 
@@ -70,6 +78,15 @@ public class LlmService {
         }
 
         return body;
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private List<Map<String, Object>> convertMessages(List<LlmMessage> messages) {
@@ -138,13 +155,32 @@ public class LlmService {
     @SuppressWarnings("unchecked")
     private LlmResponse parseResponse(String responseJson, String model) {
         try {
-            Map<String, Object> response = objectMapper.readValue(responseJson, Map.class);
+            if (responseJson == null || responseJson.isBlank()) {
+                throw new RuntimeException("LLM API returned empty response");
+            }
+
+            String body = responseJson.trim();
+            if (body.startsWith("data:") || body.contains("\ndata:")) {
+                return parseStreamingResponse(body, model);
+            }
+
+            Map<String, Object> response = objectMapper.readValue(body, Map.class);
+            assertNoApiError(response, body);
 
             List<Map<String, Object>> choices = (List<Map<String, Object>>) response.get("choices");
-            Map<String, Object> choice = choices.get(0);
-            Map<String, Object> message = (Map<String, Object>) choice.get("message");
+            if (choices == null || choices.isEmpty()) {
+                throw malformedResponse("missing choices", body);
+            }
 
-            String content = (String) message.get("content");
+            Map<String, Object> choice = choices.get(0);
+            Object messageRaw = choice.get("message");
+            if (!(messageRaw instanceof Map)) {
+                throw malformedResponse("missing message", body);
+            }
+
+            Map<String, Object> message = (Map<String, Object>) messageRaw;
+
+            String content = contentAsString(message.get("content"));
 
             List<Map<String, Object>> toolCallsRaw = (List<Map<String, Object>>) message.get("tool_calls");
             List<LlmToolCall> toolCalls = null;
@@ -152,21 +188,24 @@ public class LlmService {
             if (toolCallsRaw != null) {
                 toolCalls = toolCallsRaw.stream().map(tc -> {
                     Map<String, Object> func = (Map<String, Object>) tc.get("function");
+                    if (func == null) {
+                        return null;
+                    }
                     return LlmToolCall.builder()
                             .id((String) tc.get("id"))
                             .name((String) func.get("name"))
-                            .arguments((String) func.get("arguments"))
+                            .arguments(contentAsString(func.get("arguments")))
                             .build();
-                }).toList();
+                }).filter(toolCall -> toolCall != null).toList();
             }
 
             Map<String, Object> usageRaw = (Map<String, Object>) response.get("usage");
             LlmUsage usage = null;
             if (usageRaw != null) {
                 usage = LlmUsage.builder()
-                        .inputTokens((Integer) usageRaw.get("prompt_tokens"))
-                        .outputTokens((Integer) usageRaw.get("completion_tokens"))
-                        .totalTokens((Integer) usageRaw.get("total_tokens"))
+                        .inputTokens(intValue(usageRaw.get("prompt_tokens")))
+                        .outputTokens(intValue(usageRaw.get("completion_tokens")))
+                        .totalTokens(intValue(usageRaw.get("total_tokens")))
                         .build();
             }
 
@@ -177,7 +216,149 @@ public class LlmService {
                     .usage(usage)
                     .build();
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to parse LLM response: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to parse LLM response: " + e.getMessage() + ", body=" + preview(responseJson), e);
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private LlmResponse parseStreamingResponse(String responseBody, String model) {
+        StringBuilder content = new StringBuilder();
+
+        for (String rawLine : responseBody.split("\\R")) {
+            String line = rawLine.trim();
+            if (!line.startsWith("data:")) {
+                continue;
+            }
+
+            String payload = line.substring(5).trim();
+            if (payload.isBlank() || "[DONE]".equals(payload)) {
+                continue;
+            }
+
+            try {
+                Map<String, Object> event = objectMapper.readValue(payload, Map.class);
+                assertNoApiError(event, payload);
+
+                List<Map<String, Object>> choices = (List<Map<String, Object>>) event.get("choices");
+                if (choices == null || choices.isEmpty()) {
+                    continue;
+                }
+
+                Map<String, Object> choice = choices.get(0);
+                Object deltaRaw = choice.get("delta");
+                if (deltaRaw instanceof Map) {
+                    Map<String, Object> delta = (Map<String, Object>) deltaRaw;
+                    content.append(contentAsString(delta.get("content")));
+                    continue;
+                }
+
+                Object messageRaw = choice.get("message");
+                if (messageRaw instanceof Map) {
+                    Map<String, Object> message = (Map<String, Object>) messageRaw;
+                    content.append(contentAsString(message.get("content")));
+                }
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Failed to parse streaming LLM response: " + e.getMessage() + ", chunk=" + preview(payload), e);
+            }
+        }
+
+        return LlmResponse.builder()
+                .content(content.toString())
+                .model(model)
+                .build();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void assertNoApiError(Map<String, Object> response, String rawBody) {
+        Object error = response.get("error");
+        if (error == null) {
+            return;
+        }
+
+        if (error instanceof Map) {
+            Map<String, Object> errorMap = (Map<String, Object>) error;
+            String message = firstNonBlank(
+                    contentAsString(errorMap.get("message")),
+                    contentAsString(errorMap.get("code")),
+                    contentAsString(errorMap.get("type"))
+            );
+            throw new RuntimeException("LLM API returned error: " + (message == null ? preview(rawBody) : message));
+        }
+
+        throw new RuntimeException("LLM API returned error: " + contentAsString(error));
+    }
+
+    private RuntimeException malformedResponse(String reason, String body) {
+        return new RuntimeException("LLM API response " + reason + ": " + preview(body));
+    }
+
+    @SuppressWarnings("unchecked")
+    private String extractApiErrorMessage(String responseBody) {
+        if (responseBody == null || responseBody.isBlank()) {
+            return "empty error response";
+        }
+        try {
+            Map<String, Object> response = objectMapper.readValue(responseBody, Map.class);
+            Object error = response.get("error");
+            if (error instanceof Map) {
+                return contentAsString(((Map<String, Object>) error).get("message"));
+            }
+            if (error != null) {
+                return contentAsString(error);
+            }
+        } catch (JsonProcessingException ignored) {
+            // Fall back to the plain response preview below.
+        }
+        return preview(responseBody);
+    }
+
+    @SuppressWarnings("unchecked")
+    private String contentAsString(Object value) {
+        if (value == null) {
+            return "";
+        }
+        if (value instanceof String) {
+            return (String) value;
+        }
+        if (value instanceof List) {
+            StringBuilder result = new StringBuilder();
+            for (Object item : (List<Object>) value) {
+                if (item instanceof Map) {
+                    Map<String, Object> map = (Map<String, Object>) item;
+                    result.append(contentAsString(firstNonBlankObject(map.get("text"), map.get("content"))));
+                } else {
+                    result.append(contentAsString(item));
+                }
+            }
+            return result.toString();
+        }
+        return String.valueOf(value);
+    }
+
+    private Object firstNonBlankObject(Object... values) {
+        for (Object value : values) {
+            if (value != null && !contentAsString(value).isBlank()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private Integer intValue(Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        return null;
+    }
+
+    private String preview(String body) {
+        if (body == null) {
+            return "";
+        }
+        String normalized = body.replaceAll("\\s+", " ").trim();
+        if (normalized.length() <= RESPONSE_PREVIEW_LIMIT) {
+            return normalized;
+        }
+        return normalized.substring(0, RESPONSE_PREVIEW_LIMIT) + "...";
     }
 }

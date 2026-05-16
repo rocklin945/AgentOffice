@@ -18,7 +18,10 @@ public class AgentDefinition {
     private String color;
     private String roomId;
     private String phaserAgentId;
+    private Long modelConfigId;
     private String modelName;
+    private String apiBase;
+    private String apiKey;
     private String toolsKey;
     private boolean isDispatcher;
 
@@ -40,7 +43,6 @@ public class AgentDefinition {
                 .color("#6366f1")
                 .roomId("manager")
                 .phaserAgentId("agt_dispatcher")
-                .modelName("gpt-4o-mini")
                 .isDispatcher(true)
                 .build();
     }
@@ -57,7 +59,6 @@ public class AgentDefinition {
                 .color("#22c55e")
                 .roomId("lobby")
                 .phaserAgentId("agt_assistant")
-                .modelName("gpt-4o-mini")
                 .isDispatcher(false)
                 .build();
     }
@@ -79,7 +80,6 @@ public class AgentDefinition {
                 .color("#f59e0b")
                 .roomId("datacenter")
                 .phaserAgentId("agt_engineer")
-                .modelName("gpt-4o-mini")
                 .toolsKey("DATA_ENGINEER_TOOLS")
                 .isDispatcher(false)
                 .build();

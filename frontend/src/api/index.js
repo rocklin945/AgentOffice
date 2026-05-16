@@ -75,6 +75,15 @@ export const deployApi = {
   getServiceLogs: (id, lines) => request.get(`/deploy/services/${id}/logs`, { params: { lines } }),
 };
 
+export const modelConfigApi = {
+  getList: (params) => request.get('/model-configs', { params }),
+  getDefault: () => request.get('/model-configs/default'),
+  create: (data) => request.post('/model-configs', data),
+  update: (id, data) => request.put(`/model-configs/${id}`, data),
+  setDefault: (id) => request.patch(`/model-configs/${id}/default`),
+  delete: (id) => request.delete(`/model-configs/${id}`),
+};
+
 export const adminApi = {
   getUsers: () => request.get('/admin/users'),
   updateUser: (id, data) => request.put(`/admin/users/${id}`, data),
