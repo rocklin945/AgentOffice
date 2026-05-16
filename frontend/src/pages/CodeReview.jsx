@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { BugOutlined, CheckCircleOutlined, ClockCircleOutlined, CodeOutlined, ReloadOutlined } from '@ant-design/icons';
 import { codeReviewApi, devApi, taskApi } from '../api';
 import { Panel, ProgressTrack, StatusPill } from '../components/AppPrimitives';
+import MarkdownMessage from '../components/MarkdownMessage';
 import { buildCodeReviewData, taskDetail } from '../pageData';
 
 const statusColor = (status) => {
@@ -30,6 +31,105 @@ function buildReviewFromReport(report, task) {
   };
 }
 
+function ReviewResultPanel({ result }) {
+  const [showAll, setShowAll] = useState(false);
+  const contentRef = React.useRef(null);
+  const [clamped, setClamped] = useState(false);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+
+    const check = () => {
+      const overflow = el.scrollHeight > el.clientHeight + 2;
+      setClamped(overflow);
+    };
+
+    check();
+    const raf1 = requestAnimationFrame(check);
+    const t1 = setTimeout(check, 200);
+    const t2 = setTimeout(check, 500);
+    const t3 = setTimeout(check, 1000);
+
+    let ro;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => check());
+      if (el.firstElementChild) {
+        ro.observe(el.firstElementChild);
+      }
+    }
+
+    return () => {
+      cancelAnimationFrame(raf1);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      ro?.disconnect();
+    };
+  }, [result]);
+
+  const isMarkdown = result.filePath ? /\.(md|markdown)$/i.test(result.filePath) : true;
+
+  return (
+    <>
+      <div className="flex flex-col bg-white text-[13px] text-[#5f6d83]">
+        <div className="flex items-center justify-between gap-3 border-b border-[#edf1f8] px-5 py-4">
+          <div className="min-w-0">
+            <div className="truncate text-[15px] font-medium text-[#1d2740]">{result.title}</div>
+            <div className="mt-1 text-[12px] text-[#8d99ae]">最后 Review：{result.reviewedAt || '-'}</div>
+          </div>
+          <StatusPill color={result.verdict === '通过' ? 'green' : result.verdict === '阻塞' ? 'red' : 'orange'}>
+            {result.verdict}
+          </StatusPill>
+        </div>
+        <div className="relative px-5 py-4">
+          {result.filePath ? (
+            <div className="mb-3 text-[11px] text-[#8d99ae]">报告文件：{result.filePath}</div>
+          ) : null}
+          <div ref={contentRef} className="overflow-hidden" style={{ height: 240 }}>
+            {isMarkdown ? (
+              <MarkdownMessage text={result.content} staff={[]} highlightMentions={false} />
+            ) : (
+              <pre className="whitespace-pre-wrap font-mono text-[12px] leading-6 text-[#40516d]">{result.content}</pre>
+            )}
+          </div>
+          {clamped && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-center bg-gradient-to-t from-white via-white/90 to-transparent pb-3 pt-12">
+              <button
+                type="button"
+                onClick={() => setShowAll(true)}
+                className="pointer-events-auto rounded-[8px] bg-[#2f6bff] px-4 py-2 text-[12px] font-medium text-white hover:bg-[#1e5af5]"
+              >
+                查看全部
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+      {showAll && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(12,18,28,0.26)] px-6" onClick={() => setShowAll(false)}>
+          <div className="max-h-[82vh] w-full max-w-[880px] overflow-hidden rounded-[14px] bg-white shadow-[0_32px_80px_rgba(18,30,52,0.18)]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-[#edf1f8] px-5 py-4">
+              <div>
+                <div className="text-[16px] font-semibold text-[#1d2740]">{result.title}</div>
+                <div className="mt-1 text-[12px] text-[#8d99ae]">最后 Review：{result.reviewedAt || '-'} · {result.filePath || '数据库产物'}</div>
+              </div>
+              <button type="button" onClick={() => setShowAll(false)} className="text-[22px] text-[#97a3b8]">×</button>
+            </div>
+            <div className="max-h-[68vh] overflow-auto bg-[#f8fafc] px-5 py-4">
+              {isMarkdown ? (
+                <MarkdownMessage text={result.content} staff={[]} highlightMentions={false} />
+              ) : (
+                <pre className="whitespace-pre-wrap font-mono text-[12px] leading-6 text-[#40516d]">{result.content}</pre>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function CodeReview() {
   const [data, setData] = useState({ summary: {}, reviewTasks: [], projectName: '-' });
   const [selectedTaskId, setSelectedTaskId] = useState(null);
@@ -56,7 +156,7 @@ export default function CodeReview() {
       const detailRes = await taskApi.getDetail(nextSelected.id);
       setDetails((current) => ({ ...current, [nextSelected.id]: taskDetail(detailRes.data) }));
     }
-    const reportRes = await codeReviewApi.getLatest();
+    const reportRes = await codeReviewApi.getLatest(nextSelected?.id);
     setReport(reportRes.data || null);
   };
 
@@ -82,6 +182,8 @@ export default function CodeReview() {
       const detailRes = await taskApi.getDetail(task.id);
       setDetails((current) => ({ ...current, [task.id]: taskDetail(detailRes.data) }));
     }
+    const reportRes = await codeReviewApi.getLatest(task.id);
+    setReport(reportRes.data || null);
   };
 
   const rerunReview = async () => {
@@ -102,7 +204,7 @@ export default function CodeReview() {
     { label: 'Review 任务', value: summary.total || 0, icon: <CodeOutlined />, color: '#2f6bff' },
     { label: '待审/进行中', value: summary.running || 0, icon: <ClockCircleOutlined />, color: '#ff9b42' },
     { label: '已通过', value: summary.completed || 0, icon: <CheckCircleOutlined />, color: '#2bb36b' },
-    { label: '问题项', value: reviewResult?.issueCount || summary.failed || 0, icon: <BugOutlined />, color: '#ff5c5c' },
+    { label: '问题项', value: summary.failed || 0, icon: <BugOutlined />, color: '#ff5c5c' },
   ];
 
   return (
@@ -162,7 +264,7 @@ export default function CodeReview() {
           </div>
         </Panel>
 
-        <Panel className="overflow-hidden">
+        <Panel>
           <div className="flex items-center justify-between border-b border-[#edf1f8] px-5 py-4">
             <div>
               <div className="text-[18px] font-semibold text-[#1d2740]">Review 结果</div>
@@ -179,25 +281,9 @@ export default function CodeReview() {
             </button>
           </div>
           {reviewResult ? (
-            <div className="flex h-full flex-col bg-[#111d30] text-[13px] text-[#a9c0db]">
-              <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
-                <div className="min-w-0">
-                  <div className="truncate text-[15px] font-medium text-white">{reviewResult.title}</div>
-                  <div className="mt-1 text-[12px] text-[#6f829f]">最后 Review：{reviewResult.reviewedAt || '-'}</div>
-                </div>
-                <StatusPill color={reviewResult.verdict === '通过' ? 'green' : reviewResult.verdict === '阻塞' ? 'red' : 'orange'}>
-                  {reviewResult.verdict}
-                </StatusPill>
-              </div>
-              <div className="flex-1 overflow-auto px-5 py-4">
-                {reviewResult.filePath ? (
-                  <div className="mb-3 text-[11px] text-[#6f829f]">报告文件：{reviewResult.filePath}</div>
-                ) : null}
-                <pre className="whitespace-pre-wrap font-mono text-[12px] leading-6 text-[#c7dcff]">{reviewResult.content}</pre>
-              </div>
-            </div>
+            <ReviewResultPanel result={reviewResult} />
           ) : (
-            <div className="flex min-h-[460px] items-center justify-center bg-[#111d30] text-[13px] text-[#6f829f]">
+            <div className="flex min-h-[460px] items-center justify-center bg-[#f8fafc] text-[13px] text-[#8d99ae]">
               请选择左侧 Code Review 任务
             </div>
           )}

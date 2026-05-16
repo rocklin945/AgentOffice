@@ -44,4 +44,13 @@ public interface WorkProductMapper {
 
     @Update("UPDATE work_product SET status = #{status} WHERE id = #{id}")
     int updateStatus(@Param("id") Long id, @Param("status") String status);
+
+    @Select("SELECT wp.*, e.name AS employee_name, t.task_name AS task_name " +
+            "FROM work_product wp " +
+            "LEFT JOIN agent_employee e ON wp.employee_id = e.id " +
+            "LEFT JOIN task_info t ON wp.task_id = t.id " +
+            "WHERE wp.product_type LIKE CONCAT('%', #{typeKeyword}, '%') " +
+            "AND wp.task_id = #{taskId} " +
+            "ORDER BY wp.update_time DESC LIMIT 1")
+    WorkProduct findLatestByTypeAndTaskId(@Param("typeKeyword") String typeKeyword, @Param("taskId") Long taskId);
 }

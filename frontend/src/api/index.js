@@ -93,7 +93,7 @@ export const adminApi = {
 };
 
 export const codeReviewApi = {
-  getLatest: () => request.get('/office/code-reviews/latest'),
+  getLatest: (taskId) => request.get(`/office/code-reviews/latest${taskId ? `?taskId=${taskId}` : ''}`),
   rerun: (taskId) => request.post(`/office/code-reviews/${taskId}/rerun`),
 };
 

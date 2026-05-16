@@ -94,8 +94,8 @@ public class OfficeController {
     }
 
     @GetMapping("/code-reviews/latest")
-    public Result<Map<String, Object>> getLatestCodeReview() {
-        return Result.success(officeService.getLatestCodeReviewReport());
+    public Result<Map<String, Object>> getLatestCodeReview(@RequestParam(required = false) Long taskId) {
+        return Result.success(officeService.getLatestCodeReviewReport(taskId));
     }
 
     @PostMapping("/code-reviews/{taskId}/rerun")

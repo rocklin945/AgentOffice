@@ -344,8 +344,11 @@ public class OfficeService {
         return emitter;
     }
 
-    public Map<String, Object> getLatestCodeReviewReport() {
-        return codeReviewReportMap(workProductMapper.findLatestByType("Code Review报告"));
+    public Map<String, Object> getLatestCodeReviewReport(Long taskId) {
+        WorkProduct product = taskId == null
+                ? workProductMapper.findLatestByType("Code Review报告")
+                : workProductMapper.findLatestByTypeAndTaskId("Code Review报告", taskId);
+        return codeReviewReportMap(product);
     }
 
     private Map<String, Object> codeReviewReportMap(WorkProduct product) {
@@ -387,7 +390,10 @@ public class OfficeService {
         String target = task == null ? "当前最新代码产物" : "任务「" + value(task.getTaskName(), "-") + "」";
         String reply = workflowReply(reviewer, "请重新执行一次 Code Review，审查" + target + "，读取最新代码文件，生成新的 Code Review 报告并登记工作产物。完成后 @调度员 汇报报告 filePath。")
                 .orElse("");
-        Map<String, Object> result = new HashMap<>(codeReviewReportMap(workProductMapper.findLatestByType("Code Review报告")));
+        WorkProduct latestProduct = taskId == null
+                ? workProductMapper.findLatestByType("Code Review报告")
+                : workProductMapper.findLatestByTypeAndTaskId("Code Review报告", taskId);
+        Map<String, Object> result = new HashMap<>(codeReviewReportMap(latestProduct));
         result.put("reply", reply);
         result.put("reviewerId", reviewer.getId());
         result.put("reviewerName", reviewer.getName());
