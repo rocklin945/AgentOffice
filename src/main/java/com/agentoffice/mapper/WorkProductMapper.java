@@ -34,4 +34,14 @@ public interface WorkProductMapper {
             "WHERE wp.product_type LIKE CONCAT('%', #{typeKeyword}, '%') " +
             "ORDER BY wp.update_time DESC LIMIT 1")
     WorkProduct findLatestByType(@Param("typeKeyword") String typeKeyword);
+
+    @Select("SELECT wp.*, e.name AS employee_name, t.task_name AS task_name " +
+            "FROM work_product wp " +
+            "LEFT JOIN agent_employee e ON wp.employee_id = e.id " +
+            "LEFT JOIN task_info t ON wp.task_id = t.id " +
+            "WHERE wp.file_url = #{fileUrl}")
+    WorkProduct findByFileUrl(@Param("fileUrl") String fileUrl);
+
+    @Update("UPDATE work_product SET status = #{status} WHERE id = #{id}")
+    int updateStatus(@Param("id") Long id, @Param("status") String status);
 }

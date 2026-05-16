@@ -263,9 +263,10 @@ function MarkdownMessage({ text, staff, highlightMentions }) {
       index += 1;
       continue;
     }
-    const heading = line.match(/^(#{1,3})\s+(.+)$/);
+    const heading = line.match(/^(#{1,6})\s+(.+)$/);
     if (heading) {
-      const Tag = heading[1].length === 1 ? 'h3' : heading[1].length === 2 ? 'h4' : 'h5';
+      const level = heading[1].length;
+      const Tag = level === 1 ? 'h3' : level === 2 ? 'h4' : level === 3 ? 'h5' : level >= 4 ? 'h6' : 'h6';
       blocks.push(<Tag key={`h-${index}`} className="mb-1 mt-2 font-semibold text-[#1d2740]">{renderInline(heading[2], `h-${index}`)}</Tag>);
       index += 1;
       continue;
@@ -289,7 +290,7 @@ function MarkdownMessage({ text, staff, highlightMentions }) {
     const isTableRow = (l) => l.trim().startsWith('|') && l.trim().endsWith('|') && l.includes('|');
     const paragraph = [line];
     index += 1;
-    while (index < lines.length && lines[index].trim() && !lines[index].trim().startsWith('```') && !/^(#{1,3})\s+/.test(lines[index]) && !/^>\s+/.test(lines[index]) && !/^\s*[-*]\s+/.test(lines[index]) && !/^\s*\d+\.\s+/.test(lines[index]) && !isTableRow(lines[index])) {
+    while (index < lines.length && lines[index].trim() && !lines[index].trim().startsWith('```') && !/^#{1,6}\s+/.test(lines[index]) && !/^>\s+/.test(lines[index]) && !/^\s*[-*]\s+/.test(lines[index]) && !/^\s*\d+\.\s+/.test(lines[index]) && !isTableRow(lines[index])) {
       paragraph.push(lines[index]);
       index += 1;
     }
@@ -601,6 +602,8 @@ function ChatPanel({ initialMessages, staff, onWorkflowComplete }) {
     }
     if (event === 'complete') {
       onWorkflowComplete?.();
+      // Immediately refresh collaboration data after workflow completes
+      setTimeout(() => onWorkflowComplete?.(), 500);
     }
   };
 
@@ -775,7 +778,11 @@ export default function Office() {
   }, []);
 
   useEffect(() => {
-    return loadCollaboration();
+    loadCollaboration();
+    const interval = setInterval(loadCollaboration, 3000);
+    return () => {
+      clearInterval(interval);
+    };
   }, [loadCollaboration]);
 
   return (

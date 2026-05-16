@@ -97,6 +97,8 @@ public class ToolExecutor {
             case "create_task" -> createWorkflowTask(args);
             case "register_work_product" -> registerWorkProduct(args);
             case "notify_user" -> notifyUserTool(args);
+            case "create_work_product_in_progress" -> createWorkProductInProgress(args);
+            case "update_work_product_status" -> updateWorkProductStatus(args);
             case "create_deploy_service" -> createDeployServiceTool(args);
             default -> new WorkflowResult(false, "Unknown workflow tool: " + functionName, Map.of());
         };
@@ -143,6 +145,18 @@ public class ToolExecutor {
                                 "name", new LlmTool.Parameter("string", "工作产物名称"),
                                 "product_type", new LlmTool.Parameter("string", "产物类型，例如 需求文档、代码、测试报告、部署记录"),
                                 "file_path", new LlmTool.Parameter("string", "write_file 写入的相对文件路径")
+                        )),
+                createTool("create_work_product_in_progress", "在工作产物区创建一个进行中的工作产物，用于开始工作时展示进度。",
+                        Map.of(
+                                "employee_id", new LlmTool.Parameter("integer", "产出该文件的员工 ID"),
+                                "name", new LlmTool.Parameter("string", "工作产物名称"),
+                                "product_type", new LlmTool.Parameter("string", "产物类型，例如 需求文档、代码、测试报告、部署记录"),
+                                "file_path", new LlmTool.Parameter("string", "将写入的相对文件路径")
+                        )),
+                createTool("update_work_product_status", "更新工作产物的状态。",
+                        Map.of(
+                                "file_path", new LlmTool.Parameter("string", "工作产物的文件路径"),
+                                "status", new LlmTool.Parameter("string", "新状态：进行中/已完成")
                         )),
                 createTool("notify_user", "创建真实消息通知。",
                         Map.of(
@@ -313,6 +327,61 @@ public class ToolExecutor {
         );
         logOperation("notify_user", value(text(args, "source_type"), "workflow"), sourceId, text(args, "title"));
         return new WorkflowResult(true, "通知已创建", Map.of("title", value(text(args, "title"), "工作流通知")));
+    }
+
+    private WorkflowResult createWorkProductInProgress(Map<String, Object> args) {
+        try {
+            String filePath = text(args, "file_path");
+            Path path = resolveArtifactPath(filePath);
+            String fileName = path.getFileName().toString();
+            WorkProduct product = createWorkProduct(
+                    requiredLong(args, "employee_id"),
+                    null,
+                    value(text(args, "name"), fileName),
+                    value(text(args, "product_type"), "文件"),
+                    "进行中",
+                    artifactRelative(path),
+                    ""
+            );
+            logOperation("create_work_product_in_progress", "work_product", product.getId(), product.getName());
+            return new WorkflowResult(true, "工作产物已创建（进行中）", Map.of(
+                    "productId", product.getId(),
+                    "productName", product.getName(),
+                    "filePath", artifactRelative(path)
+            ));
+        } catch (Exception e) {
+            return new WorkflowResult(false, e.getMessage(), Map.of());
+        }
+    }
+
+    private WorkflowResult updateWorkProductStatus(Map<String, Object> args) {
+        String filePath = text(args, "file_path");
+        String status = text(args, "status");
+        if (filePath.isBlank()) {
+            return new WorkflowResult(false, "file_path 不能为空", Map.of());
+        }
+        if (!status.equals("进行中") && !status.equals("已完成")) {
+            return new WorkflowResult(false, "status 只能是 进行中 或 已完成", Map.of());
+        }
+        WorkProduct product = workProductMapper.findByFileUrl(filePath.replace("\\", "/"));
+        if (product == null) {
+            return new WorkflowResult(false, "未找到文件路径对应的工作产物: " + filePath, Map.of());
+        }
+        product.setStatus(status);
+        if ("已完成".equals(status) && Files.exists(resolveArtifactPath(filePath))) {
+            try {
+                String content = Files.readString(resolveArtifactPath(filePath), StandardCharsets.UTF_8);
+                product.setContent(content);
+            } catch (Exception ignored) {
+            }
+        }
+        workProductMapper.updateStatus(product.getId(), status);
+        logOperation("update_work_product_status", "work_product", product.getId(), product.getName() + " -> " + status);
+        return new WorkflowResult(true, "工作产物状态已更新为 " + status, Map.of(
+                "productId", product.getId(),
+                "productName", product.getName(),
+                "status", status
+        ));
     }
 
     private WorkflowResult createDeployServiceTool(Map<String, Object> args) {
