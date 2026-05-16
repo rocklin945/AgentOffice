@@ -84,9 +84,13 @@ function WorkProductsPanel({ selectedEmployee }) {
     );
   }
 
-  const renderContent = (content) => {
+  const renderContent = (content, fileUrl) => {
     if (!content) return <span className="text-[#b8becb]">该产物暂无可查看内容</span>;
-    return <MarkdownMessage text={content} staff={[]} highlightMentions={false} />;
+    // Only render markdown for .md files, show raw content for other files
+    if (fileUrl && /\.(md|markdown)$/i.test(fileUrl)) {
+      return <MarkdownMessage text={content} staff={[]} highlightMentions={false} />;
+    }
+    return <pre className="whitespace-pre-wrap text-[13px] leading-6 text-[#40516d]">{content}</pre>;
   };
 
   return (
@@ -134,7 +138,7 @@ function WorkProductsPanel({ selectedEmployee }) {
               <button type="button" onClick={() => setActiveProduct(null)} className="text-[22px] text-[#97a3b8]">×</button>
             </div>
             <div className="max-h-[68vh] overflow-auto bg-[#f8fafc] px-5 py-4">
-              {renderContent(activeProduct.content)}
+              {renderContent(activeProduct.content, activeProduct.fileUrl)}
             </div>
           </div>
         </div>
