@@ -787,7 +787,7 @@ export default function Office() {
 
   return (
     <div className="space-y-5">
-      <div className="flex h-[calc(100vh-180px)] gap-4">
+      <div className="flex h-[calc(100vh-128px)] min-h-[620px] gap-4">
         <div className="w-[280px] shrink-0">
           <div className="flex h-full flex-col rounded-[16px] border border-[#edf1f8] bg-[#fbfcff] p-4 shadow-sm">
             <div className="mb-3 border-b border-[#edf1f8] pb-3">

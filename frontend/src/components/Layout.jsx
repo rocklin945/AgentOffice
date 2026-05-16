@@ -91,8 +91,6 @@ export default function Layout() {
     return () => clearInterval(interval);
   }, []);
 
-  const officeShell = location.pathname === '/office';
-
   const userItems = {
     items: [
       { key: 'profile', label: '个人中心', icon: <UserOutlined />, onClick: () => navigate('/profile') },
@@ -164,26 +162,6 @@ export default function Layout() {
       </header>
 
       <main className="flex h-screen flex-col overflow-hidden pt-[76px]">
-        {officeShell ? (
-          <div className="mx-8 mt-5 flex shrink-0 items-center gap-4 rounded-[18px] border border-[#edf1f7] bg-white/82 px-5 py-3 text-[13px] text-[#708099] shadow-[0_8px_28px_rgba(31,45,76,0.04)]">
-            <span className="font-semibold text-[#1d2740]">系统状态</span>
-            <span className="flex items-center gap-2 font-medium text-[#2bb36b]">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#2bb36b]" />
-              全部正常
-            </span>
-            {[
-              ['在线员工', '12'],
-              ['运行服务', '8'],
-              ['进行中任务', '5'],
-              ['系统负载', '32%'],
-            ].map(([label, value]) => (
-              <span key={label} className="hidden xl:inline">
-                {label} <span className="font-medium text-[#1d2740]">{value}</span>
-              </span>
-            ))}
-          </div>
-        ) : null}
-
         <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-8 pt-5">
           <Outlet />
         </div>
