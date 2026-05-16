@@ -3,6 +3,7 @@ package com.agentoffice.service;
 import com.agentoffice.entity.DeployService;
 import com.agentoffice.mapper.DeployServiceMapper;
 import com.agentoffice.common.exception.BusinessException;
+import com.agentoffice.mapper.OperationLogMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,9 @@ public class DeployServiceInfo {
 
     @Autowired
     private DeployServiceMapper serviceMapper;
+
+    @Autowired
+    private OperationLogMapper operationLogMapper;
 
     public List<DeployService> getList(String status) {
         return serviceMapper.findList(status);
@@ -94,13 +98,8 @@ public class DeployServiceInfo {
             throw new BusinessException(404, "服务不存在");
         }
 
-        StringBuilder logs = new StringBuilder();
-        logs.append("[SERVICE] ").append(service.getServiceName()).append("\n");
-        logs.append("[STATUS] ").append(service.getStatus()).append("\n");
-        logs.append("[IMAGE] ").append(service.getImage()).append(":").append(service.getVersion()).append("\n");
-        logs.append("[PORT] ").append(service.getPort() == null ? "-" : service.getPort()).append("\n");
-        logs.append("[CONTAINER] ").append(service.getContainerId() == null ? "-" : service.getContainerId()).append("\n");
-
-        return logs.toString();
+        return operationLogMapper.findByTarget("deploy_service", id, lines).stream()
+                .map(log -> "[" + log.getCreateTime() + "] " + log.getDetail())
+                .reduce("", (left, right) -> left + right + "\n");
     }
 }

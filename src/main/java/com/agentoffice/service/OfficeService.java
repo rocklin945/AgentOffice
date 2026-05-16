@@ -3,6 +3,8 @@ package com.agentoffice.service;
 import com.agentoffice.dto.OfficeLayoutResponse;
 import com.agentoffice.dto.CollaborationChatRequest;
 import com.agentoffice.common.exception.BusinessException;
+import com.agentoffice.agent.AgentDefinition;
+import com.agentoffice.agent.AgentRunner;
 import com.agentoffice.entity.AgentEmployee;
 import com.agentoffice.entity.ChatMessage;
 import com.agentoffice.entity.ChatSession;
@@ -19,6 +21,7 @@ import com.agentoffice.mapper.ChatSessionMapper;
 import com.agentoffice.mapper.OfficeDeskMapper;
 import com.agentoffice.mapper.TaskInfoMapper;
 import com.agentoffice.mapper.WorkProductMapper;
+import com.agentoffice.tools.ToolExecutor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +32,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -47,6 +51,9 @@ public class OfficeService {
 
     @Autowired
     private WorkProductMapper workProductMapper;
+
+    @Autowired
+    private AgentRunner agentRunner;
 
     @Autowired
     private ChatSessionMapper chatSessionMapper;
@@ -199,11 +206,11 @@ public class OfficeService {
             item.put("skills", roleSkills(employee.getRole()));
             item.put("task", employee.getTaskCount() != null && employee.getTaskCount() > 0 ? "处理当前分配任务" : "暂无进行中任务");
             item.put("progress", employee.getEfficiency() == null ? 0 : employee.getEfficiency().intValue());
-            item.put("nextEmployee", i + 1 < employees.size() ? (employees.get(i + 1).getName() == null ? null : employees.get(i + 1).getName().toLowerCase()) : null);
-            item.put("workingTime", "0分钟");
-            item.put("commits", "0次");
-            item.put("testPass", "0个");
-            item.put("deployCount", "0次");
+            item.put("nextEmployee", null);
+            item.put("workingTime", taskMapper.findList(null, null, employee.getId()).size() + "项任务");
+            item.put("commits", countProducts(employee.getId(), "代码") + "个代码产物");
+            item.put("testPass", countProducts(employee.getId(), "测试") + "个测试产物");
+            item.put("deployCount", countProducts(employee.getId(), "部署") + "个部署产物");
             item.put("avatar", employee.getAvatar());
             item.put("workProducts", workProducts(employee.getId()));
             staff.add(item);
@@ -252,27 +259,30 @@ public class OfficeService {
             if (employee == null) {
                 continue;
             }
-            LlmResponse response = llmService.chatCompletion(LlmRequest.builder()
-                    .messages(List.of(
-                            LlmMessage.builder()
-                                    .role("system")
-                                    .content(agentSystemPrompt(employee))
-                                    .build(),
-                            LlmMessage.builder()
-                                    .role("user")
-                                    .content(request.getMessage())
-                                    .build()
-                    ))
-                    .temperature(0.6)
-                    .maxTokens(600)
-                    .build());
+            String replyText = workflowReply(employee, request.getMessage()).orElseGet(() -> {
+                LlmResponse response = llmService.chatCompletion(LlmRequest.builder()
+                        .messages(List.of(
+                                LlmMessage.builder()
+                                        .role("system")
+                                        .content(agentSystemPrompt(employee))
+                                        .build(),
+                                LlmMessage.builder()
+                                        .role("user")
+                                        .content(request.getMessage())
+                                        .build()
+                        ))
+                        .temperature(0.6)
+                        .maxTokens(600)
+                        .build());
+                return cleanLlmReply(response.getContent());
+            });
 
             Map<String, Object> reply = new HashMap<>();
             reply.put("employeeId", employee.getId());
             reply.put("sender", employee.getName());
-            reply.put("text", cleanLlmReply(response.getContent()));
+            reply.put("text", replyText);
             replies.add(reply);
-            saveChatMessage(session.getId(), "assistant", employee.getName(), employee.getId(), cleanLlmReply(response.getContent()));
+            saveChatMessage(session.getId(), "assistant", employee.getName(), employee.getId(), replyText);
         }
 
         return Map.of("session", sessionMap(session), "replies", replies);
@@ -287,32 +297,29 @@ public class OfficeService {
         CompletableFuture.runAsync(() -> {
             try {
                 sendEvent(emitter, "session", sessionMap(session));
-                List<CompletableFuture<ReplyHandoff>> replyTasks = request.getMentionedEmployeeIds().stream()
-                        .map(employeeId -> CompletableFuture.supplyAsync(() -> streamEmployeeReply(emitter, employeeId, request.getMessage(), session.getId(), "reply")))
-                        .toList();
-                CompletableFuture.allOf(replyTasks.toArray(new CompletableFuture[0])).join();
-                List<CompletableFuture<ReplyHandoff>> handoffTasks = replyTasks.stream()
-                        .map(CompletableFuture::join)
-                        .filter(handoff -> handoff != null && !handoff.mentionedEmployeeIds().isEmpty())
-                        .flatMap(handoff -> handoff.mentionedEmployeeIds().stream()
-                                .filter(employeeId -> !request.getMentionedEmployeeIds().contains(employeeId))
-                                .map(employeeId -> {
-                                    AgentEmployee targetEmployee = employeeMapper.findById(employeeId);
-                                    String assignmentText = handoff.sender() + " 指派下一步给 @" + (targetEmployee == null ? employeeId : targetEmployee.getName());
-                                    saveChatMessage(session.getId(), "system", "System", null, assignmentText);
-                                    sendEventQuietly(emitter, "handoff", Map.of(
-                                            "fromEmployeeId", handoff.employeeId(),
-                                            "fromSender", handoff.sender(),
-                                            "employeeId", employeeId,
-                                            "text", assignmentText,
-                                            "message", handoff.content()
-                                    ));
-                                    String handoffMessage = handoff.sender() + " 在回复中 @ 了你并指派下一步任务：\n" + handoff.content();
-                                    return CompletableFuture.supplyAsync(() -> streamEmployeeReply(emitter, employeeId, handoffMessage, session.getId(), "handoff_reply"));
-                                }))
-                        .toList();
-                if (!handoffTasks.isEmpty()) {
-                    CompletableFuture.allOf(handoffTasks.toArray(new CompletableFuture[0])).join();
+                List<ReplyHandoff> currentRound = runReplyRound(
+                        emitter,
+                        request.getMentionedEmployeeIds(),
+                        request.getMessage(),
+                        session.getId(),
+                        "reply"
+                );
+                List<Long> visitedEmployeeIds = new ArrayList<>(request.getMentionedEmployeeIds());
+                for (int round = 0; round < 4; round++) {
+                    List<NextHandoff> nextRound = collectNextHandoffs(currentRound, visitedEmployeeIds, session.getId(), emitter);
+                    if (nextRound.isEmpty()) {
+                        break;
+                    }
+                    nextRound.forEach(next -> visitedEmployeeIds.add(next.employeeId()));
+                    currentRound = runReplyRound(
+                            emitter,
+                            nextRound.stream().map(NextHandoff::employeeId).toList(),
+                            nextRound.stream()
+                                    .map(next -> next.message())
+                                    .collect(Collectors.joining("\n\n")),
+                            session.getId(),
+                            "handoff_reply"
+                    );
                 }
                 sendEvent(emitter, "complete", Map.of("ok", true));
                 emitter.complete();
@@ -342,22 +349,23 @@ public class OfficeService {
             start.put("phase", phase);
             sendEvent(emitter, "reply_start", start);
 
-            LlmResponse response = llmService.chatCompletion(LlmRequest.builder()
-                    .messages(List.of(
-                            LlmMessage.builder()
-                                    .role("system")
-                                    .content(agentSystemPrompt(employee))
-                                    .build(),
-                            LlmMessage.builder()
-                                    .role("user")
-                                    .content(message)
-                                    .build()
-                    ))
-                    .temperature(0.6)
-                    .maxTokens(600)
-                    .build());
-
-            String content = cleanLlmReply(response.getContent());
+            String content = workflowReply(employee, message).orElseGet(() -> {
+                LlmResponse response = llmService.chatCompletion(LlmRequest.builder()
+                        .messages(List.of(
+                                LlmMessage.builder()
+                                        .role("system")
+                                        .content(agentSystemPrompt(employee))
+                                        .build(),
+                                LlmMessage.builder()
+                                        .role("user")
+                                        .content(message)
+                                        .build()
+                        ))
+                        .temperature(0.6)
+                        .maxTokens(600)
+                        .build());
+                return cleanLlmReply(response.getContent());
+            });
             StringBuilder savedContent = new StringBuilder();
             for (String chunk : splitReply(content)) {
                 savedContent.append(chunk);
@@ -382,6 +390,114 @@ public class OfficeService {
             }
             return null;
         }
+    }
+
+    private List<ReplyHandoff> runReplyRound(SseEmitter emitter, List<Long> employeeIds, String message, Long sessionDbId, String phase) {
+        List<CompletableFuture<ReplyHandoff>> replyTasks = employeeIds.stream()
+                .distinct()
+                .map(employeeId -> CompletableFuture.supplyAsync(() -> streamEmployeeReply(emitter, employeeId, message, sessionDbId, phase)))
+                .toList();
+        if (replyTasks.isEmpty()) {
+            return List.of();
+        }
+        CompletableFuture.allOf(replyTasks.toArray(new CompletableFuture[0])).join();
+        return replyTasks.stream()
+                .map(CompletableFuture::join)
+                .filter(handoff -> handoff != null)
+                .toList();
+    }
+
+    private List<NextHandoff> collectNextHandoffs(List<ReplyHandoff> handoffs, List<Long> visitedEmployeeIds, Long sessionDbId, SseEmitter emitter) {
+        List<NextHandoff> nextRound = new ArrayList<>();
+        for (ReplyHandoff handoff : handoffs) {
+            for (Long employeeId : handoff.mentionedEmployeeIds()) {
+                if (visitedEmployeeIds.contains(employeeId) || nextRound.stream().anyMatch(next -> next.employeeId().equals(employeeId))) {
+                    continue;
+                }
+                AgentEmployee targetEmployee = employeeMapper.findById(employeeId);
+                String targetName = targetEmployee == null ? String.valueOf(employeeId) : targetEmployee.getName();
+                String assignmentText = handoff.sender() + " 指派下一步给 @" + targetName;
+                saveChatMessage(sessionDbId, "system", "System", null, assignmentText);
+                sendEventQuietly(emitter, "handoff", Map.of(
+                        "fromEmployeeId", handoff.employeeId(),
+                        "fromSender", handoff.sender(),
+                        "employeeId", employeeId,
+                        "text", assignmentText,
+                        "message", handoff.content()
+                ));
+                nextRound.add(new NextHandoff(
+                        employeeId,
+                        handoff.sender() + " 在回复中 @ 了你并指派下一步任务：\n" + handoff.content()
+                ));
+            }
+        }
+        return nextRound;
+    }
+
+    private Optional<String> workflowReply(AgentEmployee employee, String message) {
+        String role = value(employee.getRole(), "");
+        if (!isWorkflowMessage(message, role)) {
+            return Optional.empty();
+        }
+        AgentDefinition agent = AgentDefinition.builder()
+                .slug("employee_" + employee.getId())
+                .displayName(employee.getName())
+                .role(employee.getRole())
+                .systemPrompt(workflowSystemPrompt(employee))
+                .roomId(roomForRole(employee.getRole()))
+                .phaserAgentId("emp_" + employee.getId())
+                .toolsKey(ToolExecutor.WORKFLOW_TOOLS)
+                .build();
+        AgentRunner.AgentResult result = agentRunner.runAgent(agent, message, List.of());
+        return Optional.of(result.content());
+    }
+
+    private String workflowSystemPrompt(AgentEmployee employee) {
+        String role = value(employee.getRole(), "团队成员");
+        String toolInstruction;
+        if (role.contains("产品")) {
+            toolInstruction = "你必须按顺序组合工具真实工作：1) 用 write_file 写 PRD Markdown 文件；2) 用 register_work_product 登记需求文档；3) 用 create_task 创建开发任务并分配给开发；4) 用 notify_user 发送 PRD 完成提醒。";
+        } else if (role.contains("开发")) {
+            toolInstruction = "你必须按顺序组合工具真实工作：1) 用 find_latest_work_product 查询最新需求文档；2) 用 read_file 读取该 PRD 文件；3) 用 write_file 写代码文件；4) 用 register_work_product 登记代码产物；5) 用 create_task 创建测试任务并分配给测试；6) 用 notify_user 发送开发完成提醒。";
+        } else if (role.contains("测试")) {
+            toolInstruction = "你必须按顺序组合工具真实工作：1) 用 find_latest_work_product 查询最新代码产物；2) 用 read_file 读取开发文件；3) 用 write_file 写测试报告；4) 用 register_work_product 登记测试报告；5) 用 create_task 创建部署任务并分配给运维；6) 用 notify_user 发送测试完成提醒。";
+        } else if (role.contains("运维")) {
+            toolInstruction = "你必须按顺序组合工具真实工作：1) 用 find_latest_work_product 查询最新测试报告；2) 用 read_file 读取测试报告文件；3) 用 create_deploy_service 在部署模块创建运行中服务；4) 用 write_file 写部署记录；5) 用 register_work_product 登记部署记录；6) 用 notify_user 发送部署完成提醒。";
+        } else {
+            toolInstruction = "你必须根据自己的职责选择一个可用工具完成任务，然后根据工具返回结果回复。";
+        }
+        return "你是 AgentOffice 团队中的 AI 员工。员工ID：" + employee.getId()
+                + "，姓名：" + employee.getName()
+                + "，角色：" + role
+                + "，职位：" + value(employee.getPosition(), "-") + "。"
+                + toolInstruction
+                + "文件路径必须使用相对路径，例如 prd/xxx.md、code/xxx.java、test/xxx.md、deploy/xxx.md。"
+                + "不要编造已完成结果；只有工具返回的数据才可以作为交付依据。"
+                + "最终回复必须写明登记成功的工作产物名称和 filePath，方便下一位员工继续读取。"
+                + "回复中如果有下一步员工，必须使用 @员工姓名。";
+    }
+
+    private String roomForRole(String role) {
+        if (role == null) return "workspace";
+        if (role.contains("产品")) return "manager";
+        if (role.contains("开发")) return "dev";
+        if (role.contains("测试")) return "test";
+        if (role.contains("运维")) return "ops";
+        return "workspace";
+    }
+
+    private boolean isWorkflowMessage(String message, String role) {
+        String text = value(message, "");
+        return text.contains("指派下一步")
+                || text.contains("PRD")
+                || text.contains("需求")
+                || text.contains("开发")
+                || text.contains("测试")
+                || text.contains("部署")
+                || role.contains("产品")
+                || role.contains("开发")
+                || role.contains("测试")
+                || role.contains("运维");
     }
 
     private void validateCollaborationChat(CollaborationChatRequest request) {
@@ -562,6 +678,7 @@ public class OfficeService {
                     item.put("time", product.getUpdateTime() == null ? "-" : product.getUpdateTime().toString().replace('T', ' '));
                     item.put("status", product.getStatus());
                     item.put("fileUrl", product.getFileUrl() == null ? "" : product.getFileUrl());
+                    item.put("content", product.getContent() == null ? "" : product.getContent());
                     return item;
                 })
                 .collect(Collectors.toList());
@@ -569,6 +686,12 @@ public class OfficeService {
 
     private int countTasks(List<TaskInfo> tasks, String status) {
         return (int) tasks.stream().filter(task -> status.equals(task.getStatus())).count();
+    }
+
+    private int countProducts(Long employeeId, String typeKeyword) {
+        return (int) workProductMapper.findByEmployeeId(employeeId).stream()
+                .filter(product -> value(product.getProductType(), "").contains(typeKeyword))
+                .count();
     }
 
     private String statusColor(String status) {
@@ -611,6 +734,14 @@ public class OfficeService {
         return List.of("Java", "Spring Boot", "MySQL", "Docker");
     }
 
+    private String value(String text, String fallback) {
+        return text == null || text.isBlank() ? fallback : text;
+    }
+
     private record ReplyHandoff(Long employeeId, String sender, String content, List<Long> mentionedEmployeeIds) {
     }
+
+    private record NextHandoff(Long employeeId, String message) {
+    }
 }
+

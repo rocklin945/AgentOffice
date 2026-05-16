@@ -5,17 +5,21 @@ import com.agentoffice.entity.AgentEmployee;
 import com.agentoffice.entity.DeployService;
 import com.agentoffice.entity.DevFile;
 import com.agentoffice.entity.DevProject;
+import com.agentoffice.entity.OperationLog;
 import com.agentoffice.entity.TaskInfo;
 import com.agentoffice.entity.TaskStep;
+import com.agentoffice.entity.WorkProduct;
 import com.agentoffice.mapper.AgentEmployeeMapper;
 import com.agentoffice.mapper.DeployServiceMapper;
 import com.agentoffice.mapper.DevFileMapper;
 import com.agentoffice.mapper.DevProjectMapper;
 import com.agentoffice.mapper.EmployeePermissionMapper;
+import com.agentoffice.mapper.OperationLogMapper;
 import com.agentoffice.mapper.SysUserMapper;
 import com.agentoffice.mapper.SystemConfigMapper;
 import com.agentoffice.mapper.TaskInfoMapper;
 import com.agentoffice.mapper.TaskStepMapper;
+import com.agentoffice.mapper.WorkProductMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -47,6 +51,8 @@ public class UiDataService {
     @Autowired private DeployServiceMapper deployMapper;
     @Autowired private DevProjectMapper projectMapper;
     @Autowired private DevFileMapper fileMapper;
+    @Autowired private WorkProductMapper workProductMapper;
+    @Autowired private OperationLogMapper operationLogMapper;
     @Autowired private SysUserMapper userMapper;
     @Autowired private EmployeePermissionMapper employeePermissionMapper;
     @Autowired private SystemConfigMapper systemConfigMapper;
@@ -81,12 +87,14 @@ public class UiDataService {
         List<AgentEmployee> employees = employeeMapper.findAll();
         Map<String, Object> data = new HashMap<>();
         data.put("employees", employees.stream().map(this::employeeCard).toList());
-        data.put("roleCards", List.of(
-                List.of("开发工程师", "负责代码开发、实现功能需求"),
-                List.of("测试工程师", "负责测试用例编写、功能测试"),
-                List.of("运维工程师", "负责系统部署、运维与监控"),
-                List.of("产品经理", "负责需求分析、产品规划")
-        ));
+        data.put("roleCards", employees.stream()
+                .collect(HashMap<String, String>::new,
+                        (map, employee) -> map.putIfAbsent(n(employee.getRole()), empty(employee.getPosition())),
+                        HashMap::putAll)
+                .entrySet()
+                .stream()
+                .map(entry -> List.of(entry.getKey(), entry.getValue()))
+                .toList());
         return data;
     }
 
@@ -124,8 +132,13 @@ public class UiDataService {
                 "cpu", s.get("cpu"),
                 "memory", s.get("memory")
         )).toList());
-        data.put("images", serviceRows.stream().map(s -> Map.of("name", s.get("name"), "tag", s.get("version"), "size", "-", "created", "-")).toList());
-        data.put("logs", List.of());
+        data.put("images", services.stream().map(s -> Map.of(
+                "name", empty(s.getImage()),
+                "tag", empty(s.getVersion()),
+                "size", imageSize(s),
+                "created", time(s.getCreateTime())
+        )).toList());
+        data.put("logs", operationLogMapper.findByAction("ops_deploy_release", 50).stream().map(this::operationLogRow).toList());
         return data;
     }
 
@@ -139,7 +152,8 @@ public class UiDataService {
         data.put("fileName", first == null ? "-" : first.getFilePath());
         data.put("files", files.stream().map(f -> Map.of("name", f.getFileName(), "active", first != null && first.getId().equals(f.getId()), "directory", f.getIsDirectory() != null && f.getIsDirectory() == 1)).toList());
         data.put("codeLines", first == null || first.getContent() == null ? List.of() : Arrays.asList(first.getContent().split("\\n")));
-        data.put("runResult", Map.of("title", "等待运行", "duration", "-", "tests", "-", "passed", "-", "failed", "-", "coverage", "-", "logs", List.of("[INFO] 请选择文件并运行")));
+        WorkProduct codeProduct = workProductMapper.findLatestByType("代码");
+        data.put("runResult", codeProduct == null ? emptyRunResult() : productRunResult(codeProduct));
         return data;
     }
 
@@ -154,7 +168,8 @@ public class UiDataService {
         Map<String, Object> data = new HashMap<>();
         data.put("projectName", devData.get("projectName"));
         data.put("fileName", devData.get("fileName"));
-        data.put("runResult", devData.get("runResult"));
+        WorkProduct latestReport = workProductMapper.findLatestByType("测试报告");
+        data.put("runResult", latestReport == null ? devData.get("runResult") : productRunResult(latestReport));
         data.put("summary", Map.of(
                 "total", testTasks.size(),
                 "running", testTasks.stream().filter(task -> n(task.getStatus()).contains("进行") || n(task.getStatus()).contains("测试")).count(),
@@ -171,9 +186,13 @@ public class UiDataService {
                 "progress", nz(task.getProgress()),
                 "createdAt", time(task.getCreateTime())
         )).toList());
-        data.put("debugLogs", testTasks.stream()
+        List<String> debugLogs = new ArrayList<>(testTasks.stream()
                 .map(task -> time(task.getUpdateTime()) + " " + n(task.getTaskName()) + " / " + uiTaskStatus(task.getStatus()))
                 .toList());
+        if (latestReport != null) {
+            debugLogs.addAll(0, contentLines(latestReport.getContent()));
+        }
+        data.put("debugLogs", debugLogs);
         return data;
     }
 
@@ -215,10 +234,10 @@ public class UiDataService {
         item.put("skills", List.of(n(e.getRole()), "协作", "自动化"));
         item.put("task", nz(e.getTaskCount()) > 0 ? "处理当前分配任务" : "暂无进行中任务");
         item.put("progress", nz(e.getEfficiency()));
-        item.put("workingTime", "0分钟");
-        item.put("commits", "0次");
-        item.put("testPass", "0个");
-        item.put("deployCount", "0次");
+        item.put("workingTime", taskMapper.findList(null, null, e.getId()).size() + "项任务");
+        item.put("commits", countProducts(e.getId(), "代码") + "个代码产物");
+        item.put("testPass", countProducts(e.getId(), "测试") + "个测试产物");
+        item.put("deployCount", countProducts(e.getId(), "部署") + "个部署产物");
         Map<String, Boolean> enabledMap = employeePermissionMapper.findByEmployeeId(e.getId()).stream()
                 .collect(HashMap::new,
                         (map, permission) -> map.put(n(permission.getPermissionCode()), permission.getEnabled() == null || permission.getEnabled() == 1),
@@ -252,12 +271,58 @@ public class UiDataService {
 
     private Map<String, Object> taskDetail(TaskInfo task) {
         List<TaskStep> steps = stepMapper.findByTaskId(task.getId());
+        List<WorkProduct> products = workProductMapper.findAll().stream()
+                .filter(product -> task.getId().equals(product.getTaskId()))
+                .toList();
         return Map.of(
                 "executionSteps", steps.stream().map(s -> Map.of("step", s.getStepOrder(), "name", s.getStepName(), "role", "执行员工", "owner", empty(task.getExecutorName()), "status", uiTaskStatus(s.getStatus()))).toList(),
-                "executionLogs", List.of(time(task.getCreateTime()) + " 任务创建"),
-                "results", List.of(Map.of("label", "当前进度", "value", nz(task.getProgress()) + "%")),
-                "files", List.of()
+                "executionLogs", operationLogMapper.findByTarget("task", task.getId(), 20).stream().map(OperationLog::getDetail).toList(),
+                "results", products.stream().map(product -> Map.of("label", n(product.getProductType()), "value", n(product.getStatus()))).toList(),
+                "files", products.stream().map(product -> Map.of("name", n(product.getName()), "time", time(product.getUpdateTime()))).toList()
         );
+    }
+
+    private Map<String, Object> emptyRunResult() {
+        return Map.of("title", "无执行产物", "duration", "-", "tests", "-", "passed", "-", "failed", "-", "coverage", "-", "logs", List.of());
+    }
+
+    private Map<String, Object> productRunResult(WorkProduct product) {
+        List<String> logs = contentLines(product.getContent());
+        return Map.of(
+                "title", n(product.getName()),
+                "duration", time(product.getUpdateTime()),
+                "tests", "-",
+                "passed", "已完成".equals(product.getStatus()) ? "是" : "-",
+                "failed", "已失败".equals(product.getStatus()) ? "是" : "-",
+                "coverage", n(product.getProductType()),
+                "logs", logs
+        );
+    }
+
+    private List<String> contentLines(String content) {
+        if (content == null || content.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(content.split("\\R")).filter(line -> !line.isBlank()).toList();
+    }
+
+    private Map<String, Object> operationLogRow(OperationLog log) {
+        return Map.of(
+                "time", time(log.getCreateTime()),
+                "level", "info",
+                "message", n(log.getDetail())
+        );
+    }
+
+    private int countProducts(Long employeeId, String typeKeyword) {
+        return (int) workProductMapper.findByEmployeeId(employeeId).stream()
+                .filter(product -> n(product.getProductType()).contains(typeKeyword))
+                .count();
+    }
+
+    private String imageSize(DeployService service) {
+        int textSize = (n(service.getImage()) + n(service.getVersion()) + n(service.getContainerId())).length();
+        return textSize == 0 ? "-" : textSize + "KB metadata";
     }
 
     private int countTasks(List<TaskInfo> tasks, String status) {

@@ -60,7 +60,7 @@ public class LlmService {
     private Map<String, Object> buildRequestBody(String model, LlmRequest request) {
         Map<String, Object> body = new HashMap<>();
         body.put("model", model);
-        body.put("messages", request.getMessages());
+        body.put("messages", convertMessages(request.getMessages()));
         body.put("temperature", request.getTemperature());
         body.put("max_tokens", request.getMaxTokens());
 
@@ -70,6 +70,32 @@ public class LlmService {
         }
 
         return body;
+    }
+
+    private List<Map<String, Object>> convertMessages(List<LlmMessage> messages) {
+        return messages.stream().map(message -> {
+            Map<String, Object> item = new HashMap<>();
+            item.put("role", message.getRole());
+            item.put("content", message.getContent() == null ? "" : message.getContent());
+            if (message.getToolCallId() != null && !message.getToolCallId().isBlank()) {
+                item.put("tool_call_id", message.getToolCallId());
+            }
+            if (message.getToolCalls() != null && !message.getToolCalls().isEmpty()) {
+                item.put("tool_calls", message.getToolCalls().stream().map(this::convertToolCall).toList());
+            }
+            return item;
+        }).toList();
+    }
+
+    private Map<String, Object> convertToolCall(LlmToolCall toolCall) {
+        Map<String, Object> item = new HashMap<>();
+        item.put("id", toolCall.getId());
+        item.put("type", "function");
+        item.put("function", Map.of(
+                "name", toolCall.getName(),
+                "arguments", toolCall.getArguments() == null ? "{}" : toolCall.getArguments()
+        ));
+        return item;
     }
 
     private List<Map<String, Object>> convertTools(List<LlmTool> tools) {

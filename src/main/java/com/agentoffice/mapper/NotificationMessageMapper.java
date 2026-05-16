@@ -2,7 +2,9 @@ package com.agentoffice.mapper;
 
 import com.agentoffice.entity.NotificationMessage;
 import org.apache.ibatis.annotations.Delete;
+import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Options;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
@@ -22,6 +24,11 @@ public interface NotificationMessageMapper {
     List<NotificationMessage> findList(@Param("userId") Long userId,
                                        @Param("readStatus") Integer readStatus,
                                        @Param("category") String category);
+
+    @Insert("INSERT INTO notification_message (user_id, category, title, content, source_type, source_id, read_status, priority) " +
+            "VALUES (#{userId}, #{category}, #{title}, #{content}, #{sourceType}, #{sourceId}, #{readStatus}, #{priority})")
+    @Options(useGeneratedKeys = true, keyProperty = "id")
+    int insert(NotificationMessage message);
 
     @Update("UPDATE notification_message SET read_status = 1, update_time = NOW() WHERE id = #{id} AND (user_id IS NULL OR user_id = #{userId})")
     int markRead(@Param("id") Long id, @Param("userId") Long userId);

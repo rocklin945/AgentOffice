@@ -22,7 +22,7 @@ public class AgentRunner {
     private final LlmService llmService;
     private final ToolExecutor toolExecutor;
 
-    private static final int MAX_TOOL_ROUNDS = 4;
+    private static final int MAX_TOOL_ROUNDS = 8;
 
     public record AgentResult(String content, List<AgentMessage> messages, AgentMovement movement) {}
     public record AgentMessage(String role, String agentSlug, String agentName, String content) {}
@@ -53,17 +53,23 @@ public class AgentRunner {
         while (response.getToolCalls() != null && !response.getToolCalls().isEmpty() && rounds < MAX_TOOL_ROUNDS) {
             log.info("Tool calls detected: {}, round {}", response.getToolCalls().size(), rounds + 1);
 
-            for (var toolCall : response.getToolCalls()) {
-                messages.add(LlmMessage.builder().role("assistant").content("").build());
+            messages.add(LlmMessage.builder()
+                    .role("assistant")
+                    .content(response.getContent())
+                    .toolCalls(response.getToolCalls())
+                    .build());
 
+            for (var toolCall : response.getToolCalls()) {
                 String toolResult = toolExecutor.executeTool(
                         agent.getToolsKey(),
                         toolCall.getName(),
                         parseArguments(toolCall.getArguments())
                 );
+                log.info("{} called tool {} with args {}", agent.getDisplayName(), toolCall.getName(), toolCall.getArguments());
 
                 messages.add(LlmMessage.builder()
                         .role("tool")
+                        .toolCallId(toolCall.getId())
                         .content(toolResult)
                         .build());
             }

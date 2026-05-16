@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircleFilled, ClockCircleFilled, DeleteOutlined, PlusOutlined, SendOutlined, TeamOutlined } from '@ant-design/icons';
 import { officeApi } from '../api';
 import { DonutChart, Panel, ProgressTrack, StatusPill } from '../components/AppPrimitives';
@@ -74,6 +74,8 @@ function EmployeeCard({ employee, isSelected, onClick, staff }) {
 }
 
 function WorkProductsPanel({ selectedEmployee }) {
+  const [activeProduct, setActiveProduct] = useState(null);
+
   if (!selectedEmployee) {
     return (
       <div className="flex h-full flex-col rounded-[16px] border border-[#edf1f8] bg-[#fbfcff] p-4 shadow-sm">
@@ -91,6 +93,7 @@ function WorkProductsPanel({ selectedEmployee }) {
         {(selectedEmployee.workProducts || []).map((product, index) => (
           <div
             key={`${product.name}-${index}`}
+            onClick={() => setActiveProduct(product)}
             className="cursor-pointer rounded-[10px] border border-[#edf1f8] bg-white p-3 hover:border-[#2f6bff]"
           >
             <div className="flex items-center justify-between">
@@ -106,9 +109,31 @@ function WorkProductsPanel({ selectedEmployee }) {
             </div>
             <div className="mt-2 text-[11px] text-[#8d99ae]">更新时间：{product.time}</div>
             {product.taskName ? <div className="mt-1 text-[11px] text-[#8d99ae]">关联任务：{product.taskName}</div> : null}
+            <div className="mt-2 text-[11px] font-medium text-[#2f6bff]">点击查看内容</div>
           </div>
         ))}
+        {!selectedEmployee.workProducts?.length ? (
+          <div className="rounded-[10px] border border-dashed border-[#d8e1ef] bg-white px-4 py-8 text-center text-[12px] text-[#8d99ae]">
+            暂无工作产物
+          </div>
+        ) : null}
       </div>
+      {activeProduct ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(12,18,28,0.26)] px-6" onClick={() => setActiveProduct(null)}>
+          <div className="max-h-[82vh] w-full max-w-[880px] overflow-hidden rounded-[14px] bg-white shadow-[0_32px_80px_rgba(18,30,52,0.18)]" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-[#edf1f8] px-5 py-4">
+              <div>
+                <div className="text-[16px] font-semibold text-[#1d2740]">{activeProduct.name}</div>
+                <div className="mt-1 text-[12px] text-[#8d99ae]">{activeProduct.type} · {activeProduct.fileUrl || '数据库产物'}</div>
+              </div>
+              <button type="button" onClick={() => setActiveProduct(null)} className="text-[22px] text-[#97a3b8]">×</button>
+            </div>
+            <pre className="max-h-[68vh] overflow-auto whitespace-pre-wrap bg-[#f8fafc] px-5 py-4 text-[13px] leading-6 text-[#40516d]">
+              {activeProduct.content || '该产物暂无可查看内容'}
+            </pre>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -216,7 +241,7 @@ function MarkdownMessage({ text, staff, highlightMentions }) {
   return <div className="max-w-none text-[#5f6d83]">{blocks}</div>;
 }
 
-function ChatPanel({ initialMessages, staff }) {
+function ChatPanel({ initialMessages, staff, onWorkflowComplete }) {
   const [messages, setMessages] = useState(initialMessages);
   const [sessions, setSessions] = useState([]);
   const [currentSessionId, setCurrentSessionId] = useState('');
@@ -508,6 +533,9 @@ function ChatPanel({ initialMessages, staff }) {
     if (event === 'error') {
       throw new Error(data.message || '回复失败');
     }
+    if (event === 'complete') {
+      onWorkflowComplete?.();
+    }
   };
 
   return (
@@ -648,7 +676,7 @@ export default function Office() {
   const [taskSummary, setTaskSummary] = useState([]);
   const [selected, setSelected] = useState(null);
 
-  useEffect(() => {
+  const loadCollaboration = useCallback(() => {
     let alive = true;
 
     officeApi.getCollaboration()
@@ -660,7 +688,10 @@ export default function Office() {
         setStats(res.data.statCards || []);
         setDonut(res.data.donutItems || []);
         setTaskSummary(res.data.taskSummary || []);
-        setSelected(nextStaff[1] || nextStaff[0] || null);
+        setSelected((current) => {
+          const currentId = current?.employeeId ?? current?.realId;
+          return nextStaff.find((item) => (item.employeeId ?? item.realId) === currentId) || nextStaff[1] || nextStaff[0] || null;
+        });
       })
       .catch(() => {
         if (!alive) return;
@@ -676,6 +707,10 @@ export default function Office() {
       alive = false;
     };
   }, []);
+
+  useEffect(() => {
+    return loadCollaboration();
+  }, [loadCollaboration]);
 
   return (
     <div className="space-y-5">
@@ -702,7 +737,7 @@ export default function Office() {
           <WorkProductsPanel selectedEmployee={selected} />
         </div>
         <div className="w-[380px] shrink-0">
-          <ChatPanel initialMessages={messages} staff={staff} />
+          <ChatPanel initialMessages={messages} staff={staff} onWorkflowComplete={loadCollaboration} />
         </div>
       </div>
 

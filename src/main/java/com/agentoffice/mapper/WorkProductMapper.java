@@ -22,8 +22,16 @@ public interface WorkProductMapper {
             "ORDER BY wp.update_time DESC")
     List<WorkProduct> findAll();
 
-    @Insert("INSERT INTO work_product (employee_id, task_id, name, product_type, status, file_url) " +
-            "VALUES (#{employeeId}, #{taskId}, #{name}, #{productType}, #{status}, #{fileUrl})")
+    @Insert("INSERT INTO work_product (employee_id, task_id, name, product_type, status, file_url, content) " +
+            "VALUES (#{employeeId}, #{taskId}, #{name}, #{productType}, #{status}, #{fileUrl}, #{content})")
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(WorkProduct product);
+
+    @Select("SELECT wp.*, e.name AS employee_name, t.task_name AS task_name " +
+            "FROM work_product wp " +
+            "LEFT JOIN agent_employee e ON wp.employee_id = e.id " +
+            "LEFT JOIN task_info t ON wp.task_id = t.id " +
+            "WHERE wp.product_type LIKE CONCAT('%', #{typeKeyword}, '%') " +
+            "ORDER BY wp.update_time DESC LIMIT 1")
+    WorkProduct findLatestByType(@Param("typeKeyword") String typeKeyword);
 }

@@ -114,6 +114,7 @@ CREATE TABLE work_product (
     product_type VARCHAR(30) DEFAULT NULL COMMENT '产物类型',
     status VARCHAR(20) DEFAULT '进行中' COMMENT '状态',
     file_url VARCHAR(500) DEFAULT NULL COMMENT '文件地址',
+    content LONGTEXT COMMENT '产物正文',
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     KEY idx_employee_id (employee_id),
     KEY idx_task_id (task_id)
@@ -267,12 +268,12 @@ INSERT INTO task_step (task_id, step_name, step_order, status, complete_time) VA
 (1, '测试验证', 4, '待处理', NULL),
 (1, '部署上线', 5, '待处理', NULL);
 
-INSERT INTO work_product (employee_id, task_id, name, product_type, status, file_url) VALUES
-(1, 1, '登录接口实现代码', '代码', '进行中', '/products/login-api-code'),
-(1, 2, '接口性能优化报告', '报告', '已完成', '/products/performance-report'),
-(2, 3, '自动化测试用例清单', '测试用例', '进行中', '/products/login-test-cases'),
-(3, 4, 'CI/CD 部署配置', '部署配置', '进行中', '/products/cicd-config'),
-(4, 1, '登录功能需求说明', '需求文档', '已完成', '/products/login-prd');
+INSERT INTO work_product (employee_id, task_id, name, product_type, status, file_url, content) VALUES
+(1, 1, '登录接口实现代码', '代码', '进行中', '/products/login-api-code', '登录接口代码已进入开发中，当前完成 JWT 鉴权入口和用户校验逻辑。'),
+(1, 2, '接口性能优化报告', '报告', '已完成', '/products/performance-report', '接口性能优化完成：慢查询已增加索引，核心接口响应时间下降。'),
+(2, 3, '自动化测试用例清单', '测试用例', '进行中', '/products/login-test-cases', '已覆盖登录成功、密码错误、Token 过期和权限不足场景。'),
+(3, 4, 'CI/CD 部署配置', '部署配置', '进行中', '/products/cicd-config', 'CI/CD 配置正在搭建，包含构建、镜像推送和部署健康检查步骤。'),
+(4, 1, '登录功能需求说明', '需求文档', '已完成', '/products/login-prd', '目标：完成用户登录注册与 JWT 鉴权。验收：登录成功返回 Token，失败提示清晰，接口可追踪。');
 
 INSERT INTO deploy_service (service_name, image, version, status, port, container_id, cpu_usage, memory_usage, running_time) VALUES
 ('user-service', 'agentoffice/user-service', 'v1.0.0', '运行中', 8080, 'container_user_001', 25.50, 40.20, 86400),

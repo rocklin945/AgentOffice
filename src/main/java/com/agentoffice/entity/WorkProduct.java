@@ -12,6 +12,7 @@ public class WorkProduct {
     private String productType;
     private String status;
     private String fileUrl;
+    private String content;
     private LocalDateTime updateTime;
 
     private String employeeName;
