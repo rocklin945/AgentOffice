@@ -1,7 +1,6 @@
 package com.agentoffice.dto;
 
 import lombok.Data;
-import java.math.BigDecimal;
 import java.util.List;
 
 @Data
@@ -11,8 +10,6 @@ public class CreateEmployeeRequest {
     private String role;
     private String position;
     private String status;
-    private Integer taskCount;
-    private BigDecimal efficiency;
     private Long deskId;
     private Long modelConfigId;
     private List<PermissionItem> permissions;

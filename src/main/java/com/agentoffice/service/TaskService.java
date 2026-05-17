@@ -57,8 +57,6 @@ public class TaskService {
         response.setDescription(task.getDescription());
         response.setPriority(task.getPriority());
         response.setStatus(task.getStatus());
-        response.setProgress(task.getProgress());
-
         if (task.getExecutorId() != null) {
             AgentEmployee executor = employeeMapper.findById(task.getExecutorId());
             if (executor != null) {
@@ -108,7 +106,6 @@ public class TaskService {
         task.setPriority(request.getPriority() != null ? request.getPriority() : "中");
         task.setExecutorId(request.getExecutorId());
         task.setStatus(request.getExecutorId() == null ? "待分配" : "进行中");
-        task.setProgress(0);
         task.setCreateUser(1L);
 
         taskMapper.insert(task);
@@ -165,11 +162,6 @@ public class TaskService {
     public void delete(Long id) {
         stepMapper.deleteByTaskId(id);
         taskMapper.deleteById(id);
-    }
-
-    @Transactional
-    public void updateProgress(Long id, Integer progress) {
-        taskMapper.updateProgress(id, progress);
     }
 
     @Transactional

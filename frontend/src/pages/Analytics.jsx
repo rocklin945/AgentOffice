@@ -5,7 +5,7 @@ import { buildAnalyticsData } from '../pageData';
 
 export default function Analytics() {
   const [activeTab, setActiveTab] = useState('overview');
-  const [data, setData] = useState({ metrics: {}, employeeEfficiency: [], taskCounts: {} });
+  const [data, setData] = useState({ metrics: {}, employeeWorkload: [], taskCounts: {} });
   useEffect(() => {
     const load = async () => {
       try {
@@ -16,12 +16,12 @@ export default function Analytics() {
         ]);
         setData(buildAnalyticsData(metrics.data || {}, employees.data || [], tasks.data || []));
       } catch {
-        setData({ metrics: {}, employeeEfficiency: [], taskCounts: {} });
+        setData({ metrics: {}, employeeWorkload: [], taskCounts: {} });
       }
     };
     load();
   }, []);
-  const tabs = [{ key: 'overview', label: '概览' }, { key: 'tasks', label: '任务分析' }, { key: 'employees', label: '员工分析' }, { key: 'efficiency', label: '效率分析' }, { key: 'report', label: '报告' }];
+  const tabs = [{ key: 'overview', label: '概览' }, { key: 'tasks', label: '任务分析' }, { key: 'employees', label: '员工分析' }, { key: 'report', label: '报告' }];
   const trend = data.metrics?.trend || [];
   const labels = trend.map((item) => item.date?.slice(5) || item.date);
 
@@ -29,12 +29,11 @@ export default function Analytics() {
     <Panel className="p-5">
       <div className="text-[18px] font-semibold text-[#1d2740]">成果与数据分析</div>
       <div className="mt-4 flex gap-8 border-b border-[#edf1f8] pb-3 text-[13px]">{tabs.map((tab) => <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)} className={activeTab === tab.key ? 'font-medium text-[#2f6bff]' : 'text-[#8d99ae] hover:text-[#5f6d83]'}>{tab.label}</button>)}</div>
-      {(activeTab === 'overview' || activeTab === 'tasks') && <div className="mt-5 grid grid-cols-4 gap-4">{[['任务完成率', `${data.metrics?.taskCompletionRate || 0}%`], ['总任务数', data.metrics?.totalTasks || 0], ['完成任务数', data.metrics?.completedTasks || 0], ['平均效率', `${data.metrics?.avgEfficiency || 0}%`]].map(([label, value]) => <div key={label} className="rounded-[14px] border border-[#edf1f8] px-4 py-4"><div className="text-[12px] text-[#8d99ae]">{label}</div><div className="mt-2 text-[18px] font-semibold text-[#1d2740]">{value}</div><div className="mt-1 text-[12px] text-[#7ac891]">来自后端统计</div></div>)}</div>}
+      {(activeTab === 'overview' || activeTab === 'tasks') && <div className="mt-5 grid grid-cols-3 gap-4">{[['任务完成率', `${data.metrics?.taskCompletionRate || 0}%`], ['总任务数', data.metrics?.totalTasks || 0], ['完成任务数', data.metrics?.completedTasks || 0]].map(([label, value]) => <div key={label} className="rounded-[14px] border border-[#edf1f8] px-4 py-4"><div className="text-[12px] text-[#8d99ae]">{label}</div><div className="mt-2 text-[18px] font-semibold text-[#1d2740]">{value}</div><div className="mt-1 text-[12px] text-[#7ac891]">来自后端统计</div></div>)}</div>}
       <div className="mt-5">
-        {activeTab === 'overview' && <div className="grid gap-4 xl:grid-cols-2"><div className="rounded-[14px] border border-[#edf1f8] p-4"><div className="mb-2 text-[14px] font-medium text-[#1d2740]">任务完成趋势</div><div className="h-[220px]"><LineChart labels={labels.length ? labels : ['-']} series={[{ name: '完成任务', values: trend.length ? trend.map((i) => Number(i.completed || 0)) : [0] }, { name: '创建任务', values: trend.length ? trend.map((i) => Number(i.total || 0)) : [0] }]} height={220} /></div></div><div className="rounded-[14px] border border-[#edf1f8] p-4"><div className="mb-2 text-[14px] font-medium text-[#1d2740]">员工效率排行</div><div className="h-[220px]"><BarChart items={data.employeeEfficiency || []} height={220} /></div></div></div>}
-        {activeTab === 'tasks' && <div className="grid grid-cols-4 gap-4">{[['进行中任务', data.taskCounts?.running || 0], ['已完成任务', data.taskCounts?.completed || 0], ['失败任务', data.taskCounts?.failed || 0], ['待分配任务', data.taskCounts?.pending || 0]].map(([label, value]) => <div key={label} className="rounded-[14px] border border-[#edf1f8] px-4 py-4"><div className="text-[12px] text-[#8d99ae]">{label}</div><div className="mt-2 text-[18px] font-semibold text-[#1d2740]">{value}</div></div>)}</div>}
-        {activeTab === 'employees' && <div className="rounded-[14px] border border-[#edf1f8] p-4"><div className="mb-2 text-[14px] font-medium text-[#1d2740]">员工工作量对比</div><div className="h-[220px]"><BarChart items={data.employeeEfficiency || []} height={220} /></div></div>}
-        {activeTab === 'efficiency' && <div className="rounded-[14px] border border-[#edf1f8] p-4"><div className="mb-2 text-[14px] font-medium text-[#1d2740]">效率趋势</div><div className="h-[220px]"><LineChart labels={labels.length ? labels : ['-']} series={[{ name: '平均效率', values: labels.length ? labels.map(() => Number(data.metrics?.avgEfficiency || 0)) : [0] }]} height={220} /></div></div>}
+        {activeTab === 'overview' && <div className="grid gap-4 xl:grid-cols-2"><div className="rounded-[14px] border border-[#edf1f8] p-4"><div className="mb-2 text-[14px] font-medium text-[#1d2740]">任务完成趋势</div><div className="h-[220px]"><LineChart labels={labels.length ? labels : ['-']} series={[{ name: '完成任务', values: trend.length ? trend.map((i) => Number(i.completed || 0)) : [0] }, { name: '创建任务', values: trend.length ? trend.map((i) => Number(i.total || 0)) : [0] }]} height={220} /></div></div><div className="rounded-[14px] border border-[#edf1f8] p-4"><div className="mb-2 text-[14px] font-medium text-[#1d2740]">员工任务量排行</div><div className="h-[220px]"><BarChart items={data.employeeWorkload || []} height={220} /></div></div></div>}
+        {activeTab === 'tasks' && <div className="grid grid-cols-3 gap-4">{[['进行中任务', data.taskCounts?.running || 0], ['已完成任务', data.taskCounts?.completed || 0], ['失败任务', data.taskCounts?.failed || 0], ['待分配任务', data.taskCounts?.pending || 0]].map(([label, value]) => <div key={label} className="rounded-[14px] border border-[#edf1f8] px-4 py-4"><div className="text-[12px] text-[#8d99ae]">{label}</div><div className="mt-2 text-[18px] font-semibold text-[#1d2740]">{value}</div></div>)}</div>}
+        {activeTab === 'employees' && <div className="rounded-[14px] border border-[#edf1f8] p-4"><div className="mb-2 text-[14px] font-medium text-[#1d2740]">员工工作量对比</div><div className="h-[220px]"><BarChart items={data.employeeWorkload || []} height={220} /></div></div>}
           {activeTab === 'report' && (
               <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">

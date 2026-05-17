@@ -29,7 +29,6 @@ export function buildEmployeePageData(rawEmployees = []) {
       role: text(employee.role),
       status: text(employee.status, '空闲'),
       tasks: String(number(employee.taskCount)),
-      efficiency: percent(employee.efficiency),
       employeeNo: `EMP${String(employee.id || 0).padStart(4, '0')}`,
       modelConfigId: employee.modelConfigId || '',
       modelConfigName: employee.modelConfigName || '',
@@ -38,7 +37,6 @@ export function buildEmployeePageData(rawEmployees = []) {
       duty: text(employee.position),
       skills: [text(employee.role), '协作', '自动化'],
       task: number(employee.taskCount) > 0 ? '处理当前分配任务' : '暂无进行中任务',
-      progress: number(employee.efficiency),
       workingTime: `${number(employee.taskCount)}项任务`,
       commits: '真实代码产物见云端开发',
       testPass: 'Review 产物见工作产物',
@@ -66,7 +64,6 @@ export function taskRow(task) {
     owner: text(task.executorName),
     role: text(task.taskType),
     status: text(task.status, '待分配'),
-    progress: number(task.progress),
     createdAt: formatTime(task.createTime),
     executorId: task.executorId || '',
     taskType: task.taskType || 'custom',
@@ -135,7 +132,7 @@ export function buildDeployData(services = [], logText = '') {
 export function buildAnalyticsData(metrics = {}, employees = [], tasks = []) {
   return {
     metrics,
-    employeeEfficiency: employees.map((employee) => ({ label: text(employee.name), value: number(employee.efficiency) })),
+    employeeWorkload: employees.map((employee) => ({ label: text(employee.name), value: number(employee.taskCount) })),
     taskCounts: {
       running: tasks.filter((task) => text(task.status).includes('进行')).length,
       completed: tasks.filter((task) => text(task.status).includes('完成')).length,

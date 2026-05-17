@@ -23,7 +23,6 @@ export const taskApi = {
   create: (data) => request.post('/tasks', data),
   update: (id, data) => request.put(`/tasks/${id}`, data),
   delete: (id) => request.delete(`/tasks/${id}`),
-  updateProgress: (id, progress) => request.patch(`/tasks/${id}/progress`, { progress }),
   updateStatus: (id, status) => request.patch(`/tasks/${id}/status`, { status }),
   updateStepStatus: (taskId, stepId, status) =>
     request.patch(`/tasks/${taskId}/steps/${stepId}`, { status }),
@@ -89,8 +88,6 @@ export const adminApi = {
   getUsers: () => request.get('/admin/users'),
   updateUser: (id, data) => request.put(`/admin/users/${id}`, data),
   deleteUser: (id) => request.delete(`/admin/users/${id}`),
-  getSystemSettings: () => request.get('/admin/system-settings'),
-  updateSystemSettings: (data) => request.put('/admin/system-settings', data),
 };
 
 export const codeReviewApi = {
@@ -100,7 +97,7 @@ export const codeReviewApi = {
 
 export const analyticsApi = {
   getDashboard: () => request.get('/analytics/dashboard'),
-  getEmployeeEfficiency: () => request.get('/analytics/employees'),
+  getEmployeeWorkload: () => request.get('/analytics/employees'),
   getTaskTrend: (params) => request.get('/analytics/tasks/trend', { params }),
   getKpi: () => request.get('/analytics/kpi'),
 };

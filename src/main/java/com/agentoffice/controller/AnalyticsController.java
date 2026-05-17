@@ -2,7 +2,7 @@ package com.agentoffice.controller;
 
 import com.agentoffice.common.result.Result;
 import com.agentoffice.dto.DashboardResponse;
-import com.agentoffice.dto.EmployeeEfficiencyResponse;
+import com.agentoffice.dto.EmployeeWorkloadResponse;
 import com.agentoffice.service.AnalyticsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -25,8 +25,8 @@ public class AnalyticsController {
     }
 
     @GetMapping("/employees")
-    public Result<List<EmployeeEfficiencyResponse>> getEmployeeEfficiency() {
-        List<EmployeeEfficiencyResponse> list = analyticsService.getEmployeeEfficiency();
+    public Result<List<EmployeeWorkloadResponse>> getEmployeeWorkload() {
+        List<EmployeeWorkloadResponse> list = analyticsService.getEmployeeWorkload();
         return Result.success(list);
     }
 

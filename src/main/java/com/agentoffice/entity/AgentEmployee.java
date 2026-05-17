@@ -1,7 +1,6 @@
 package com.agentoffice.entity;
 
 import lombok.Data;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -14,7 +13,6 @@ public class AgentEmployee {
     private String position;
     private String status;
     private Integer taskCount;
-    private BigDecimal efficiency;
     private Long deskId;
     private Long modelConfigId;
     private String modelConfigName;

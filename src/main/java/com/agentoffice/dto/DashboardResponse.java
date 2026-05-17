@@ -9,7 +9,6 @@ public class DashboardResponse {
     private BigDecimal taskCompletionRate;
     private Integer totalTasks;
     private Integer completedTasks;
-    private BigDecimal avgEfficiency;
     private List<TrendData> trend;
 
     @Data

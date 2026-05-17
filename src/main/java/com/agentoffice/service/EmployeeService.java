@@ -7,6 +7,7 @@ import com.agentoffice.entity.OfficeDesk;
 import com.agentoffice.mapper.AgentEmployeeMapper;
 import com.agentoffice.mapper.EmployeePermissionMapper;
 import com.agentoffice.mapper.OfficeDeskMapper;
+import com.agentoffice.mapper.TaskInfoMapper;
 import com.agentoffice.common.exception.BusinessException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -28,8 +29,13 @@ public class EmployeeService {
     @Autowired
     private EmployeePermissionMapper permissionMapper;
 
+    @Autowired
+    private TaskInfoMapper taskMapper;
+
     public List<AgentEmployee> getList(String status, String role, String keyword) {
-        return employeeMapper.findList(status, role, keyword);
+        List<AgentEmployee> employees = employeeMapper.findList(status, role, keyword);
+        employees.forEach(this::fillTaskCount);
+        return employees;
     }
 
     public AgentEmployee getById(Long id) {
@@ -43,6 +49,7 @@ public class EmployeeService {
                 employee.setDeskCode(desk.getDeskCode());
             }
         }
+        fillTaskCount(employee);
         fillPermissions(employee);
         return employee;
     }
@@ -55,7 +62,6 @@ public class EmployeeService {
         employee.setRole(request.getRole());
         employee.setPosition(request.getPosition());
         employee.setStatus(request.getStatus());
-        employee.setEfficiency(request.getEfficiency());
         employee.setDeskId(request.getDeskId());
         employee.setModelConfigId(request.getModelConfigId());
 
@@ -67,12 +73,6 @@ public class EmployeeService {
         }
         if (employee.getStatus() == null) {
             employee.setStatus("空闲");
-        }
-        if (employee.getTaskCount() == null) {
-            employee.setTaskCount(0);
-        }
-        if (employee.getEfficiency() == null) {
-            employee.setEfficiency(java.math.BigDecimal.ZERO);
         }
         if (employee.getDeskId() != null) {
             OfficeDesk desk = deskMapper.findById(employee.getDeskId());
@@ -106,8 +106,6 @@ public class EmployeeService {
         employee.setRole(request.getRole());
         employee.setPosition(request.getPosition());
         employee.setStatus(request.getStatus());
-        employee.setTaskCount(request.getTaskCount() == null ? exist.getTaskCount() : request.getTaskCount());
-        employee.setEfficiency(request.getEfficiency() == null ? exist.getEfficiency() : request.getEfficiency());
         employee.setDeskId(request.getDeskId() == null ? exist.getDeskId() : request.getDeskId());
         employee.setModelConfigId(request.getModelConfigId());
 
@@ -127,6 +125,7 @@ public class EmployeeService {
             permissionMapper.deleteByEmployeeId(id);
             savePermissions(id, request.getPermissions());
         }
+        fillTaskCount(employee);
         fillPermissions(employee);
 
         return employee;
@@ -178,5 +177,11 @@ public class EmployeeService {
     private void fillPermissions(AgentEmployee employee) {
         List<EmployeePermission> permissions = permissionMapper.findByEmployeeId(employee.getId());
         employee.setPermissions(permissions);
+    }
+
+    private void fillTaskCount(AgentEmployee employee) {
+        if (employee != null && employee.getId() != null) {
+            employee.setTaskCount(taskMapper.countByExecutor(employee.getId()));
+        }
     }
 }

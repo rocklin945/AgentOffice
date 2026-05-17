@@ -10,7 +10,6 @@ DROP TABLE IF EXISTS chat_message;
 DROP TABLE IF EXISTS chat_session;
 DROP TABLE IF EXISTS operation_log;
 DROP TABLE IF EXISTS notification_message;
-DROP TABLE IF EXISTS system_config;
 DROP TABLE IF EXISTS deploy_service;
 DROP TABLE IF EXISTS dev_file;
 DROP TABLE IF EXISTS dev_project;
@@ -63,8 +62,6 @@ CREATE TABLE agent_employee (
     role VARCHAR(50) NOT NULL COMMENT '角色',
     position VARCHAR(50) DEFAULT NULL COMMENT '职位',
     status VARCHAR(20) DEFAULT '空闲' COMMENT '状态',
-    task_count INT DEFAULT 0 COMMENT '任务数',
-    efficiency DECIMAL(5,2) DEFAULT 0.00 COMMENT '效率百分比',
     desk_id BIGINT DEFAULT NULL COMMENT '工位 ID',
     model_config_id BIGINT DEFAULT NULL COMMENT '模型配置 ID',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -105,7 +102,6 @@ CREATE TABLE task_info (
     priority VARCHAR(20) DEFAULT '中' COMMENT '优先级',
     executor_id BIGINT DEFAULT NULL COMMENT '执行人 ID',
     status VARCHAR(20) DEFAULT '待分配' COMMENT '状态',
-    progress INT DEFAULT 0 COMMENT '进度',
     create_user BIGINT DEFAULT NULL COMMENT '创建人',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -212,16 +208,6 @@ CREATE TABLE notification_message (
     KEY idx_create_time (create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通知消息表';
 
-CREATE TABLE system_config (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
-    config_key VARCHAR(50) NOT NULL COMMENT '配置键',
-    config_label VARCHAR(50) NOT NULL COMMENT '配置名称',
-    config_desc VARCHAR(255) DEFAULT NULL COMMENT '配置描述',
-    config_value VARCHAR(50) NOT NULL DEFAULT 'false' COMMENT '配置值',
-    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    UNIQUE KEY uk_config_key (config_key)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统设置表';
 
 CREATE TABLE chat_session (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
@@ -259,13 +245,13 @@ INSERT INTO model_config (config_name, provider, model_name, api_base, api_key, 
 ('默认模型', 'Nacos迁移', 'MiniMax-M2.7', NULL, NULL, 1, 1, '系统默认模型，员工未单独配置时使用'),
 ('代码审查模型', 'OpenAI Compatible', 'gpt-4o-mini', 'https://api.openai.com/v1', NULL, 0, 1, '适合开发、Code Review 和测试分析');
 
-INSERT INTO agent_employee (name, avatar, role, position, status, task_count, efficiency, desk_id, model_config_id) VALUES
-('ProductKing', 'https://api.dicebear.com/7.x/avataaars/svg?seed=ProductKing', '产品经理', '产品负责人', '在线', 4, 90.00, 1, 1),
-('Dispatcher', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Dispatcher', '调度员', '任务调度', '在线', 6, 96.00, 2, 1),
-('AlexBE', 'https://api.dicebear.com/7.x/avataaars/svg?seed=AlexBE', '后端开发工程师', '后端开发', '工作中', 5, 92.50, 3, 2),
-('LilyFE', 'https://api.dicebear.com/7.x/avataaars/svg?seed=LilyFE', '前端开发工程师', '前端开发', '工作中', 4, 91.00, 4, 2),
-('ReviewBot', 'https://api.dicebear.com/7.x/avataaars/svg?seed=ReviewBot', 'CodeReviewer', '代码审查', 'Review中', 3, 93.00, 5, 2),
-('OpsMaster', 'https://api.dicebear.com/7.x/avataaars/svg?seed=OpsMaster', '运维工程师', '容器运维', '部署中', 2, 95.00, 6, 1);
+INSERT INTO agent_employee (name, avatar, role, position, status, desk_id, model_config_id) VALUES
+('ProductKing', 'https://api.dicebear.com/7.x/avataaars/svg?seed=ProductKing', '产品经理', '产品负责人', '在线', 1, 1),
+('Dispatcher', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Dispatcher', '调度员', '任务调度', '在线', 2, 1),
+('AlexBE', 'https://api.dicebear.com/7.x/avataaars/svg?seed=AlexBE', '后端开发工程师', '后端开发', '工作中', 3, 2),
+('LilyFE', 'https://api.dicebear.com/7.x/avataaars/svg?seed=LilyFE', '前端开发工程师', '前端开发', '工作中', 4, 2),
+('ReviewBot', 'https://api.dicebear.com/7.x/avataaars/svg?seed=ReviewBot', 'CodeReviewer', '代码审查', 'Review中', 5, 2),
+('OpsMaster', 'https://api.dicebear.com/7.x/avataaars/svg?seed=OpsMaster', '运维工程师', '容器运维', '部署中', 6, 1);
 
 UPDATE office_desk SET employee_id = 1 WHERE id = 1;
 UPDATE office_desk SET employee_id = 2 WHERE id = 2;
@@ -282,12 +268,12 @@ INSERT INTO employee_permission (employee_id, permission_code, permission_name, 
 (5, 'task.view', '查看任务', 1), (5, 'code.review', 'Code Review', 1), (5, 'report.write', '输出报告', 1),
 (6, 'task.view', '查看任务', 1), (6, 'deploy.manage', '部署服务', 1), (6, 'log.view', '查看日志', 1);
 
-INSERT INTO task_info (task_name, task_type, description, priority, executor_id, status, progress, create_user) VALUES
-('登录功能需求拆解', 'product', '由产品经理输出 PRD 并交由调度员分发', '高', 1, '已完成', 100, 1),
-('登录功能后端开发', 'development', '实现用户登录注册和 JWT 鉴权能力', '高', 3, '进行中', 60, 1),
-('登录功能前端开发', 'development', '实现登录页面与表单交互', '高', 4, '进行中', 50, 1),
-('登录功能 Code Review', 'review', '审查前后端代码质量与风险', '中', 5, '待分配', 0, 1),
-('CI/CD 流程搭建', 'deployment', '搭建持续集成和部署流程', '高', 6, '待分配', 0, 1);
+INSERT INTO task_info (task_name, task_type, description, priority, executor_id, status, create_user) VALUES
+('登录功能需求拆解', 'product', '由产品经理输出 PRD 并交由调度员分发', '高', 1, '已完成', 1),
+('登录功能后端开发', 'development', '实现用户登录注册和 JWT 鉴权能力', '高', 3, '进行中', 1),
+('登录功能前端开发', 'development', '实现登录页面与表单交互', '高', 4, '进行中', 1),
+('登录功能 Code Review', 'review', '审查前后端代码质量与风险', '中', 5, '待分配', 1),
+('CI/CD 流程搭建', 'deployment', '搭建持续集成和部署流程', '高', 6, '待分配', 1);
 
 INSERT INTO task_step (task_id, step_name, step_order, status, complete_time) VALUES
 (1, '需求分析', 1, '已完成', NOW()),
@@ -315,12 +301,6 @@ INSERT INTO notification_message (user_id, category, title, content, source_type
 (1, 'deploy', '服务部署异常', 'message-service 当前资源占用较高，请在运维部署中查看服务详情。', 'deploy_service', 4, 0, 'high'),
 (1, 'task', '调度员已接管流程', '团队协作已切换为调度员统一调度模式，后续由调度员负责阶段流转。', 'dispatcher', 2, 1, 'normal');
 
-INSERT INTO system_config (config_key, config_label, config_desc, config_value) VALUES
-('maintenanceMode', '维护模式', '启用后普通用户无法访问系统', 'false'),
-('userRegistration', '用户注册', '允许新用户注册系统', 'true'),
-('operationLog', '日志记录', '记录所有用户操作日志', 'true'),
-('emailNotification', '邮件通知', '发送系统通知邮件', 'true'),
-('realtimePush', '实时推送', '启用WebSocket实时推送', 'true');
 
 INSERT INTO dev_project (project_name, description, language, owner_id, status) VALUES
 ('user-center', '用户中心服务', 'java', 1, 1),

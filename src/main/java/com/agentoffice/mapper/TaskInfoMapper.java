@@ -27,26 +27,23 @@ public interface TaskInfoMapper {
             "WHERE t.id = #{id}")
     TaskInfo findById(@Param("id") Long id);
 
-    @Insert("INSERT INTO task_info (task_name, task_type, description, priority, executor_id, status, progress, create_user) " +
-            "VALUES (#{taskName}, #{taskType}, #{description}, #{priority}, #{executorId}, #{status}, #{progress}, #{createUser})")
+    @Insert("INSERT INTO task_info (task_name, task_type, description, priority, executor_id, status, create_user) " +
+            "VALUES (#{taskName}, #{taskType}, #{description}, #{priority}, #{executorId}, #{status}, #{createUser})")
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(TaskInfo task);
 
     @Update("UPDATE task_info SET task_name = #{taskName}, task_type = #{taskType}, description = #{description}, " +
             "priority = #{priority}, executor_id = #{executorId}, status = #{status}, " +
-            "progress = #{progress}, update_time = NOW() WHERE id = #{id}")
+            "update_time = NOW() WHERE id = #{id}")
     int update(TaskInfo task);
 
     @Delete("DELETE FROM task_info WHERE id = #{id}")
     int deleteById(@Param("id") Long id);
 
-    @Update("UPDATE task_info SET progress = #{progress}, update_time = NOW() WHERE id = #{id}")
-    int updateProgress(@Param("id") Long id, @Param("progress") Integer progress);
-
     @Update("UPDATE task_info SET status = #{status}, update_time = NOW() WHERE id = #{id}")
     int updateStatus(@Param("id") Long id, @Param("status") String status);
 
-    @Update("UPDATE task_info SET status = #{status}, progress = 100, end_time = NOW(), update_time = NOW() WHERE id = #{id}")
+    @Update("UPDATE task_info SET status = #{status}, end_time = NOW(), update_time = NOW() WHERE id = #{id}")
     int complete(@Param("id") Long id, @Param("status") String status);
 
     @Select("SELECT COUNT(*) FROM task_info")
@@ -57,6 +54,9 @@ public interface TaskInfoMapper {
 
     @Select("SELECT COUNT(*) FROM task_info WHERE status = #{status}")
     int countByStatus(@Param("status") String status);
+
+    @Select("SELECT COUNT(*) FROM task_info WHERE executor_id = #{executorId}")
+    int countByExecutor(@Param("executorId") Long executorId);
 
     @Select("SELECT COUNT(*) FROM task_info WHERE DATE(create_time) = #{date}")
     int countCreatedByDate(@Param("date") java.time.LocalDate date);

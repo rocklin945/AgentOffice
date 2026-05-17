@@ -27,14 +27,14 @@ public interface AgentEmployeeMapper {
             "LEFT JOIN model_config mc ON e.model_config_id = mc.id ORDER BY e.create_time DESC")
     List<AgentEmployee> findAll();
 
-    @Insert("INSERT INTO agent_employee (name, avatar, role, position, status, task_count, efficiency, desk_id, model_config_id) " +
-            "VALUES (#{name}, #{avatar}, #{role}, #{position}, #{status}, #{taskCount}, #{efficiency}, #{deskId}, #{modelConfigId})")
+    @Insert("INSERT INTO agent_employee (name, avatar, role, position, status, desk_id, model_config_id) " +
+            "VALUES (#{name}, #{avatar}, #{role}, #{position}, #{status}, #{deskId}, #{modelConfigId})")
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(AgentEmployee employee);
 
     @Update("UPDATE agent_employee SET name = #{name}, avatar = #{avatar}, role = #{role}, " +
-            "position = #{position}, status = #{status}, task_count = #{taskCount}, " +
-            "efficiency = #{efficiency}, desk_id = #{deskId}, model_config_id = #{modelConfigId}, update_time = NOW() WHERE id = #{id}")
+            "position = #{position}, status = #{status}, desk_id = #{deskId}, " +
+            "model_config_id = #{modelConfigId}, update_time = NOW() WHERE id = #{id}")
     int update(AgentEmployee employee);
 
     @Delete("DELETE FROM agent_employee WHERE id = #{id}")

@@ -11,7 +11,6 @@ public class TaskDetailResponse {
     private String priority;
     private ExecutorInfo executor;
     private String status;
-    private Integer progress;
     private List<StepInfo> steps;
     private List<LogInfo> logs;
     private String createTime;

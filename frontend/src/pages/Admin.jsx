@@ -43,7 +43,7 @@ function Dashboard({ employees, tasks, services, dashboard }) {
         {stats.map((stat) => <div key={stat.label} className="rounded-[14px] border border-[#edf1f8] bg-white p-4"><div className="text-[12px] text-[#8d99ae]">{stat.label}</div><div className="mt-2 text-[24px] font-semibold" style={{ color: stat.color }}>{stat.value}</div></div>)}
       </div>
       <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-[14px] border border-[#edf1f8] bg-white p-4"><div className="mb-3 text-[14px] font-medium text-[#1d2740]">平均效率</div><div className="text-[32px] font-semibold text-[#2bb36b]">{percent(dashboard?.avgEfficiency)}</div></div>
+        
         <div className="rounded-[14px] border border-[#edf1f8] bg-white p-4"><div className="mb-3 text-[14px] font-medium text-[#1d2740]">运行服务</div><div className="text-[32px] font-semibold text-[#2f6bff]">{services.filter((item) => item.status === '运行中').length}</div></div>
       </div>
       <div className="grid grid-cols-2 gap-4">
@@ -154,7 +154,6 @@ export default function Admin() {
         role: record.role || '开发工程师',
         position: record.position || '',
         status: record.status || '空闲',
-        efficiency: Number(record.efficiency || 0),
         permissions: (record.permissions || [])
           .filter((permission) => permission.enabled === true || permission.enabled === 1)
           .map((permission) => permission.permissionCode || permission.code),
@@ -232,8 +231,6 @@ export default function Admin() {
       role: employeeDraft.role,
       position: employeeDraft.position.trim(),
       status: employeeDraft.status,
-      taskCount: record.taskCount || 0,
-      efficiency: Number(employeeDraft.efficiency || 0),
       permissions: employeePermissions.map((permission) => ({
         ...permission,
         enabled: employeeDraft.permissions.includes(permission.code),
@@ -269,9 +266,7 @@ export default function Admin() {
       { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
       { title: '姓名', dataIndex: 'name', key: 'name' },
       { title: '角色', dataIndex: 'role', key: 'role' },
-      { title: '状态', dataIndex: 'status', key: 'status', render: (s) => <Tag color={tagColor(s)}>{s}</Tag> },
-      { title: '效率', dataIndex: 'efficiency', key: 'efficiency', render: percent },
-      { title: '任务数', dataIndex: 'taskCount', key: 'taskCount' },
+      { title: '状态', dataIndex: 'status', key: 'status', render: (s) => <Tag color={tagColor(s)}>{s}</Tag> },      { title: '任务数', dataIndex: 'taskCount', key: 'taskCount' },
       { title: '操作', key: 'action', render: (_, record) => <ActionButtons onEdit={() => openEdit('employees', record)} onDelete={() => removeRecord('employees', record)} /> },
     ],
     tasks: [
@@ -296,7 +291,7 @@ export default function Admin() {
   const renderEditFields = () => {
     if (!editing) return null;
     if (editing.type === 'users') return <><Form.Item name="username" label="用户名" rules={[{ required: true }]}><Input /></Form.Item><Form.Item name="email" label="邮箱"><Input /></Form.Item><Form.Item name="nickname" label="昵称"><Input /></Form.Item><Form.Item name="phone" label="手机号"><Input /></Form.Item><Form.Item name="role" label="后台权限"><Select options={[{ value: 'user', label: '普通用户' }, { value: 'admin', label: '管理员' }]} /></Form.Item><Form.Item name="status" label="状态"><Select options={[{ value: 1, label: '正常' }, { value: 0, label: '禁用' }]} /></Form.Item></>;
-    if (editing.type === 'employees') return <><Form.Item name="name" label="姓名" rules={[{ required: true }]}><Input /></Form.Item><Form.Item name="role" label="角色"><Input /></Form.Item><Form.Item name="position" label="职位"><Input /></Form.Item><Form.Item name="status" label="状态"><Select options={['空闲', '在线', '工作中', '思考中', '部署中'].map((v) => ({ value: v, label: v }))} /></Form.Item><Form.Item name="efficiency" label="效率"><Input type="number" /></Form.Item></>;
+    if (editing.type === 'employees') return <><Form.Item name="name" label="姓名" rules={[{ required: true }]}><Input /></Form.Item><Form.Item name="role" label="角色"><Input /></Form.Item><Form.Item name="position" label="职位"><Input /></Form.Item><Form.Item name="status" label="状态"><Select options={['空闲', '在线', '工作中', '思考中', '部署中'].map((v) => ({ value: v, label: v }))} /></Form.Item></>;
     if (editing.type === 'tasks') return <><Form.Item name="taskName" label="任务名称" rules={[{ required: true }]}><Input /></Form.Item><Form.Item name="priority" label="优先级"><Select options={['高', '中', '低'].map((v) => ({ value: v, label: v }))} /></Form.Item><Form.Item name="status" label="状态"><Select options={['待分配', '进行中', '部署中', '已完成', '已失败'].map((v) => ({ value: v, label: v }))} /></Form.Item><Form.Item name="description" label="描述"><Input /></Form.Item></>;
     return <><Form.Item name="serviceName" label="服务名称" rules={[{ required: true }]}><Input /></Form.Item><Form.Item name="image" label="镜像"><Input /></Form.Item><Form.Item name="version" label="版本"><Input /></Form.Item><Form.Item name="status" label="状态"><Select options={['运行中', '已停止', '异常'].map((v) => ({ value: v, label: v }))} /></Form.Item><Form.Item name="port" label="端口"><Input type="number" /></Form.Item></>;
   };
@@ -328,7 +323,6 @@ export default function Admin() {
           <label className="text-[13px] text-[#5f6d83]">员工姓名<input value={employeeDraft.name} onChange={(event) => updateEmployeeDraft('name', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]" /></label>
           <label className="text-[13px] text-[#5f6d83]">职位<input value={employeeDraft.position} onChange={(event) => updateEmployeeDraft('position', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]" /></label>
           <label className="text-[13px] text-[#5f6d83]">状态<select value={employeeDraft.status} onChange={(event) => updateEmployeeDraft('status', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]">{['空闲', '在线', '工作中', '思考中', '部署中'].map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
-          <label className="text-[13px] text-[#5f6d83]">效率<input type="number" value={employeeDraft.efficiency} onChange={(event) => updateEmployeeDraft('efficiency', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]" /></label>
         </div>
       );
     }

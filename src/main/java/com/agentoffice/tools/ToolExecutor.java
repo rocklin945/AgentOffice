@@ -276,7 +276,6 @@ public class ToolExecutor {
                 value(text(args, "priority"), "中"),
                 executor.getId(),
                 "进行中",
-                0,
                 defaultSteps(value(text(args, "task_type"), "custom"))
         );
         logOperation("create_task", "task", task.getId(), task.getTaskName());
@@ -458,7 +457,7 @@ public class ToolExecutor {
         return "{\"status\": \"ok\", \"message\": \"数据库连接正常\"}";
     }
 
-    private TaskInfo createTask(String taskName, String taskType, String description, String priority, Long executorId, String status, int progress, List<String> steps) {
+    private TaskInfo createTask(String taskName, String taskType, String description, String priority, Long executorId, String status, List<String> steps) {
         TaskInfo task = new TaskInfo();
         task.setTaskName(taskName);
         task.setTaskType(taskType);
@@ -466,7 +465,6 @@ public class ToolExecutor {
         task.setPriority(priority);
         task.setExecutorId(executorId);
         task.setStatus(status);
-        task.setProgress(progress);
         task.setCreateUser(1L);
         taskMapper.insert(task);
 

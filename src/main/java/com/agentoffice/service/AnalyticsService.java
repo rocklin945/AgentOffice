@@ -1,7 +1,7 @@
 package com.agentoffice.service;
 
 import com.agentoffice.dto.DashboardResponse;
-import com.agentoffice.dto.EmployeeEfficiencyResponse;
+import com.agentoffice.dto.EmployeeWorkloadResponse;
 import com.agentoffice.entity.AgentEmployee;
 import com.agentoffice.entity.TaskInfo;
 import com.agentoffice.mapper.AgentEmployeeMapper;
@@ -43,16 +43,6 @@ public class AnalyticsService {
             response.setTaskCompletionRate(BigDecimal.ZERO);
         }
 
-        List<AgentEmployee> employees = employeeMapper.findAll();
-        if (!employees.isEmpty()) {
-            BigDecimal totalEfficiency = employees.stream()
-                    .map(AgentEmployee::getEfficiency)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-            response.setAvgEfficiency(totalEfficiency.divide(BigDecimal.valueOf(employees.size()), 2, RoundingMode.HALF_UP));
-        } else {
-            response.setAvgEfficiency(BigDecimal.ZERO);
-        }
-
         List<DashboardResponse.TrendData> trend = new ArrayList<>();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         for (int i = 6; i >= 0; i--) {
@@ -68,15 +58,14 @@ public class AnalyticsService {
         return response;
     }
 
-    public List<EmployeeEfficiencyResponse> getEmployeeEfficiency() {
+    public List<EmployeeWorkloadResponse> getEmployeeWorkload() {
         List<AgentEmployee> employees = employeeMapper.findAll();
-        List<EmployeeEfficiencyResponse> result = new ArrayList<>();
+        List<EmployeeWorkloadResponse> result = new ArrayList<>();
 
         for (AgentEmployee employee : employees) {
-            EmployeeEfficiencyResponse item = new EmployeeEfficiencyResponse();
+            EmployeeWorkloadResponse item = new EmployeeWorkloadResponse();
             item.setName(employee.getName());
-            item.setEfficiency(employee.getEfficiency());
-            item.setTaskCount(employee.getTaskCount());
+            item.setTaskCount(taskMapper.countByExecutor(employee.getId()));
             result.add(item);
         }
 

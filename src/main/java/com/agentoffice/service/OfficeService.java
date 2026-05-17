@@ -214,10 +214,10 @@ public class OfficeService {
             item.put("employeeNo", "EMP" + String.format("%04d", employee.getId()));
             item.put("duty", employee.getPosition() != null ? employee.getPosition() : roleDuty(employee.getRole()));
             item.put("skills", roleSkills(employee.getRole()));
-            item.put("task", employee.getTaskCount() != null && employee.getTaskCount() > 0 ? "处理当前分配任务" : "暂无进行中任务");
-            item.put("progress", employee.getEfficiency() == null ? 0 : employee.getEfficiency().intValue());
+            int assignedTaskCount = taskMapper.findList(null, null, employee.getId()).size();
+            item.put("task", assignedTaskCount > 0 ? "处理当前分配任务" : "暂无进行中任务");
             item.put("nextEmployee", null);
-            item.put("workingTime", taskMapper.findList(null, null, employee.getId()).size() + "项任务");
+            item.put("workingTime", assignedTaskCount + "项任务");
             item.put("commits", countProducts(employee.getId(), "代码") + "个代码产物");
             item.put("testPass", countProducts(employee.getId(), "Code Review") + "个Review产物");
             item.put("deployCount", countProducts(employee.getId(), "部署") + "个部署产物");

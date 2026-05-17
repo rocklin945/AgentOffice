@@ -56,12 +56,6 @@ public class TaskController {
         return Result.success();
     }
 
-    @PatchMapping("/{id}/progress")
-    public Result<Void> updateProgress(@PathVariable Long id, @RequestBody Map<String, Integer> body) {
-        taskService.updateProgress(id, body.get("progress"));
-        return Result.success();
-    }
-
     @PatchMapping("/{id}/status")
     public Result<Void> updateStatus(@PathVariable Long id, @RequestBody Map<String, String> body) {
         taskService.updateStatus(id, body.get("status"));

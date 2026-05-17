@@ -15,7 +15,6 @@ public class TaskInfo {
     private String executorName;
     private String executorAvatar;
     private String status;
-    private Integer progress;
     private Long createUser;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
