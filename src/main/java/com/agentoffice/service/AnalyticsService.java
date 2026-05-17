@@ -90,7 +90,7 @@ public class AnalyticsService {
         
         Map<String, Long> operationTypeCount = new HashMap<>();
         for (OperationLog log : recentLogs) {
-            String type = log.getOperationType() != null ? log.getOperationType() : "其他";
+            String type = log.getAction() != null ? log.getAction() : "其他";
             operationTypeCount.put(type, operationTypeCount.getOrDefault(type, 0L) + 1);
         }
         operationStats.put("byType", operationTypeCount);
@@ -106,6 +106,7 @@ public class AnalyticsService {
         for (AgentEmployee employee : employees) {
             EmployeeWorkloadResponse item = new EmployeeWorkloadResponse();
             item.setName(employee.getName());
+            item.setRole(employee.getRole() != null ? employee.getRole() : "成员");
             item.setTaskCount(taskMapper.countByExecutor(employee.getId()));
             result.add(item);
         }
