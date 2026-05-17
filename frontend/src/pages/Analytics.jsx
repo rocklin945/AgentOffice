@@ -76,7 +76,13 @@ export default function Analytics() {
     .employee-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
     .employee-card { background: #fafbfc; border-radius: 8px; padding: 16px; }
     .employee-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-    .employee-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #2f6bff, #5b8aff); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 16px; }
+    .employee-avatar { width: 40px; height: 40px; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 16px; }
+    .avatar-0 { background: linear-gradient(135deg, #2f6bff, #5b8aff); }
+    .avatar-1 { background: linear-gradient(135deg, #39c3a5, #5dd4b4); }
+    .avatar-2 { background: linear-gradient(135deg, #f4b53f, #f7c96b); }
+    .avatar-3 { background: linear-gradient(135deg, #ef4444, #f87171); }
+    .avatar-4 { background: linear-gradient(135deg, #9b6bff, #b794f6); }
+    .avatar-5 { background: linear-gradient(135deg, #ec4899, #f472b6); }
     .employee-name { font-size: 13px; font-weight: 500; color: #1d2740; }
     .employee-rank { font-size: 11px; color: #8d99ae; }
     .employee-tasks { font-size: 22px; font-weight: bold; color: #2f6bff; }
@@ -163,7 +169,7 @@ export default function Analytics() {
         ${(data.employeeWorkload || []).slice(0, 6).map((item, idx) => `
           <div class="employee-card">
             <div class="employee-header">
-              <div class="employee-avatar">${item.label?.charAt(0) || '?'}</div>
+              <div class="employee-avatar avatar-${idx % 6}">${item.label?.charAt(0) || '?'}</div>
               <div>
                 <div class="employee-name">${item.label}</div>
                 <div class="employee-rank">${item.role || '成员'} · 排名 #${idx + 1}</div>
@@ -536,23 +542,33 @@ export default function Analytics() {
               </div>
               {data.employeeWorkload && data.employeeWorkload.length > 0 ? (
                 <div className="grid grid-cols-3 gap-4">
-                  {data.employeeWorkload.slice(0, 6).map((item, idx) => (
-                    <div key={idx} className="bg-[#fafbfc] rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#2f6bff] to-[#5b8aff] flex items-center justify-center text-white font-semibold">
-                          {item.label?.charAt(0) || '?'}
+                  {data.employeeWorkload.slice(0, 6).map((item, idx) => {
+                    const avatarColors = [
+                      'from-[#2f6bff] to-[#5b8aff]',
+                      'from-[#39c3a5] to-[#5dd4b4]',
+                      'from-[#f4b53f] to-[#f7c96b]',
+                      'from-[#ef4444] to-[#f87171]',
+                      'from-[#9b6bff] to-[#b794f6]',
+                      'from-[#ec4899] to-[#f472b6]',
+                    ];
+                    return (
+                      <div key={idx} className="bg-[#fafbfc] rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatarColors[idx % avatarColors.length]} flex items-center justify-center text-white font-semibold`}>
+                            {item.label?.charAt(0) || '?'}
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-[13px] font-medium text-[#1d2740]">{item.label}</div>
+                            <div className="text-[11px] text-[#8d99ae]">{item.role} · 排名 #{idx + 1}</div>
+                          </div>
                         </div>
-                        <div className="flex-1">
-                          <div className="text-[13px] font-medium text-[#1d2740]">{item.label}</div>
-                          <div className="text-[11px] text-[#8d99ae]">{item.role} · 排名 #{idx + 1}</div>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-[22px] font-bold text-[#2f6bff]">{item.value || 0}</span>
+                          <span className="text-[12px] text-[#8d99ae]">个任务</span>
                         </div>
                       </div>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-[22px] font-bold text-[#2f6bff]">{item.value || 0}</span>
-                        <span className="text-[12px] text-[#8d99ae]">个任务</span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-8 text-[13px] text-[#8d99ae]">暂无员工数据</div>

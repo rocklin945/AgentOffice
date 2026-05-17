@@ -84,10 +84,10 @@ public class AnalyticsService {
         response.setProductStats(productStats);
 
         // 添加操作日志统计
-        List<OperationLog> recentLogs = operationLogMapper.findRecent(100);
         Map<String, Object> operationStats = new HashMap<>();
-        operationStats.put("total", recentLogs.size());
+        operationStats.put("total", operationLogMapper.countTotal());
         
+        List<OperationLog> recentLogs = operationLogMapper.findRecent(100);
         Map<String, Long> operationTypeCount = new HashMap<>();
         for (OperationLog log : recentLogs) {
             String type = log.getAction() != null ? log.getAction() : "其他";

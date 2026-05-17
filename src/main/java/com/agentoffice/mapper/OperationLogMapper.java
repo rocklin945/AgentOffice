@@ -28,4 +28,7 @@ public interface OperationLogMapper {
 
     @Select("SELECT * FROM operation_log WHERE action = #{action} ORDER BY create_time DESC, id DESC LIMIT #{limit}")
     List<OperationLog> findByAction(@Param("action") String action, @Param("limit") Integer limit);
+
+    @Select("SELECT COUNT(*) FROM operation_log")
+    int countTotal();
 }

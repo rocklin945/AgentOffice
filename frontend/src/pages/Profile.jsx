@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Button, Card, Avatar, Modal, Form, Input, message } from 'antd';
-import { EditOutlined, SafetyOutlined, MailOutlined, PhoneOutlined, LockOutlined } from '@ant-design/icons';
+import { Button, Card, Modal, Form, Input, message } from 'antd';
+import { EditOutlined, MailOutlined, LockOutlined } from '@ant-design/icons';
 import { useAppStore } from '../store';
 
 export default function Profile() {
@@ -12,7 +12,7 @@ export default function Profile() {
 
   const handleEditOk = () => {
     form.validateFields().then((values) => {
-      setUser?.({ ...user, nickname: values.nickname, email: values.email, phone: values.phone });
+      setUser?.({ ...user, nickname: values.nickname, email: values.email });
       message.success('资料已更新');
       setEditOpen(false);
     });
@@ -26,15 +26,37 @@ export default function Profile() {
     });
   };
 
+  const name = user?.nickname || user?.username || '管理员';
+  const initial = name.slice(0, 1).toUpperCase();
+  const isAdmin = user?.role === 'admin';
+
   return (
     <div className="max-w-[800px]">
       <Card className="rounded-[20px] border-[#edf1f8] shadow-[0_14px_30px_rgba(31,56,88,0.05)]">
         <div className="flex items-center gap-5">
-          <Avatar
-            size={80}
-            src={user?.avatar || 'https://api.dicebear.com/7.x/adventurer/svg?seed=zhangsan'}
-            className="text-[28px]"
-          />
+          <span className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#dbe7ff] bg-[#eef4ff] shadow-[0_10px_24px_rgba(47,107,255,0.16)]">
+            <svg viewBox="0 0 48 48" className="h-full w-full" aria-hidden="true">
+              <defs>
+                <linearGradient id="userAvatarBg" x1="8" x2="40" y1="5" y2="44" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#76A7FF" />
+                  <stop offset="0.54" stopColor="#2F6BFF" />
+                  <stop offset="1" stopColor="#183FBC" />
+                </linearGradient>
+                <linearGradient id="userAvatarLight" x1="12" x2="34" y1="8" y2="36" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#FFFFFF" stopOpacity="0.96" />
+                  <stop offset="1" stopColor="#DDE9FF" stopOpacity="0.82" />
+                </linearGradient>
+              </defs>
+              <rect width="48" height="48" rx="24" fill="url(#userAvatarBg)" />
+              <circle cx="16" cy="13" r="10" fill="#FFFFFF" opacity="0.16" />
+              <path d="M14 38.5C15.5 31 19.2 27.5 24 27.5C28.8 27.5 32.5 31 34 38.5C31.4 40.7 27.9 42 24 42C20.1 42 16.6 40.7 14 38.5Z" fill="url(#userAvatarLight)" />
+              <circle cx="24" cy="19" r="7.2" fill="url(#userAvatarLight)" />
+              <path d="M31.2 18.6C28.7 17.7 26.8 16.2 25.5 14.1C23.4 17.4 20.7 19.2 17.3 19.6C17.6 15.4 20.2 11.8 24.1 11.8C28.3 11.8 31 14.7 31.2 18.6Z" fill="#1D3F9B" opacity="0.66" />
+            </svg>
+            <span className="absolute bottom-[3px] right-[3px] flex h-[15px] min-w-[15px] items-center justify-center rounded-full border-2 border-white bg-[#21c87a] px-[3px] text-[8px] font-bold leading-none text-white">
+              {isAdmin ? 'A' : initial}
+            </span>
+          </span>
           <div className="flex-1">
             <div className="text-[20px] font-semibold text-[#1d2740]">{user?.nickname || '张三'}</div>
             <div className="mt-1 text-[14px] text-[#8d99ae]">管理员</div>
@@ -49,8 +71,6 @@ export default function Profile() {
         <div className="grid grid-cols-2 gap-y-4 text-[14px]">
           <div className="flex items-center gap-2 text-[#8d99ae]"><MailOutlined /> 邮箱</div>
           <div className="text-[#1d2740]">{user?.email || 'zhangsan@example.com'}</div>
-          <div className="flex items-center gap-2 text-[#8d99ae]"><PhoneOutlined /> 手机</div>
-          <div className="text-[#1d2740]">138****8888</div>
         </div>
       </Card>
 
@@ -67,28 +87,15 @@ export default function Profile() {
             </div>
             <Button size="small" onClick={() => setPasswordOpen(true)}>修改</Button>
           </div>
-          <div className="flex items-center justify-between rounded-[12px] bg-[#f6f8fc] px-4 py-3">
-            <div className="flex items-center gap-3">
-              <SafetyOutlined className="text-[20px] text-[#2f6bff]" />
-              <div>
-                <div className="text-[14px] font-medium text-[#1d2740]">两步验证</div>
-                <div className="text-[12px] text-[#8d99ae]">未开启</div>
-              </div>
-            </div>
-            <Button size="small">开启</Button>
-          </div>
         </div>
       </Card>
 
       <Modal title="编辑资料" open={editOpen} onOk={handleEditOk} onCancel={() => setEditOpen(false)} okText="保存" cancelText="取消">
-        <Form form={form} layout="vertical" initialValues={{ nickname: user?.nickname || '张三', email: user?.email || 'zhangsan@example.com', phone: '138****8888' }}>
+        <Form form={form} layout="vertical" initialValues={{ nickname: user?.nickname || '张三', email: user?.email || 'zhangsan@example.com' }}>
           <Form.Item name="nickname" label="姓名" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
           <Form.Item name="email" label="邮箱" rules={[{ required: true, type: 'email' }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="phone" label="手机">
             <Input />
           </Form.Item>
         </Form>
