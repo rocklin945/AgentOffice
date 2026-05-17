@@ -71,6 +71,11 @@ public class LlmService {
         body.put("messages", convertMessages(request.getMessages()));
         body.put("temperature", request.getTemperature());
         body.put("max_tokens", request.getMaxTokens());
+        
+        // 禁用 DeepSeek 的思考模式，避免 reasoning_content 问题
+        if (model != null && model.toLowerCase().contains("deepseek")) {
+            body.put("thinking", Map.of("type", "disabled"));
+        }
 
         if (request.getTools() != null && !request.getTools().isEmpty()) {
             body.put("tools", convertTools(request.getTools()));
