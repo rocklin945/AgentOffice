@@ -4,17 +4,24 @@ import com.agentoffice.dto.DashboardResponse;
 import com.agentoffice.dto.EmployeeWorkloadResponse;
 import com.agentoffice.entity.AgentEmployee;
 import com.agentoffice.entity.TaskInfo;
+import com.agentoffice.entity.WorkProduct;
+import com.agentoffice.entity.OperationLog;
 import com.agentoffice.mapper.AgentEmployeeMapper;
 import com.agentoffice.mapper.TaskInfoMapper;
+import com.agentoffice.mapper.WorkProductMapper;
+import com.agentoffice.mapper.OperationLogMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class AnalyticsService {
@@ -24,6 +31,12 @@ public class AnalyticsService {
 
     @Autowired
     private AgentEmployeeMapper employeeMapper;
+
+    @Autowired
+    private WorkProductMapper workProductMapper;
+
+    @Autowired
+    private OperationLogMapper operationLogMapper;
 
     public DashboardResponse getDashboard() {
         DashboardResponse response = new DashboardResponse();
@@ -54,6 +67,34 @@ public class AnalyticsService {
             trend.add(data);
         }
         response.setTrend(trend);
+
+        // 添加工作产物统计
+        List<WorkProduct> allProducts = workProductMapper.findAll();
+        Map<String, Object> productStats = new HashMap<>();
+        productStats.put("total", allProducts.size());
+        productStats.put("completed", allProducts.stream().filter(p -> "已完成".equals(p.getStatus())).count());
+        productStats.put("inProgress", allProducts.stream().filter(p -> "进行中".equals(p.getStatus())).count());
+        
+        Map<String, Long> productTypeCount = new HashMap<>();
+        for (WorkProduct product : allProducts) {
+            String type = product.getProductType() != null ? product.getProductType() : "其他";
+            productTypeCount.put(type, productTypeCount.getOrDefault(type, 0L) + 1);
+        }
+        productStats.put("byType", productTypeCount);
+        response.setProductStats(productStats);
+
+        // 添加操作日志统计
+        List<OperationLog> recentLogs = operationLogMapper.findRecent(100);
+        Map<String, Object> operationStats = new HashMap<>();
+        operationStats.put("total", recentLogs.size());
+        
+        Map<String, Long> operationTypeCount = new HashMap<>();
+        for (OperationLog log : recentLogs) {
+            String type = log.getOperationType() != null ? log.getOperationType() : "其他";
+            operationTypeCount.put(type, operationTypeCount.getOrDefault(type, 0L) + 1);
+        }
+        operationStats.put("byType", operationTypeCount);
+        response.setOperationStats(operationStats);
 
         return response;
     }

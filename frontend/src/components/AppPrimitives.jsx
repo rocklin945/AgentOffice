@@ -55,7 +55,16 @@ export function LineChart({
 }) {
   const width = 420;
   const padding = { left: 26, right: 18, top: 20, bottom: 30 };
-  const values = series.flatMap((item) => item.values);
+  
+  if (!series || series.length === 0 || !labels || labels.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center text-[13px] text-[#8d99ae]">
+        暂无数据
+      </div>
+    );
+  }
+  
+  const values = series.flatMap((item) => item.values || []);
   const max = Math.max(...values, 10);
   const min = Math.min(...values, 0);
   const innerWidth = width - padding.left - padding.right;
@@ -80,15 +89,26 @@ export function LineChart({
           <g key={item.name}>
             <polyline fill="none" stroke={colors[seriesIndex] || colors[0]} strokeWidth="3" points={points} />
             {item.values.map((value, index) => (
-              <circle
-                key={`${item.name}-${index}`}
-                cx={pointX(index)}
-                cy={pointY(value)}
-                r="4.5"
-                fill="#fff"
-                stroke={colors[seriesIndex] || colors[0]}
-                strokeWidth="2.5"
-              />
+              <g key={`${item.name}-${index}`}>
+                <circle
+                  cx={pointX(index)}
+                  cy={pointY(value)}
+                  r="4.5"
+                  fill="#fff"
+                  stroke={colors[seriesIndex] || colors[0]}
+                  strokeWidth="2.5"
+                />
+                <text
+                  x={pointX(index)}
+                  y={pointY(value) - 10}
+                  textAnchor="middle"
+                  fontSize="11"
+                  fill={colors[seriesIndex] || colors[0]}
+                  fontWeight="500"
+                >
+                  {value}
+                </text>
+              </g>
             ))}
           </g>
         );
@@ -113,7 +133,14 @@ export function LineChart({
 export function BarChart({ items, height = 210, color = '#2f6bff' }) {
   const width = 420;
   const padding = { left: 28, right: 18, top: 18, bottom: 34 };
-  const max = Math.max(...items.map((item) => item.value), 100);
+  if (!items || items.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center text-[13px] text-[#8d99ae]">
+        暂无数据
+      </div>
+    );
+  }
+  const max = Math.max(...items.map((item) => item.value || 0), 1);
   const innerWidth = width - padding.left - padding.right;
   const innerHeight = height - padding.top - padding.bottom;
   const barWidth = innerWidth / Math.max(items.length, 1) - 24;
@@ -126,14 +153,15 @@ export function BarChart({ items, height = 210, color = '#2f6bff' }) {
       })}
 
       {items.map((item, index) => {
+        const value = item.value || 0;
         const x = padding.left + (innerWidth / items.length) * index + 12;
-        const barHeight = (item.value / max) * innerHeight;
+        const barHeight = (value / max) * innerHeight;
         const y = padding.top + innerHeight - barHeight;
         return (
-          <g key={item.label}>
+          <g key={item.label || index}>
             <rect x={x} y={y} width={barWidth} height={barHeight} rx="6" fill={color} opacity={0.96} />
             <text x={x + barWidth / 2} y={y - 8} textAnchor="middle" fontSize="12" fill="#7292d9">
-              {item.value}%
+              {value}
             </text>
             <text x={x + barWidth / 2} y={height - 8} textAnchor="middle" fontSize="12" fill="#8d99ae">
               {item.label}

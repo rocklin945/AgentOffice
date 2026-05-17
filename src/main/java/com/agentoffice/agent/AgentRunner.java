@@ -22,7 +22,7 @@ public class AgentRunner {
     private final LlmService llmService;
     private final ToolExecutor toolExecutor;
 
-    private static final int MAX_TOOL_ROUNDS = 16;
+    private static final int MAX_TOOL_ROUNDS = 32;
 
     public record AgentResult(String content, List<AgentMessage> messages, AgentMovement movement) {}
     public record AgentMessage(String role, String agentSlug, String agentName, String content) {}
