@@ -146,6 +146,7 @@ public class ToolExecutor {
                 createTool("create_work_product_in_progress", "在工作产物区创建一个进行中的工作产物，用于开始工作时展示进度。",
                         Map.of(
                                 "employee_id", new LlmTool.Parameter("integer", "产出该文件的员工 ID"),
+                                "task_id", new LlmTool.Parameter("integer", "关联任务 ID，可省略；省略时系统会按员工当前任务自动匹配"),
                                 "name", new LlmTool.Parameter("string", "工作产物名称"),
                                 "product_type", new LlmTool.Parameter("string", "产物类型，例如 需求文档、代码、Code Review报告、部署记录"),
                                 "file_path", new LlmTool.Parameter("string", "将写入的相对文件路径")
@@ -288,39 +289,22 @@ public class ToolExecutor {
         try {
             Path path = resolveArtifactPath(text(args, "file_path"));
             String content = Files.exists(path) ? Files.readString(path, StandardCharsets.UTF_8) : "";
-            Long taskId = optionalLong(args, "task_id");
             Long employeeId = requiredLong(args, "employee_id");
+            String productType = value(text(args, "product_type"), "文件");
+            Long taskId = resolveTaskId(employeeId, optionalLong(args, "task_id"), productType);
             
             WorkProduct product = saveWorkProduct(
                     employeeId,
                     taskId,
                     value(text(args, "name"), path.getFileName().toString()),
-                    value(text(args, "product_type"), "文件"),
+                    productType,
                     "已完成",
                     artifactRelative(path),
                     content
             );
             syncCodeArtifactToCloudDev(artifactRelative(path), content, product.getEmployeeId());
             logOperation("register_work_product", "work_product", product.getId(), product.getName() + " -> " + artifactRelative(path));
-            
-            // 如果有关联任务，更新任务状态为已完成
-            if (taskId != null) {
-                TaskInfo task = taskMapper.findById(taskId);
-                if (task != null && !"已完成".equals(task.getStatus())) {
-                    taskMapper.updateStatus(taskId, "已完成");
-                    logOperation("update_task_status", "task", taskId, "任务已完成: " + task.getTaskName());
-                }
-            } else {
-                // 如果没有明确的 task_id，尝试查找该员工当前进行中的任务
-                List<TaskInfo> employeeTasks = taskMapper.findList(null, null, employeeId);
-                for (TaskInfo task : employeeTasks) {
-                    if ("进行中".equals(task.getStatus())) {
-                        taskMapper.updateStatus(task.getId(), "已完成");
-                        logOperation("update_task_status", "task", task.getId(), "任务已完成: " + task.getTaskName());
-                        break; // 只更新第一个进行中的任务
-                    }
-                }
-            }
+            completeRelatedTask(product);
             
             return new WorkflowResult(true, "工作产物登记成功", Map.of(
                     "productId", product.getId(),
@@ -352,11 +336,14 @@ public class ToolExecutor {
             String filePath = text(args, "file_path");
             Path path = resolveArtifactPath(filePath);
             String fileName = path.getFileName().toString();
+            Long employeeId = requiredLong(args, "employee_id");
+            String productType = value(text(args, "product_type"), "文件");
+            Long taskId = resolveTaskId(employeeId, optionalLong(args, "task_id"), productType);
             WorkProduct product = saveWorkProduct(
-                    requiredLong(args, "employee_id"),
-                    null,
+                    employeeId,
+                    taskId,
                     value(text(args, "name"), fileName),
-                    value(text(args, "product_type"), "文件"),
+                    productType,
                     "进行中",
                     artifactRelative(path),
                     ""
@@ -395,6 +382,9 @@ public class ToolExecutor {
         }
         workProductMapper.updateStatus(product.getId(), status, value(product.getContent(), ""));
         logOperation("update_work_product_status", "work_product", product.getId(), product.getName() + " -> " + status);
+        if ("已完成".equals(status)) {
+            completeRelatedTask(product);
+        }
         return new WorkflowResult(true, "工作产物状态已更新为 " + status, Map.of(
                 "productId", product.getId(),
                 "productName", product.getName(),
@@ -507,7 +497,7 @@ public class ToolExecutor {
         WorkProduct existing = workProductMapper.findByFileUrl(fileUrl);
         if (existing != null) {
             existing.setEmployeeId(employeeId);
-            existing.setTaskId(taskId);
+            existing.setTaskId(taskId == null ? existing.getTaskId() : taskId);
             existing.setName(name);
             existing.setProductType(productType);
             existing.setStatus(status);
@@ -517,6 +507,71 @@ public class ToolExecutor {
             return existing;
         }
         return createWorkProduct(employeeId, taskId, name, productType, status, fileUrl, content);
+    }
+
+    private Long resolveTaskId(Long employeeId, Long explicitTaskId, String productType) {
+        if (explicitTaskId != null) {
+            return explicitTaskId;
+        }
+        TaskInfo task = findActiveTaskForProduct(employeeId, productType);
+        return task == null ? null : task.getId();
+    }
+
+    private void completeRelatedTask(WorkProduct product) {
+        if (product == null || product.getEmployeeId() == null) {
+            return;
+        }
+        TaskInfo task = product.getTaskId() == null
+                ? findActiveTaskForProduct(product.getEmployeeId(), product.getProductType())
+                : taskMapper.findById(product.getTaskId());
+        if (task == null) {
+            log.warn("员工 {} 没有找到可完成的关联任务，产物={}", product.getEmployeeId(), product.getName());
+            return;
+        }
+        if ("已完成".equals(task.getStatus())) {
+            return;
+        }
+        taskMapper.complete(task.getId(), "已完成");
+        logOperation("update_task_status", "task", task.getId(), "任务已完成: " + task.getTaskName());
+        log.info("工作产物 {} 完成后同步更新任务 {} 为已完成", product.getName(), task.getTaskName());
+    }
+
+    private TaskInfo findActiveTaskForProduct(Long employeeId, String productType) {
+        if (employeeId == null) {
+            return null;
+        }
+        List<TaskInfo> tasks = taskMapper.findList(null, null, employeeId);
+        String expectedType = taskTypeForProduct(productType);
+        TaskInfo fallback = null;
+        for (TaskInfo task : tasks) {
+            if (!isActiveTask(task)) {
+                continue;
+            }
+            if (fallback == null) {
+                fallback = task;
+            }
+            if (expectedType != null && expectedType.equals(task.getTaskType())) {
+                return task;
+            }
+        }
+        return fallback;
+    }
+
+    private String taskTypeForProduct(String productType) {
+        String normalized = value(productType, "");
+        if (normalized.contains("需求")) return "product";
+        if (normalized.contains("Code Review") || normalized.contains("Review") || normalized.contains("审查")) return "review";
+        if (normalized.contains("部署")) return "deployment";
+        if (normalized.contains("代码")) return "development";
+        return null;
+    }
+
+    private boolean isActiveTask(TaskInfo task) {
+        if (task == null) {
+            return false;
+        }
+        String status = value(task.getStatus(), "");
+        return !"已完成".equals(status) && !"已失败".equals(status) && !"失败".equals(status);
     }
 
     private DevFile createDevFile(Long projectId, String fileName, String filePath, String fileType, Long parentId, int directory) {

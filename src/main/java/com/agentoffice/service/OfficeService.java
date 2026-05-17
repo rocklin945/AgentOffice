@@ -442,7 +442,11 @@ public class OfficeService {
                 .toolsKey(ToolExecutor.WORKFLOW_TOOLS)
                 .build();
         AgentRunner.AgentResult result = agentRunner.runAgent(agent, message, List.of());
-        return Optional.of(result.content());
+        String reply = cleanLlmReply(result.content());
+        if (reply.isBlank()) {
+            reply = fallbackWorkflowCompletionReply(employee);
+        }
+        return Optional.of(ensureWorkflowHandoff(employee, reply));
     }
 
     private ModelConfig resolveEmployeeModel(AgentEmployee employee) {
@@ -798,12 +802,36 @@ public class OfficeService {
         if (content == null || content.isBlank()) {
             return List.of();
         }
-        return employeeMapper.findAll().stream()
-                .filter(employee -> employee.getId() != null && !employee.getId().equals(senderEmployeeId))
-                .filter(employee -> employee.getName() != null && content.contains("@" + employee.getName()))
-                .map(AgentEmployee::getId)
-                .distinct()
-                .toList();
+        List<Long> mentioned = new ArrayList<>();
+        for (AgentEmployee employee : employeeMapper.findAll()) {
+            if (employee.getId() == null || employee.getId().equals(senderEmployeeId)) {
+                continue;
+            }
+            String name = employee.getName();
+            String role = value(employee.getRole(), "");
+            boolean explicitName = name != null && content.contains("@" + name);
+            boolean roleAlias = false;
+            if (isDispatcherRole(role)) {
+                roleAlias = content.contains("@调度员")
+                        || content.contains("@Dispatcher")
+                        || content.matches("(?s).*(汇报|通知|发送|转告|下一步).*?(调度员|Dispatcher).*");
+            } else if (isReviewerRole(role)) {
+                roleAlias = content.contains("@CodeReviewer")
+                        || content.contains("@ReviewBot")
+                        || content.matches("(?s).*(指派|通知|转告|下一步).*?(CodeReviewer|ReviewBot|代码审查|Code Review).*");
+            } else if (role.contains("运维")) {
+                roleAlias = content.contains("@运维")
+                        || content.matches("(?s).*(指派|通知|转告|下一步).*?(运维|部署).*");
+            } else if (role.contains("前端")) {
+                roleAlias = content.contains("@前端");
+            } else if (role.contains("后端")) {
+                roleAlias = content.contains("@后端");
+            }
+            if (explicitName || roleAlias) {
+                mentioned.add(employee.getId());
+            }
+        }
+        return mentioned.stream().distinct().toList();
     }
 
     private List<String> splitReply(String content) {
@@ -824,6 +852,70 @@ public class OfficeService {
             return "";
         }
         return content.replaceAll("(?s)<think>.*?</think>", "").trim();
+    }
+
+    private String ensureWorkflowHandoff(AgentEmployee employee, String reply) {
+        String role = value(employee.getRole(), "");
+        if (reply == null || isDispatcherRole(role) || parseMentionedEmployeeIds(reply, employee.getId()).size() > 0) {
+            return value(reply, "");
+        }
+        if ((role.contains("产品") && reply.contains("需求"))
+                || (role.contains("开发") && reply.contains("代码"))
+                || (role.contains("前端") && reply.contains("代码"))
+                || (role.contains("后端") && reply.contains("代码"))
+                || (isReviewerRole(role) && reply.contains("Review"))
+                || (role.contains("运维") && reply.contains("部署"))) {
+            String dispatcherName = findEmployeeNameByRole("调度员", "Dispatcher");
+            String productType = productTypeForRole(role);
+            String filePath = latestFilePath(productType);
+            String suffix = "\n\n@" + dispatcherName + " " + completionMessageForRole(role);
+            if (!filePath.isBlank()) {
+                suffix += "，filePath: " + filePath;
+            }
+            return reply + suffix;
+        }
+        return reply;
+    }
+
+    private String fallbackWorkflowCompletionReply(AgentEmployee employee) {
+        String role = value(employee.getRole(), "");
+        if (isDispatcherRole(role)) {
+            return "已完成当前调度处理。";
+        }
+        String dispatcherName = findEmployeeNameByRole("调度员", "Dispatcher");
+        String productType = productTypeForRole(role);
+        String filePath = latestFilePath(productType);
+        String reply = completionMessageForRole(role);
+        if (!filePath.isBlank()) {
+            reply += "，filePath: " + filePath;
+        }
+        return reply + "\n\n@" + dispatcherName + " 请继续调度下一步。";
+    }
+
+    private String completionMessageForRole(String role) {
+        if (role.contains("产品")) return "需求文档(PRD) 已完成";
+        if (isReviewerRole(role)) return "Code Review 报告已完成";
+        if (role.contains("运维")) return "部署已完成";
+        if (role.contains("前端")) return "前端代码已完成";
+        if (role.contains("后端")) return "后端代码已完成";
+        if (role.contains("开发")) return "代码已完成";
+        return "工作已完成";
+    }
+
+    private String productTypeForRole(String role) {
+        if (role.contains("产品")) return "需求文档";
+        if (isReviewerRole(role)) return "Code Review报告";
+        if (role.contains("运维")) return "部署记录";
+        if (role.contains("开发") || role.contains("前端") || role.contains("后端")) return "代码";
+        return "";
+    }
+
+    private String latestFilePath(String productType) {
+        if (productType == null || productType.isBlank()) {
+            return "";
+        }
+        WorkProduct product = workProductMapper.findLatestByType(productType);
+        return product == null ? "" : value(product.getFileUrl(), "");
     }
 
     private String agentSystemPrompt(AgentEmployee employee) {
