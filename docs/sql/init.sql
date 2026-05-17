@@ -113,32 +113,6 @@ CREATE TABLE work_product (
     KEY idx_task_id (task_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='工作产物表';
 
-CREATE TABLE dev_project (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
-    project_name VARCHAR(100) NOT NULL COMMENT '项目名称',
-    description TEXT COMMENT '项目描述',
-    language VARCHAR(20) DEFAULT 'java' COMMENT '语言类型',
-    owner_id BIGINT DEFAULT NULL COMMENT '负责人',
-    status TINYINT DEFAULT 1 COMMENT '状态: 0 禁用, 1 正常',
-    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    KEY idx_owner_id (owner_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='项目表';
-
-CREATE TABLE dev_file (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
-    project_id BIGINT NOT NULL COMMENT '项目 ID',
-    file_name VARCHAR(255) NOT NULL COMMENT '文件名',
-    file_path VARCHAR(500) NOT NULL COMMENT '文件路径',
-    file_type VARCHAR(20) DEFAULT NULL COMMENT '文件类型',
-    parent_id BIGINT DEFAULT NULL COMMENT '父目录 ID',
-    is_directory TINYINT DEFAULT 0 COMMENT '是否目录',
-    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    KEY idx_project_id (project_id),
-    KEY idx_parent_id (parent_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文件表';
-
 CREATE TABLE deploy_service (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
     service_name VARCHAR(100) NOT NULL COMMENT '服务名称',
@@ -239,15 +213,5 @@ INSERT INTO deploy_service (service_name, image, version, status, port, containe
 ('order-service', 'agentoffice/order-service', 'v1.2.0', '运行中', 8081, 'container_order_001', 18.30, 35.00, 172800),
 ('payment-service', 'agentoffice/payment-service', 'v1.1.0', '已停止', 8082, NULL, 0.00, 0.00, 0),
 ('message-service', 'agentoffice/message-service', 'v2.0.0', '异常', 8083, 'container_msg_001', 95.00, 85.00, 1000);
-
-INSERT INTO dev_project (project_name, description, language, owner_id, status) VALUES
-('user-center', '用户中心服务', 'java', 1, 1),
-('agent-core', 'AI 智能代理核心', 'java', 1, 1),
-('web-frontend', '前端管理系统', 'javascript', 1, 1);
-
-INSERT INTO dev_file (project_id, file_name, file_path, file_type, parent_id, is_directory) VALUES
-(1, 'src', '/src', 'directory', NULL, 1),
-(1, 'Main.java', '/src/Main.java', 'java', 1, 0),
-(1, 'README.md', '/README.md', 'markdown', NULL, 0);
 
 SET FOREIGN_KEY_CHECKS = 1;

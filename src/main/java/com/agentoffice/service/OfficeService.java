@@ -269,6 +269,9 @@ public class OfficeService {
             if (employee == null) {
                 continue;
             }
+            // 更新员工状态为工作中
+            employeeMapper.updateStatus(employeeId, "工作中");
+            
             String replyText = workflowReply(employee, request.getMessage()).orElseGet(() -> {
                 LlmResponse response = llmService.chatCompletion(LlmRequest.builder()
                         .messages(List.of(
@@ -293,6 +296,9 @@ public class OfficeService {
             reply.put("text", replyText);
             replies.add(reply);
             saveChatMessage(session.getId(), "assistant", employee.getName(), employee.getId(), replyText);
+            
+            // 完成后恢复为空闲状态
+            employeeMapper.updateStatus(employeeId, "空闲");
         }
 
         return Map.of("session", sessionMap(session), "replies", replies);
@@ -407,6 +413,9 @@ public class OfficeService {
             return null;
         }
         try {
+            // 更新员工状态为工作中
+            employeeMapper.updateStatus(employeeId, "工作中");
+            
             String replyId = "reply_" + UUID.randomUUID().toString().substring(0, 8);
             Map<String, Object> start = new HashMap<>();
             start.put("replyId", replyId);
@@ -445,9 +454,16 @@ public class OfficeService {
 
             sendEvent(emitter, "reply_done", Map.of("replyId", replyId, "employeeId", employee.getId()));
             saveChatMessage(sessionDbId, "assistant", employee.getName(), employee.getId(), savedContent.toString());
+            
+            // 完成后恢复为空闲状态
+            employeeMapper.updateStatus(employeeId, "空闲");
+            
             return new ReplyHandoff(employee.getId(), employee.getName(), savedContent.toString(), parseMentionedEmployeeIds(savedContent.toString(), employee.getId()));
         } catch (Exception e) {
             try {
+                // 出错时也恢复为空闲状态
+                employeeMapper.updateStatus(employeeId, "空闲");
+                
                 sendEvent(emitter, "reply_error", Map.of(
                         "employeeId", employee.getId(),
                         "message", e.getMessage() == null ? "回复失败" : e.getMessage()
