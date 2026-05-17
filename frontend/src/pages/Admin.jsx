@@ -7,7 +7,6 @@ import {
   DashboardOutlined,
   DeleteOutlined,
   EditOutlined,
-  SettingOutlined,
   TeamOutlined,
   UserOutlined,
 } from '@ant-design/icons';
@@ -19,7 +18,6 @@ const menuItems = [
   { key: 'employees', label: '员工管理', icon: <TeamOutlined /> },
   { key: 'tasks', label: '任务管理', icon: <CheckSquareOutlined /> },
   { key: 'services', label: '服务管理', icon: <CloudOutlined /> },
-  { key: 'system', label: '系统设置', icon: <SettingOutlined /> },
 ];
 
 const tagColor = (status) => {
@@ -118,7 +116,7 @@ const employeeRolePermissions = {
 
 export default function Admin() {
   const [activeMenu, setActiveMenu] = useState('dashboard');
-  const [data, setData] = useState({ users: [], employees: [], tasks: [], services: [], dashboard: {}, systemSettings: [] });
+  const [data, setData] = useState({ users: [], employees: [], tasks: [], services: [], dashboard: {} });
   const [editing, setEditing] = useState(null);
   const [form] = Form.useForm();
   const [employeeStep, setEmployeeStep] = useState(0);
@@ -126,13 +124,12 @@ export default function Admin() {
 
   const reload = async () => {
     try {
-      const [users, employees, tasks, services, dashboard, systemSettings] = await Promise.all([
+        const [users, employees, tasks, services, dashboard] = await Promise.all([
         adminApi.getUsers(),
         employeeApi.getList(),
         taskApi.getList(),
         deployApi.getServiceList(),
         analyticsApi.getDashboard(),
-        adminApi.getSystemSettings(),
       ]);
       setData((prev) => ({
         ...prev,
@@ -141,7 +138,6 @@ export default function Admin() {
         tasks: tasks.data || [],
         services: services.data || [],
         dashboard: dashboard.data || {},
-        systemSettings: systemSettings.data || [],
       }));
     } catch {
       setData((prev) => ({ ...prev }));
@@ -184,7 +180,7 @@ export default function Admin() {
       await adminApi.updateUser(record.id, { ...record, ...values, username: values.username || values.name, status: Number(values.status ?? 1), role: values.role || 'user' });
     }
     if (type === 'tasks') {
-      await taskApi.update(record.id, { ...record, ...values, taskName: values.taskName || values.name, progress: Number(values.progress || 0), executorId: values.executorId || null });
+      await taskApi.update(record.id, { ...record, ...values, taskName: values.taskName || values.name, executorId: values.executorId || null });
     }
     if (type === 'services') {
       await deployApi.updateService(record.id, { ...record, ...values, serviceName: values.serviceName || values.name, port: values.port ? Number(values.port) : null });
@@ -259,15 +255,6 @@ export default function Admin() {
     reload();
   };
 
-  const updateSystemSetting = async (key, value) => {
-    await adminApi.updateSystemSettings({ [key]: value });
-    setData((current) => ({
-      ...current,
-      systemSettings: current.systemSettings.map((item) => item.configKey === key ? { ...item, configValue: value } : item),
-    }));
-    message.success('设置已保存');
-  };
-
   const columnsMap = useMemo(() => ({
     users: [
       { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
@@ -293,7 +280,6 @@ export default function Admin() {
       { title: '负责人', dataIndex: 'executorName', key: 'executorName', render: (v) => v || '-' },
       { title: '状态', dataIndex: 'status', key: 'status', render: (s) => <Tag color={tagColor(s)}>{s}</Tag> },
       { title: '优先级', dataIndex: 'priority', key: 'priority' },
-      { title: '进度', dataIndex: 'progress', key: 'progress', render: percent },
       { title: '操作', key: 'action', render: (_, record) => <ActionButtons onEdit={() => openEdit('tasks', record)} onDelete={() => removeRecord('tasks', record)} /> },
     ],
     services: [
@@ -311,30 +297,12 @@ export default function Admin() {
     if (!editing) return null;
     if (editing.type === 'users') return <><Form.Item name="username" label="用户名" rules={[{ required: true }]}><Input /></Form.Item><Form.Item name="email" label="邮箱"><Input /></Form.Item><Form.Item name="nickname" label="昵称"><Input /></Form.Item><Form.Item name="phone" label="手机号"><Input /></Form.Item><Form.Item name="role" label="后台权限"><Select options={[{ value: 'user', label: '普通用户' }, { value: 'admin', label: '管理员' }]} /></Form.Item><Form.Item name="status" label="状态"><Select options={[{ value: 1, label: '正常' }, { value: 0, label: '禁用' }]} /></Form.Item></>;
     if (editing.type === 'employees') return <><Form.Item name="name" label="姓名" rules={[{ required: true }]}><Input /></Form.Item><Form.Item name="role" label="角色"><Input /></Form.Item><Form.Item name="position" label="职位"><Input /></Form.Item><Form.Item name="status" label="状态"><Select options={['空闲', '在线', '工作中', '思考中', '部署中'].map((v) => ({ value: v, label: v }))} /></Form.Item><Form.Item name="efficiency" label="效率"><Input type="number" /></Form.Item></>;
-    if (editing.type === 'tasks') return <><Form.Item name="taskName" label="任务名称" rules={[{ required: true }]}><Input /></Form.Item><Form.Item name="priority" label="优先级"><Select options={['高', '中', '低'].map((v) => ({ value: v, label: v }))} /></Form.Item><Form.Item name="status" label="状态"><Select options={['待分配', '进行中', '部署中', '已完成', '已失败'].map((v) => ({ value: v, label: v }))} /></Form.Item><Form.Item name="progress" label="进度"><Input type="number" /></Form.Item><Form.Item name="description" label="描述"><Input /></Form.Item></>;
+    if (editing.type === 'tasks') return <><Form.Item name="taskName" label="任务名称" rules={[{ required: true }]}><Input /></Form.Item><Form.Item name="priority" label="优先级"><Select options={['高', '中', '低'].map((v) => ({ value: v, label: v }))} /></Form.Item><Form.Item name="status" label="状态"><Select options={['待分配', '进行中', '部署中', '已完成', '已失败'].map((v) => ({ value: v, label: v }))} /></Form.Item><Form.Item name="description" label="描述"><Input /></Form.Item></>;
     return <><Form.Item name="serviceName" label="服务名称" rules={[{ required: true }]}><Input /></Form.Item><Form.Item name="image" label="镜像"><Input /></Form.Item><Form.Item name="version" label="版本"><Input /></Form.Item><Form.Item name="status" label="状态"><Select options={['运行中', '已停止', '异常'].map((v) => ({ value: v, label: v }))} /></Form.Item><Form.Item name="port" label="端口"><Input type="number" /></Form.Item></>;
   };
 
   const renderContent = () => {
     if (activeMenu === 'dashboard') return <Dashboard employees={data.employees} tasks={data.tasks} services={data.services} dashboard={data.dashboard} />;
-    if (activeMenu === 'system') {
-      return (
-        <Card className="rounded-[14px] border-[#edf1f8]">
-          <div className="mb-4 text-[16px] font-medium text-[#1d2740]">系统设置</div>
-          <div className="space-y-4">
-            {data.systemSettings.map((item) => (
-              <div key={item.configKey} className="flex items-center justify-between rounded-[12px] bg-[#f6f8fc] px-4 py-3">
-                <div>
-                  <div className="text-[14px] font-medium text-[#1d2740]">{item.configLabel}</div>
-                  <div className="text-[12px] text-[#8d99ae]">{item.configDesc}</div>
-                </div>
-                <Select className="w-[120px]" value={item.configValue === 'true' ? 'true' : 'false'} onChange={(value) => updateSystemSetting(item.configKey, value)} options={[{ value: 'true', label: '开启' }, { value: 'false', label: '关闭' }]} />
-              </div>
-            ))}
-          </div>
-        </Card>
-      );
-    }
     return <><div className="mb-4 text-[16px] font-medium text-[#1d2740]">{menuItems.find((m) => m.key === activeMenu)?.label}</div><Table columns={columnsMap[activeMenu]} dataSource={data[activeMenu]} rowKey="id" pagination={{ pageSize: 5 }} /></>;
   };
 

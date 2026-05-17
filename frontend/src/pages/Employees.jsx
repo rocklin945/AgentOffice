@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { UserOutlined, CheckCircleFilled, CloseCircleFilled, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { employeeApi, modelConfigApi } from '../api';
-import { Panel, ProgressTrack, StatusPill } from '../components/AppPrimitives';
+import { Panel, StatusPill } from '../components/AppPrimitives';
 import { getAvatarColor } from '../utils';
 import { buildEmployeePageData } from '../pageData';
 
@@ -290,7 +290,7 @@ function EmployeeDetailPanel({ employee, onClose }) {
       </div>
       {activeTab === 'info' ? (
         <div className="mt-4 space-y-4">
-          <div><div className="mb-2 text-[13px] font-medium text-[#1d2740]">当前任务</div><div className="flex items-center gap-3"><span className="text-[14px] text-[#5f6d83]">{employee.task}</span><span className="text-[12px] text-[#8d99ae]">({employee.progress}%)</span></div><ProgressTrack value={employee.progress} className="mt-2" /></div>
+          <div><div className="mb-2 text-[13px] font-medium text-[#1d2740]">当前任务</div><div className="rounded-[10px] bg-white p-3 text-[14px] text-[#5f6d83]">{employee.task}</div></div>
           <div className="grid grid-cols-4 gap-3">
             {['workingTime', 'commits', 'testPass', 'deployCount'].map((key, index) => <div key={key} className="rounded-[10px] bg-white p-3"><div className="text-[11px] text-[#98a3b7]">{['工作时长', '提交次数', 'Review 通过', '部署次数'][index]}</div><div className="mt-1 text-[14px] font-medium text-[#1d2740]">{employee[key]}</div></div>)}
           </div>

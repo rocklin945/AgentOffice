@@ -1,7 +1,7 @@
 ﻿import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircleFilled, ClockCircleFilled, DeleteOutlined, PlusOutlined, SendOutlined, TeamOutlined } from '@ant-design/icons';
 import { officeApi } from '../api';
-import { DonutChart, Panel, ProgressTrack, StatusPill } from '../components/AppPrimitives';
+import { DonutChart, Panel, StatusPill } from '../components/AppPrimitives';
 import MarkdownMessage from '../components/MarkdownMessage';
 import { getAvatarColor } from '../utils';
 
@@ -34,12 +34,8 @@ function EmployeeCard({ employee, isSelected, onClick, staff }) {
         </div>
       </div>
 
-      <div className="mt-1.5">
-        <div className="flex items-center justify-between text-[10px]">
-          <span className="truncate text-[#8d99ae]">{employee.task}</span>
-          <span className="text-[#5f6d83]">{employee.progress}%</span>
-        </div>
-        <ProgressTrack value={employee.progress || 0} className="mt-1" />
+      <div className="mt-1.5 rounded-[8px] bg-[#f6f8fc] px-2 py-1.5 text-[10px] text-[#8d99ae]">
+        <span className="line-clamp-2">{employee.task}</span>
       </div>
 
       {isSelected && (
@@ -684,7 +680,6 @@ export default function Office() {
         <Panel className="p-5">
           <div className="text-[18px] font-semibold text-[#1d2740]">任务执行情况</div>
           <div className="mt-6 overflow-hidden rounded-[18px] border border-[#edf1f8]">
-            <div className="h-2 w-full bg-[linear-gradient(90deg,#2f6bff_0_55%,#34d399_55%_82%,#ff7a59_82%_100%)]" />
             <div className="grid grid-cols-4 border-b border-[#edf1f8] text-center">
               {taskSummary.map(([label, value]) => (
                 <div key={label} className="px-4 py-4">

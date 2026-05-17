@@ -86,7 +86,6 @@ export function taskDetail(detail) {
     })),
     executionLogs: (detail.logs || []).map((log) => `${text(log.time)} ${text(log.content, '')}`),
     results: [
-      { label: '进度', value: `${number(detail.progress)}%` },
       { label: '状态', value: text(detail.status) },
       { label: '步骤数', value: steps.length },
       { label: '执行人', value: text(detail.executor?.name) },

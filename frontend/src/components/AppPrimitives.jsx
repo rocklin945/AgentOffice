@@ -27,17 +27,6 @@ export function StatusPill({ children, color = 'blue', className = '' }) {
   );
 }
 
-export function ProgressTrack({ value, color = '#2f6bff', className = '' }) {
-  return (
-    <div className={`flex items-center gap-3 ${className}`}>
-      <div className="h-[6px] flex-1 rounded-full bg-[#eef2f8]">
-        <div className="h-[6px] rounded-full" style={{ width: `${value}%`, backgroundColor: color }} />
-      </div>
-      <span className="text-[12px] text-[#7c88a0]">{value}%</span>
-    </div>
-  );
-}
-
 export function MetricCard({ label, value, trend, icon, iconClass = '' }) {
   return (
     <Panel className="px-6 py-5">

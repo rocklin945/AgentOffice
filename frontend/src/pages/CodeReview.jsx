@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { BugOutlined, CheckCircleOutlined, ClockCircleOutlined, CodeOutlined, ReloadOutlined } from '@ant-design/icons';
 import { codeReviewApi, devApi, taskApi } from '../api';
-import { Panel, ProgressTrack, StatusPill } from '../components/AppPrimitives';
+import { Panel, StatusPill } from '../components/AppPrimitives';
 import MarkdownMessage from '../components/MarkdownMessage';
 import { buildCodeReviewData, taskDetail } from '../pageData';
 
@@ -236,19 +236,18 @@ export default function CodeReview() {
             </div>
           </div>
           <div className="mt-4 overflow-hidden rounded-[14px] border border-[#edf1f8]">
-            <div className="grid grid-cols-[1.7fr_0.7fr_0.9fr_1.1fr_1fr] bg-[#fbfcff] px-4 py-3 text-[12px] text-[#8d99ae]">
+            <div className="grid grid-cols-[1.8fr_0.7fr_0.9fr_1.1fr] bg-[#fbfcff] px-4 py-3 text-[12px] text-[#8d99ae]">
               <div>任务名称</div>
               <div>优先级</div>
               <div>状态</div>
               <div>执行员工</div>
-              <div>进度</div>
             </div>
             {(data.reviewTasks || []).map((task, index) => (
               <button
                 key={task.id}
                 type="button"
                 onClick={() => selectTask(task)}
-                className={`grid w-full grid-cols-[1.7fr_0.7fr_0.9fr_1.1fr_1fr] items-center px-4 py-4 text-left text-[13px] text-[#5f6d83] transition ${index ? 'border-t border-[#f1f4f8]' : ''} ${selectedTaskId === task.id ? 'bg-[#f3f7ff]' : 'hover:bg-[#fafbff]'}`}
+                className={`grid w-full grid-cols-[1.8fr_0.7fr_0.9fr_1.1fr] items-center px-4 py-4 text-left text-[13px] text-[#5f6d83] transition ${index ? 'border-t border-[#f1f4f8]' : ''} ${selectedTaskId === task.id ? 'bg-[#f3f7ff]' : 'hover:bg-[#fafbff]'}`}
               >
                 <div>
                   <div className="font-medium text-[#1d2740]">{task.name}</div>
@@ -257,7 +256,6 @@ export default function CodeReview() {
                 <div className={task.level === '高' ? 'text-[#ff5c5c]' : task.level === '中' ? 'text-[#ff9b42]' : 'text-[#2bb36b]'}>{task.level}</div>
                 <div><StatusPill color={statusColor(task.status)}>{task.status}</StatusPill></div>
                 <div>{task.owner || '-'}</div>
-                <ProgressTrack value={task.progress || 0} />
               </button>
             ))}
             {!data.reviewTasks?.length ? (
