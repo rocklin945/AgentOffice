@@ -93,6 +93,8 @@ export const adminApi = {
 export const codeReviewApi = {
   getLatest: (taskId) => request.get(`/office/code-reviews/latest${taskId ? `?taskId=${taskId}` : ''}`),
   rerun: (taskId) => request.post(`/office/code-reviews/${taskId}/rerun`),
+  getProjectReports: (projectId) => request.get(`/code-reviews/projects/${projectId}/reports`),
+  reviewProjectFiles: (projectId, data) => request.post(`/code-reviews/projects/${projectId}/review`, data, { timeout: 180000 }),
 };
 
 export const analyticsApi = {

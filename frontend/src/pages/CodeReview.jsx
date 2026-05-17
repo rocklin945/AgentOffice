@@ -1,212 +1,187 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BugOutlined, CheckCircleOutlined, ClockCircleOutlined, CodeOutlined, ReloadOutlined } from '@ant-design/icons';
-import { codeReviewApi, devApi, taskApi } from '../api';
+import {
+  BugOutlined,
+  CheckCircleOutlined,
+  CodeOutlined,
+  FileSearchOutlined,
+  FolderOpenOutlined,
+  FolderOutlined,
+  RobotOutlined,
+} from '@ant-design/icons';
+import { codeReviewApi, devApi, modelConfigApi } from '../api';
 import { Panel, StatusPill } from '../components/AppPrimitives';
 import MarkdownMessage from '../components/MarkdownMessage';
-import { buildCodeReviewData, taskDetail } from '../pageData';
 
-const statusColor = (status) => {
-  if (status === '已完成') return 'green';
-  if (status === '已失败') return 'red';
-  if (status === '进行中' || status === 'Review中' || status === '评审中' || status === '开发中') return 'blue';
-  return 'gray';
+const isDirectory = (file) => file?.directory || file?.isDirectory === 1;
+
+const statusColor = (verdict) => {
+  if (verdict === '通过') return 'green';
+  if (verdict === '阻塞') return 'red';
+  if (verdict === '未开始') return 'gray';
+  return 'orange';
 };
 
-function buildReviewFromReport(report, task) {
-  if (!report || !report.found) {
-    return {
-      title: task ? `${task.name} Review 结果` : '暂无 Review 报告',
-      verdict: '未开始',
-      reviewedAt: '-',
-      content: '尚未生成 Code Review 报告，可点击「重新Review」触发 ReviewBot。',
-      filePath: '',
-    };
+function flattenFiles(nodes, depth = 0) {
+  let result = [];
+  for (const node of nodes || []) {
+    const inReviewDir = /(^|\/)review(\/|$)/.test(node.filePath || '');
+    if (!inReviewDir) {
+      result.push({ ...node, depth });
+    }
+    if (node.children?.length && !inReviewDir) {
+      result = result.concat(flattenFiles(node.children, depth + 1));
+    }
   }
-  return {
-    title: report.title || 'Code Review 报告',
-    verdict: report.verdict || '需修改',
-    reviewedAt: report.reviewedAt || '-',
-    content: report.content || '',
-    filePath: report.filePath || '',
-  };
+  return result;
 }
 
-function ReviewResultPanel({ result }) {
-  const [showAll, setShowAll] = useState(false);
-  const contentRef = React.useRef(null);
-  const [clamped, setClamped] = useState(false);
-
-  useEffect(() => {
-    const el = contentRef.current;
-    if (!el) return;
-
-    const check = () => {
-      const overflow = el.scrollHeight > el.clientHeight + 2;
-      setClamped(overflow);
-    };
-
-    check();
-    const raf1 = requestAnimationFrame(check);
-    const t1 = setTimeout(check, 200);
-    const t2 = setTimeout(check, 500);
-    const t3 = setTimeout(check, 1000);
-
-    let ro;
-    if (typeof ResizeObserver !== 'undefined') {
-      ro = new ResizeObserver(() => check());
-      if (el.firstElementChild) {
-        ro.observe(el.firstElementChild);
-      }
-    }
-
-    return () => {
-      cancelAnimationFrame(raf1);
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      ro?.disconnect();
-    };
-  }, [result]);
-
-  const isMarkdown = result.filePath ? /\.(md|markdown)$/i.test(result.filePath) : true;
+function ReviewReport({ report }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!report) return null;
 
   return (
     <>
-      <div className="bg-white text-[13px] text-[#5f6d83]">
-        <div className="flex items-center justify-between gap-3 border-b border-[#edf1f8] px-5 py-4">
+      <div className="border-b border-[#edf1f8] px-5 py-4">
+        <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <div className="truncate text-[15px] font-medium text-[#1d2740]">{result.title}</div>
-            <div className="mt-1 text-[12px] text-[#8d99ae]">最后 Review：{result.reviewedAt || '-'}</div>
+            <div className="truncate text-[16px] font-semibold text-[#1d2740]">{report.title}</div>
+            <div className="mt-1 text-[12px] text-[#8d99ae]">{report.reviewedAt || '-'} · {report.filePath || '未生成文件'}</div>
           </div>
-          <StatusPill color={result.verdict === '通过' ? 'green' : result.verdict === '阻塞' ? 'red' : 'orange'}>
-            {result.verdict}
-          </StatusPill>
+          <StatusPill color={statusColor(report.verdict)}>{report.verdict}</StatusPill>
         </div>
-        <div className="px-5 py-4">
-          {result.filePath ? (
-            <div className="mb-3 text-[11px] text-[#8d99ae]">报告文件：{result.filePath}</div>
-          ) : null}
-          <div className="relative overflow-hidden" style={{ height: 400 }}>
-            <div ref={contentRef} className="h-full overflow-hidden">
-              {isMarkdown ? (
-                <MarkdownMessage text={result.content} staff={[]} highlightMentions={false} />
-              ) : (
-                <pre className="whitespace-pre-wrap font-mono text-[12px] leading-6 text-[#40516d]">{result.content}</pre>
-              )}
+        {report.reviewedFiles?.length ? (
+          <div className="mt-4 rounded-[8px] bg-[#f8fafc] px-3 py-2">
+            <div className="mb-1 text-[12px] font-medium text-[#1d2740]">已 Review 文件</div>
+            <div className="flex flex-wrap gap-2">
+              {report.reviewedFiles.map((file) => (
+                <span key={file} className="max-w-full truncate rounded-[6px] border border-[#e5ebf5] bg-white px-2 py-1 text-[11px] text-[#5f6d83]">
+                  {file}
+                </span>
+              ))}
             </div>
-            {clamped && (
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-center bg-gradient-to-t from-white from-0% via-white/80 via-60% to-transparent pb-3 pt-16">
-                <button
-                  type="button"
-                  onClick={() => setShowAll(true)}
-                  className="pointer-events-auto rounded-[8px] bg-transparent border border-[#2f6bff] px-4 py-2 text-[12px] font-medium text-[#2f6bff] hover:bg-[#2f6bff] hover:text-white transition-colors"
-                >
-                  查看全部
-                </button>
-              </div>
-            )}
           </div>
+        ) : null}
+      </div>
+      <div className="relative h-[520px] overflow-hidden bg-[#fbfcff] px-5 py-4">
+        <div className="h-full overflow-hidden">
+          <MarkdownMessage text={report.content || '当前项目还没有 Code Review 报告。'} staff={[]} highlightMentions={false} />
+        </div>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-[#fbfcff] via-[#fbfcff]/90 to-transparent pb-4 pt-20">
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            className="pointer-events-auto rounded-[8px] border border-[#2f6bff] bg-white px-4 py-2 text-[12px] font-medium text-[#2f6bff] hover:bg-[#2f6bff] hover:text-white"
+          >
+            查看全部
+          </button>
         </div>
       </div>
-      {showAll && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(12,18,28,0.26)] px-6" onClick={() => setShowAll(false)}>
-          <div className="max-h-[82vh] w-full max-w-[880px] overflow-hidden rounded-[14px] bg-white shadow-[0_32px_80px_rgba(18,30,52,0.18)]" onClick={(e) => e.stopPropagation()}>
+      {expanded ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(12,18,28,0.28)] px-6" onClick={() => setExpanded(false)}>
+          <div className="max-h-[84vh] w-full max-w-[960px] overflow-hidden rounded-[14px] bg-white shadow-[0_32px_80px_rgba(18,30,52,0.18)]" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-[#edf1f8] px-5 py-4">
-              <div>
-                <div className="text-[16px] font-semibold text-[#1d2740]">{result.title}</div>
-                <div className="mt-1 text-[12px] text-[#8d99ae]">最后 Review：{result.reviewedAt || '-'} · {result.filePath || '数据库产物'}</div>
+              <div className="min-w-0">
+                <div className="truncate text-[16px] font-semibold text-[#1d2740]">{report.title}</div>
+                <div className="mt-1 text-[12px] text-[#8d99ae]">{report.filePath}</div>
               </div>
-              <button type="button" onClick={() => setShowAll(false)} className="text-[22px] text-[#97a3b8]">×</button>
+              <button type="button" onClick={() => setExpanded(false)} className="text-[22px] text-[#97a3b8]">×</button>
             </div>
-            <div className="max-h-[68vh] overflow-auto bg-[#f8fafc] px-5 py-4">
-              {isMarkdown ? (
-                <MarkdownMessage text={result.content} staff={[]} highlightMentions={false} />
-              ) : (
-                <pre className="whitespace-pre-wrap font-mono text-[12px] leading-6 text-[#40516d]">{result.content}</pre>
-              )}
+            <div className="max-h-[72vh] overflow-auto bg-[#f8fafc] px-5 py-4">
+              <MarkdownMessage text={report.content || ''} staff={[]} highlightMentions={false} />
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </>
   );
 }
 
 export default function CodeReview() {
-  const [data, setData] = useState({ summary: {}, reviewTasks: [], projectName: '-' });
-  const [selectedTaskId, setSelectedTaskId] = useState(null);
-  const [details, setDetails] = useState({});
-  const [report, setReport] = useState(null);
+  const [projects, setProjects] = useState([]);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [files, setFiles] = useState([]);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [reports, setReports] = useState([]);
+  const [selectedReportPath, setSelectedReportPath] = useState('');
+  const [models, setModels] = useState([]);
+  const [modelConfigId, setModelConfigId] = useState('');
   const [reviewing, setReviewing] = useState(false);
 
-  const load = async (preferredTaskId) => {
-    const [tasksRes, projectsRes] = await Promise.all([
-      taskApi.getList(),
-      devApi.getProjectList(),
+  const selectedReport = useMemo(
+    () => reports.find((report) => report.filePath === selectedReportPath) || reports[0] || null,
+    [reports, selectedReportPath],
+  );
+
+  const selectedFileSet = useMemo(() => new Set(selectedFiles), [selectedFiles]);
+
+  const loadProject = async (project) => {
+    setSelectedProject(project);
+    setSelectedFiles([]);
+    const [treeRes, reportsRes] = await Promise.all([
+      devApi.getFileTree(project.id),
+      codeReviewApi.getProjectReports(project.id),
     ]);
-    const projects = projectsRes.data || [];
-    const project = projects[0];
-    const nextData = buildCodeReviewData(tasksRes.data || [], project?.projectName || 'workspace_artifacts/code');
-    const nextSelected = nextData.reviewTasks.find((task) => task.id === preferredTaskId)
-      || nextData.reviewTasks[0]
-      || null;
-
-    setData(nextData);
-    setSelectedTaskId(nextSelected?.id || null);
-
-    if (nextSelected) {
-      const detailRes = await taskApi.getDetail(nextSelected.id);
-      setDetails((current) => ({ ...current, [nextSelected.id]: taskDetail(detailRes.data) }));
-    }
-    const reportRes = await codeReviewApi.getLatest(nextSelected?.id);
-    setReport(reportRes.data || null);
+    const nextFiles = flattenFiles(treeRes.data || []);
+    const nextReports = reportsRes.data?.reports || [];
+    setFiles(nextFiles);
+    setReports(nextReports);
+    setSelectedReportPath(nextReports[0]?.filePath || '');
   };
 
   useEffect(() => {
-    load().catch(() => {
-      setData({ summary: {}, reviewTasks: [], projectName: '-' });
-    });
+    const init = async () => {
+      const [projectsRes, modelsRes] = await Promise.all([
+        devApi.getProjectList(),
+        modelConfigApi.getList({ enabledOnly: true }),
+      ]);
+      const nextProjects = projectsRes.data || [];
+      const nextModels = modelsRes.data || [];
+      setProjects(nextProjects);
+      setModels(nextModels);
+      const defaultModel = nextModels.find((item) => item.isDefault === 1) || nextModels[0];
+      setModelConfigId(defaultModel?.id ? String(defaultModel.id) : '');
+      if (nextProjects[0]) {
+        await loadProject(nextProjects[0]);
+      }
+    };
+    init().catch(() => {});
   }, []);
 
-  const selectedTask = useMemo(
-    () => (data.reviewTasks || []).find((task) => task.id === selectedTaskId) || null,
-    [data.reviewTasks, selectedTaskId],
-  );
-
-  const reviewResult = useMemo(
-    () => buildReviewFromReport(report, selectedTask),
-    [report, selectedTask],
-  );
-
-  const selectTask = async (task) => {
-    setSelectedTaskId(task.id);
-    if (!details[task.id]) {
-      const detailRes = await taskApi.getDetail(task.id);
-      setDetails((current) => ({ ...current, [task.id]: taskDetail(detailRes.data) }));
-    }
-    const reportRes = await codeReviewApi.getLatest(task.id);
-    setReport(reportRes.data || null);
+  const toggleFile = (file) => {
+    if (isDirectory(file)) return;
+    setSelectedFiles((current) => (
+      current.includes(file.filePath)
+        ? current.filter((item) => item !== file.filePath)
+        : [...current, file.filePath]
+    ));
   };
 
-  const rerunReview = async () => {
-    if (!selectedTask || reviewing) return;
+  const startReview = async () => {
+    if (!selectedProject || !selectedFiles.length || reviewing) return;
     setReviewing(true);
     try {
-      const res = await codeReviewApi.rerun(selectedTask.id);
-      setReport(res.data || null);
-    } catch (e) {
-      console.error('重新Review失败', e);
+      const res = await codeReviewApi.reviewProjectFiles(selectedProject.id, {
+        filePaths: selectedFiles,
+        modelConfigId: modelConfigId ? Number(modelConfigId) : null,
+      });
+      const nextReport = res.data;
+      const reportsRes = await codeReviewApi.getProjectReports(selectedProject.id);
+      const nextReports = reportsRes.data?.reports || (nextReport ? [nextReport] : []);
+      setReports(nextReports);
+      setSelectedReportPath(nextReport?.filePath || nextReports[0]?.filePath || '');
+    } catch (error) {
+      console.error('Code review failed', error);
+      alert('Code Review 失败：' + (error.message || '未知错误'));
     } finally {
       setReviewing(false);
     }
   };
 
-  const summary = data.summary || {};
   const cards = [
-    { label: 'Review 任务', value: summary.total || 0, icon: <CodeOutlined />, color: '#2f6bff' },
-    { label: '待审/进行中', value: summary.running || 0, icon: <ClockCircleOutlined />, color: '#ff9b42' },
-    { label: '已通过', value: summary.completed || 0, icon: <CheckCircleOutlined />, color: '#2bb36b' },
-    { label: '问题项', value: summary.failed || 0, icon: <BugOutlined />, color: '#ff5c5c' },
+    { label: '项目', value: projects.length, icon: <CodeOutlined />, color: '#2f6bff' },
+    { label: '可选文件', value: files.filter((file) => !isDirectory(file)).length, icon: <FileSearchOutlined />, color: '#8b5cf6' },
+    { label: '已选文件', value: selectedFiles.length, icon: <CheckCircleOutlined />, color: '#2bb36b' },
+    { label: '报告', value: reports.length, icon: <BugOutlined />, color: '#ff9b42' },
   ];
 
   return (
@@ -227,66 +202,105 @@ export default function CodeReview() {
         ))}
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(420px,0.9fr)]">
-        <Panel className="p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-[18px] font-semibold text-[#1d2740]">Code Review 队列</div>
-              <div className="mt-1 text-[12px] text-[#8d99ae]">点击左侧任务后，右侧会显示对应 Review 结果</div>
-            </div>
+      <div className="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
+        <Panel className="overflow-hidden">
+          <div className="border-b border-[#edf1f8] px-5 py-4">
+            <div className="text-[18px] font-semibold text-[#1d2740]">Code Review</div>
+            <div className="mt-1 text-[12px] text-[#8d99ae]">选择项目与代码文件</div>
           </div>
-          <div className="mt-4 overflow-hidden rounded-[14px] border border-[#edf1f8]">
-            <div className="grid grid-cols-[1.8fr_0.7fr_0.9fr_1.1fr] bg-[#fbfcff] px-4 py-3 text-[12px] text-[#8d99ae]">
-              <div>任务名称</div>
-              <div>优先级</div>
-              <div>状态</div>
-              <div>执行员工</div>
-            </div>
-            {(data.reviewTasks || []).map((task, index) => (
-              <button
-                key={task.id}
-                type="button"
-                onClick={() => selectTask(task)}
-                className={`grid w-full grid-cols-[1.8fr_0.7fr_0.9fr_1.1fr] items-center px-4 py-4 text-left text-[13px] text-[#5f6d83] transition ${index ? 'border-t border-[#f1f4f8]' : ''} ${selectedTaskId === task.id ? 'bg-[#f3f7ff]' : 'hover:bg-[#fafbff]'}`}
+
+          <div className="space-y-4 px-5 py-4">
+            <label className="block">
+              <span className="mb-2 block text-[12px] font-medium text-[#5f6d83]">项目</span>
+              <select
+                value={selectedProject?.id || ''}
+                onChange={(event) => {
+                  const project = projects.find((item) => String(item.id) === event.target.value);
+                  if (project) loadProject(project).catch(() => {});
+                }}
+                className="h-10 w-full rounded-[8px] border border-[#dfe7f5] bg-white px-3 text-[13px] text-[#1d2740] outline-none"
               >
-                <div>
-                  <div className="font-medium text-[#1d2740]">{task.name}</div>
-                  <div className="mt-1 line-clamp-1 text-[12px] text-[#98a3b7]">{task.description}</div>
-                </div>
-                <div className={task.level === '高' ? 'text-[#ff5c5c]' : task.level === '中' ? 'text-[#ff9b42]' : 'text-[#2bb36b]'}>{task.level}</div>
-                <div><StatusPill color={statusColor(task.status)}>{task.status}</StatusPill></div>
-                <div>{task.owner || '-'}</div>
-              </button>
-            ))}
-            {!data.reviewTasks?.length ? (
-              <div className="px-4 py-10 text-center text-[13px] text-[#8d99ae]">暂无 Code Review 任务</div>
-            ) : null}
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>{project.projectName}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-[12px] font-medium text-[#5f6d83]">模型</span>
+              <select
+                value={modelConfigId}
+                onChange={(event) => setModelConfigId(event.target.value)}
+                className="h-10 w-full rounded-[8px] border border-[#dfe7f5] bg-white px-3 text-[13px] text-[#1d2740] outline-none"
+              >
+                {models.map((model) => (
+                  <option key={model.id} value={model.id}>{model.configName} / {model.modelName}</option>
+                ))}
+              </select>
+            </label>
+
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[12px] font-medium text-[#5f6d83]">代码文件</span>
+                <button type="button" onClick={() => setSelectedFiles([])} className="text-[12px] text-[#8d99ae] hover:text-[#2f6bff]">清空</button>
+              </div>
+              <div className="max-h-[420px] space-y-1 overflow-auto rounded-[10px] border border-[#edf1f8] bg-[#fbfcff] p-2">
+                {files.map((file, index) => (
+                  <button
+                    key={`${file.id}-${index}`}
+                    type="button"
+                    onClick={() => toggleFile(file)}
+                    className={`flex w-full items-center gap-2 rounded-[8px] py-2 pr-2 text-left text-[13px] transition ${isDirectory(file) ? 'font-medium text-[#1d2740]' : selectedFileSet.has(file.filePath) ? 'bg-[#eef4ff] text-[#2f6bff]' : 'text-[#5f6d83] hover:bg-white'}`}
+                    style={{ paddingLeft: `${8 + (file.depth || 0) * 16}px` }}
+                  >
+                    <span className="w-4 shrink-0 text-center">
+                      {isDirectory(file) ? (file.children?.length ? <FolderOpenOutlined /> : <FolderOutlined />) : (
+                        <input type="checkbox" readOnly checked={selectedFileSet.has(file.filePath)} />
+                      )}
+                    </span>
+                    <span className="min-w-0 truncate">{file.fileName || file.name}</span>
+                  </button>
+                ))}
+                {!files.length ? <div className="py-8 text-center text-[13px] text-[#8d99ae]">暂无代码文件</div> : null}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={startReview}
+              disabled={!selectedFiles.length || !modelConfigId || reviewing}
+              className="flex h-10 w-full items-center justify-center gap-2 rounded-[8px] bg-[#2f6bff] text-[13px] font-medium text-white disabled:cursor-not-allowed disabled:bg-[#a0c0ff]"
+            >
+              <RobotOutlined spin={reviewing} />
+              {reviewing ? 'AI Review 中...' : '开始 Review'}
+            </button>
           </div>
         </Panel>
 
-        <Panel>
-          <div className="flex items-center justify-between border-b border-[#edf1f8] px-5 py-4">
+        <Panel className="overflow-hidden">
+          <div className="flex items-center justify-between gap-4 border-b border-[#edf1f8] px-5 py-4">
             <div>
-              <div className="text-[18px] font-semibold text-[#1d2740]">Review 结果</div>
-              <div className="mt-1 text-[12px] text-[#8d99ae]">当前任务的代码审查结论、风险项与文件依据</div>
+              <div className="text-[18px] font-semibold text-[#1d2740]">Review 报告</div>
+              <div className="mt-1 text-[12px] text-[#8d99ae]">读取当前项目下的报告</div>
             </div>
-            <button
-              type="button"
-              onClick={rerunReview}
-              disabled={!selectedTask || reviewing}
-              className="flex h-9 items-center gap-2 rounded-[8px] bg-[#2f6bff] px-4 text-[12px] font-medium text-white disabled:cursor-not-allowed disabled:bg-[#a0c0ff]"
+            <select
+              value={selectedReportPath}
+              onChange={(event) => setSelectedReportPath(event.target.value)}
+              className="h-9 max-w-[360px] rounded-[8px] border border-[#dfe7f5] bg-white px-3 text-[12px] text-[#1d2740] outline-none"
             >
-              <ReloadOutlined spin={reviewing} />
-              {reviewing ? 'Review中' : '重新Review'}
-            </button>
+              {reports.map((report) => (
+                <option key={report.filePath} value={report.filePath}>{report.title}</option>
+              ))}
+              {!reports.length ? <option value="">暂无报告</option> : null}
+            </select>
           </div>
-          {reviewResult ? (
-            <ReviewResultPanel result={reviewResult} />
-          ) : (
-            <div className="flex min-h-[460px] items-center justify-center bg-[#f8fafc] text-[13px] text-[#8d99ae]">
-              请选择左侧 Code Review 任务
-            </div>
-          )}
+          <ReviewReport report={selectedReport || {
+            title: '暂无 Review 报告',
+            content: '当前项目下还没有报告。选择一个或多个代码文件后点击“开始 Review”，系统会调用所选模型生成 Code Review 报告。',
+            verdict: '未开始',
+            reviewedAt: '-',
+            reviewedFiles: [],
+          }} />
         </Panel>
       </div>
     </div>
