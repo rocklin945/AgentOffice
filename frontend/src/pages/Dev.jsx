@@ -87,7 +87,7 @@ export default function Dev() {
           {saving ? '保存中...' : selectedFile?.saved ? '已保存' : '保存'}
         </button>
       </div>
-      <div className="grid h-[calc(100vh-220px)] grid-cols-[220px_minmax(0,1fr)]">
+      <div className="grid h-[calc(100vh-220px)] grid-cols-[280px_minmax(0,1fr)]">
         <div className="overflow-hidden border-r border-[#edf1f8] bg-[#fbfcff] px-4 py-5">
           <div className="mb-4 font-medium text-[#1d2740]">项目列表</div>
           <div className="mb-4 space-y-1">
