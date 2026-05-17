@@ -20,6 +20,7 @@ import com.agentoffice.mapper.AgentEmployeeMapper;
 import com.agentoffice.mapper.ChatMessageMapper;
 import com.agentoffice.mapper.ChatSessionMapper;
 import com.agentoffice.mapper.OfficeDeskMapper;
+import com.agentoffice.mapper.OperationLogMapper;
 import com.agentoffice.mapper.TaskInfoMapper;
 import com.agentoffice.mapper.WorkProductMapper;
 import com.agentoffice.mapper.ModelConfigMapper;
@@ -70,6 +71,9 @@ public class OfficeService {
 
     @Autowired
     private ChatMessageMapper chatMessageMapper;
+
+    @Autowired
+    private OperationLogMapper operationLogMapper;
 
     @Autowired
     private LlmService llmService;
@@ -244,12 +248,22 @@ public class OfficeService {
         result.put("donutItems", overview.entrySet().stream()
                 .map(entry -> Map.of("label", entry.getKey(), "value", entry.getValue(), "color", colorForStatus(entry.getKey())))
                 .collect(Collectors.toList()));
-        result.put("taskSummary", List.of(
-                List.of("全部任务", String.valueOf(tasks.size())),
-                List.of("进行中", String.valueOf(countTasks(tasks, "进行中"))),
-                List.of("已完成", String.valueOf(countTasks(tasks, "已完成"))),
-                List.of("已失败", String.valueOf(countTasks(tasks, "已失败")))
-        ));
+        
+        // 获取最近的操作日志
+        List<Map<String, Object>> operationLogs = operationLogMapper.findRecent(20).stream()
+                .map(log -> {
+                    Map<String, Object> logMap = new HashMap<>();
+                    logMap.put("id", log.getId());
+                    logMap.put("action", log.getAction());
+                    logMap.put("targetType", log.getTargetType());
+                    logMap.put("targetId", log.getTargetId());
+                    logMap.put("detail", log.getDetail());
+                    logMap.put("time", log.getCreateTime() == null ? "" : log.getCreateTime().toString().replace('T', ' ').substring(0, 19));
+                    return logMap;
+                })
+                .collect(Collectors.toList());
+        result.put("operationLogs", operationLogs);
+        
         return result;
     }
 
@@ -589,43 +603,51 @@ public class OfficeService {
             toolInstruction = ("""
                 你是产品经理，按顺序执行以下步骤：
 
-                步骤0：用 create_work_product_in_progress 工具创建一个进行中的工作产物
-                   - product_type 填"需求文档"，file_path 形如 prd/xxx.md
-                步骤1：用 write_file 工具写 PRD Markdown 文件
-                步骤2：用 update_work_product_status 工具将工作产物状态更新为"已完成"
-                步骤3：用 register_work_product 工具登记需求文档，product_type 填"需求文档"
-                步骤4：用 notify_user 工具发送通知，category 填"task"，title 填"PRD 已完成"，content 填写 PRD 文件名
+                步骤0：用 create_task 工具创建需求规划任务
+                   - task_type 填"product"，task_name 填"需求规划：{项目名称}"，executor_role 填"产品经理"
+                步骤1：从用户消息中提取项目名称（如"贪吃蛇"、"待办事项"等），转换为英文小写文件夹名（如 snake、todo-app）
+                步骤2：用 create_work_product_in_progress 工具创建一个进行中的工作产物
+                   - product_type 填"需求文档"，file_path 形如 prd/{项目文件夹名}/requirements.md
+                步骤3：用 write_file 工具写 PRD Markdown 文件，路径必须是 prd/{项目文件夹名}/requirements.md
+                步骤4：用 update_work_product_status 工具将工作产物状态更新为"已完成"
+                步骤5：用 register_work_product 工具登记需求文档，product_type 填"需求文档"
+                步骤6：用 notify_user 工具发送通知，category 填"task"，title 填"PRD 已完成"，content 填写项目名称和 PRD 文件路径
 
-                完成后请在最终回复中 @%DISPATCHER% 汇报：「需求文档(PRD) 已完成」，并附上 PRD 的 filePath。**不要直接 @ 开发、CodeReviewer、运维等其他员工，只 @ 调度员。**
+                **重要**：所有文件必须放在 prd/{项目文件夹名}/ 下，例如贪吃蛇项目就是 prd/snake/requirements.md
+                完成后请在最终回复中 @%DISPATCHER% 汇报：「需求文档(PRD) 已完成，项目名称：{项目名称}」，并附上 PRD 的 filePath。**不要直接 @ 开发、CodeReviewer、运维等其他员工，只 @ 调度员。**
                 """).replace("%DISPATCHER%", dispatcherName);
         } else if (role.contains("前端")) {
             toolInstruction = ("""
                 你是前端开发工程师，专注于 HTML / CSS / JavaScript / Vue / React 等前端实现。按顺序执行：
 
-                步骤0：用 create_work_product_in_progress 工具创建一个进行中的工作产物
-                   - product_type 填"代码"，file_path 形如 code/frontend/xxx.html
-                步骤1：用 find_latest_work_product 工具查询 product_type="需求文档" 获取 PRD filePath
-                步骤2：用 read_file 工具读取上一步返回的 PRD 文件
-                步骤3：用 write_file 工具写前端代码文件，路径形如 code/frontend/xxx
-                步骤4：用 update_work_product_status 工具更新为"已完成"
-                步骤5：用 register_work_product 工具登记代码产物，product_type 填"代码"
-                步骤6：用 notify_user 工具发送通知，category 填"task"，title 填"前端代码已完成"
+                步骤0：用 find_latest_work_product 工具查询 product_type="需求文档" 获取 PRD filePath
+                步骤1：用 read_file 工具读取上一步返回的 PRD 文件
+                步骤2：从 PRD 文件路径中提取项目文件夹名（如 prd/snake/requirements.md 中的 snake）
+                步骤3：用 create_work_product_in_progress 工具创建一个进行中的工作产物
+                   - product_type 填"代码"，file_path 形如 code/{项目文件夹名}/frontend/index.html
+                步骤4：用 write_file 工具写前端代码文件，路径必须是 code/{项目文件夹名}/frontend/xxx
+                步骤5：用 update_work_product_status 工具更新为"已完成"
+                步骤6：用 register_work_product 工具登记代码产物，product_type 填"代码"
+                步骤7：用 notify_user 工具发送通知，category 填"task"，title 填"前端代码已完成"
 
+                **重要**：所有代码文件必须放在 code/{项目文件夹名}/frontend/ 下，例如 code/snake/frontend/index.html
                 完成后请在最终回复中 @%DISPATCHER% 汇报：「前端代码已完成」，并附上前端代码 filePath。**不要 @ 后端、CodeReviewer、运维等其他员工。**
                 """).replace("%DISPATCHER%", dispatcherName);
         } else if (role.contains("后端")) {
             toolInstruction = ("""
                 你是后端开发工程师，专注于 Java / Spring Boot / Python / Node.js 等后端实现。按顺序执行：
 
-                步骤0：用 create_work_product_in_progress 工具创建一个进行中的工作产物
-                   - product_type 填"代码"，file_path 形如 code/backend/xxx.java
-                步骤1：用 find_latest_work_product 工具查询 product_type="需求文档" 获取 PRD filePath
-                步骤2：用 read_file 工具读取上一步返回的 PRD 文件
-                步骤3：用 write_file 工具写后端代码文件，路径形如 code/backend/xxx
-                步骤4：用 update_work_product_status 工具更新为"已完成"
-                步骤5：用 register_work_product 工具登记代码产物，product_type 填"代码"
-                步骤6：用 notify_user 工具发送通知，category 填"task"，title 填"后端代码已完成"
+                步骤0：用 find_latest_work_product 工具查询 product_type="需求文档" 获取 PRD filePath
+                步骤1：用 read_file 工具读取上一步返回的 PRD 文件
+                步骤2：从 PRD 文件路径中提取项目文件夹名（如 prd/snake/requirements.md 中的 snake）
+                步骤3：用 create_work_product_in_progress 工具创建一个进行中的工作产物
+                   - product_type 填"代码"，file_path 形如 code/{项目文件夹名}/backend/Main.java
+                步骤4：用 write_file 工具写后端代码文件，路径必须是 code/{项目文件夹名}/backend/xxx
+                步骤5：用 update_work_product_status 工具更新为"已完成"
+                步骤6：用 register_work_product 工具登记代码产物，product_type 填"代码"
+                步骤7：用 notify_user 工具发送通知，category 填"task"，title 填"后端代码已完成"
 
+                **重要**：所有代码文件必须放在 code/{项目文件夹名}/backend/ 下，例如 code/snake/backend/SnakeGame.java
                 完成后请在最终回复中 @%DISPATCHER% 汇报：「后端代码已完成」，并附上后端代码 filePath。**不要 @ 前端、CodeReviewer、运维等其他员工。**
                 """).replace("%DISPATCHER%", dispatcherName);
         } else if (role.contains("开发")) {
@@ -646,32 +668,36 @@ public class OfficeService {
             toolInstruction = ("""
                 你是 Code Reviewer，负责审查前后端代码并产出 Code Review 报告。按顺序执行：
 
-                步骤0：用 create_work_product_in_progress 工具创建一个进行中的工作产物
-                   - product_type 填"Code Review报告"，file_path 形如 review/xxx.md
-                步骤1：用 find_latest_work_product 工具查询 product_type="代码" 获取最新代码 filePath
+                步骤0：用 find_latest_work_product 工具查询 product_type="代码" 获取最新代码 filePath
                    - 如果存在前端 + 后端两份代码，可重复调用以拿到两份
-                步骤2：用 read_file 工具读取代码文件
-                步骤3：用 write_file 工具写 Code Review 报告，路径形如 review/xxx.md
-                步骤4：用 update_work_product_status 工具更新为"已完成"
-                步骤5：用 register_work_product 工具登记 Code Review 报告，product_type 填"Code Review报告"
-                步骤6：用 notify_user 工具发送通知，category 填"task"，title 填"Code Review 已完成"
+                步骤1：用 read_file 工具读取代码文件
+                步骤2：从代码文件路径中提取项目文件夹名（如 code/snake/frontend/index.html 中的 snake）
+                步骤3：用 create_work_product_in_progress 工具创建一个进行中的工作产物
+                   - product_type 填"Code Review报告"，file_path 形如 review/{项目文件夹名}/review_report.md
+                步骤4：用 write_file 工具写 Code Review 报告，路径必须是 review/{项目文件夹名}/review_report.md
+                步骤5：用 update_work_product_status 工具更新为"已完成"
+                步骤6：用 register_work_product 工具登记 Code Review 报告，product_type 填"Code Review报告"
+                步骤7：用 notify_user 工具发送通知，category 填"task"，title 填"Code Review 已完成"
 
+                **重要**：所有 Review 报告必须放在 review/{项目文件夹名}/ 下，例如 review/snake/review_report.md
                 完成后请在最终回复中 @%DISPATCHER% 汇报：「Code Review 报告已完成」，并附上报告 filePath。**只 @ 调度员，不要 @ 运维等其他员工。**
                 """).replace("%DISPATCHER%", dispatcherName);
         } else if (role.contains("运维")) {
             toolInstruction = ("""
                 你是运维工程师，负责执行最终部署。按顺序执行：
 
-                步骤0：用 create_work_product_in_progress 工具创建一个进行中的工作产物
-                   - product_type 填"部署记录"，file_path 形如 deploy/xxx.md
-                步骤1：用 find_latest_work_product 工具查询 product_type="Code Review报告" 获取报告 filePath
-                步骤2：用 read_file 工具读取上一步返回的 Code Review 报告文件
-                步骤3：用 create_deploy_service 工具创建部署服务
-                步骤4：用 write_file 工具写部署记录，路径形如 deploy/xxx.md
-                步骤5：用 update_work_product_status 工具更新为"已完成"
-                步骤6：用 register_work_product 工具登记部署记录，product_type 填"部署记录"
-                步骤7：用 notify_user 工具发送通知，category 填"deploy"，title 填"部署已完成"
+                步骤0：用 find_latest_work_product 工具查询 product_type="Code Review报告" 获取报告 filePath
+                步骤1：用 read_file 工具读取上一步返回的 Code Review 报告文件
+                步骤2：从 Review 报告文件路径中提取项目文件夹名（如 review/snake/review_report.md 中的 snake）
+                步骤3：用 create_work_product_in_progress 工具创建一个进行中的工作产物
+                   - product_type 填"部署记录"，file_path 形如 deploy/{项目文件夹名}/deployment.md
+                步骤4：用 create_deploy_service 工具创建部署服务
+                步骤5：用 write_file 工具写部署记录，路径必须是 deploy/{项目文件夹名}/deployment.md
+                步骤6：用 update_work_product_status 工具更新为"已完成"
+                步骤7：用 register_work_product 工具登记部署记录，product_type 填"部署记录"
+                步骤8：用 notify_user 工具发送通知，category 填"deploy"，title 填"部署已完成"
 
+                **重要**：所有部署记录必须放在 deploy/{项目文件夹名}/ 下，例如 deploy/snake/deployment.md
                 完成后请在最终回复中 @%DISPATCHER% 汇报：「部署已完成」，并附上部署记录 filePath。**只 @ 调度员；调度员会做最终收尾。**
                 """).replace("%DISPATCHER%", dispatcherName);
         } else {

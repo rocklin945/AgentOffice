@@ -581,7 +581,7 @@ export default function Office() {
   const { messages, setMessages, sessions, setSessions, currentSessionId, setCurrentSessionId } = useChatContext();
   const [stats, setStats] = useState([]);
   const [donut, setDonut] = useState([]);
-  const [taskSummary, setTaskSummary] = useState([]);
+  const [operationLogs, setOperationLogs] = useState([]);
   const [selected, setSelected] = useState(null);
 
   const loadCollaboration = useCallback(() => {
@@ -596,7 +596,7 @@ export default function Office() {
         // setMessages(res.data.messages || []);
         setStats(res.data.statCards || []);
         setDonut(res.data.donutItems || []);
-        setTaskSummary(res.data.taskSummary || []);
+        setOperationLogs(res.data.operationLogs || []); // 
         setSelected((current) => {
           const currentId = current?.employeeId ?? current?.realId;
           return nextStaff.find((item) => (item.employeeId ?? item.realId) === currentId) || nextStaff[1] || nextStaff[0] || null;
@@ -609,7 +609,7 @@ export default function Office() {
         // setMessages([]);
         setStats([]);
         setDonut([]);
-        setTaskSummary([]);
+        setOperationLogs([]); // 
         setSelected(null);
       });
 
@@ -689,16 +689,36 @@ export default function Office() {
         </Panel>
 
         <Panel className="p-5">
-          <div className="text-[18px] font-semibold text-[#1d2740]">任务执行情况</div>
-          <div className="mt-6 overflow-hidden rounded-[18px] border border-[#edf1f8]">
-            <div className="grid grid-cols-4 border-b border-[#edf1f8] text-center">
-              {taskSummary.map(([label, value]) => (
-                <div key={label} className="px-4 py-4">
-                  <div className="text-[13px] text-[#95a1b5]">{label}</div>
-                  <div className="mt-1 text-[24px] font-semibold text-[#1d2740]">{value}</div>
+          <div className="text-[18px] font-semibold text-[#1d2740]">任务执行记录</div>
+          <div className="mt-4 max-h-[280px] space-y-2 overflow-y-auto">
+            {operationLogs.length === 0 ? (
+              <div className="py-8 text-center text-[13px] text-[#95a1b5]">暂无操作记录</div>
+            ) : (
+              operationLogs.map((log) => (
+                <div key={log.id} className="rounded-lg border border-[#edf1f8] bg-[#fbfcff] p-3 transition-all hover:border-[#2f6bff] hover:shadow-sm">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-[#2f6bff] px-2 py-0.5 text-[10px] font-medium text-white">
+                          {log.action || '操作'}
+                        </span>
+                        {log.targetType && (
+                          <span className="text-[11px] text-[#8d99ae]">
+                            {log.targetType}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1.5 text-[12px] text-[#1d2740]">
+                        {log.detail || '无详情'}
+                      </div>
+                    </div>
+                    <div className="ml-2 shrink-0 text-[10px] text-[#95a1b5]">
+                      {log.time ? log.time.substring(5, 16) : ''}
+                    </div>
+                  </div>
                 </div>
-              ))}
-            </div>
+              ))
+            )}
           </div>
         </Panel>
       </div>
