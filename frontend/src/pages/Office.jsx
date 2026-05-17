@@ -40,12 +40,6 @@ function EmployeeCard({ employee, isSelected, onClick, staff }) {
 
       {isSelected && (
         <div className="mt-2 border-t border-[#edf1f8] pt-2">
-          <div className="grid grid-cols-2 gap-1 text-[10px]">
-            <div className="text-[#8d99ae]">工时：<span className="text-[#1d2740]">{employee.workingTime}</span></div>
-            <div className="text-[#8d99ae]">提交：<span className="text-[#1d2740]">{employee.commits}</span></div>
-            <div className="text-[#8d99ae]">Review：<span className="text-[#1d2740]">{employee.testPass}</span></div>
-            <div className="text-[#8d99ae]">部署：<span className="text-[#1d2740]">{employee.deployCount}</span></div>
-          </div>
           <div className="mt-1.5 text-[10px] text-[#8d99ae]">
             职责：<span className="text-[#5f6d83]">{employee.duty}</span>
           </div>

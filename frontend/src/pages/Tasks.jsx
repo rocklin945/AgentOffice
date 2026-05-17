@@ -149,7 +149,7 @@ function EditTaskModal({ task, employees, onClose, onSaved }) {
           <label className="text-[13px] text-[#5f6d83]">任务名称<input value={form.taskName} onChange={(event) => update('taskName', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]" /></label>
           <label className="text-[13px] text-[#5f6d83]">优先级<select value={form.priority} onChange={(event) => update('priority', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]">{['高', '中', '低'].map((priority) => <option key={priority} value={priority}>{priority}</option>)}</select></label>
           <label className="text-[13px] text-[#5f6d83]">执行员工<select value={form.executorId || ''} onChange={(event) => update('executorId', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]"><option value="">暂不分配</option>{employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name} · {employee.role}</option>)}</select></label>
-          <label className="text-[13px] text-[#5f6d83]">状态<select value={form.status} onChange={(event) => update('status', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]">{['待分配', '进行中', '部署中', '已完成', '已失败'].map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
+          <label className="text-[13px] text-[#5f6d83]">状态<select value={form.status} onChange={(event) => update('status', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]">{['待分配', '进行中', '已完成', '已失败'].map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
           <label className="text-[13px] text-[#5f6d83]">任务描述<input value={form.description} onChange={(event) => update('description', event.target.value)} className="mt-2 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 outline-none focus:border-[#2f6bff]" /></label>
         </div>
         {error ? <div className="mt-4 text-[13px] text-[#ff5c5c]">{error}</div> : null}
@@ -164,9 +164,7 @@ function EditTaskModal({ task, employees, onClose, onSaved }) {
 
 function TaskDetail({ task, detail, onClose }) {
   const [activeTab, setActiveTab] = useState('overview');
-  const tabs = [{ key: 'overview', label: '任务概览' }, { key: 'process', label: '执行过程' }, { key: 'result', label: '成果展示' }, { key: 'files', label: '相关文件' }];
-  const executionSteps = detail?.executionSteps || [];
-  const executionLogs = detail?.executionLogs || [];
+  const tabs = [{ key: 'overview', label: '任务概览' }, { key: 'result', label: '成果展示' }, { key: 'files', label: '相关文件' }];
   const results = detail?.results || [];
   const files = detail?.files || [];
 
@@ -177,7 +175,6 @@ function TaskDetail({ task, detail, onClose }) {
       <div className="mt-4 flex gap-6 border-b border-[#edf1f8] pb-2 text-[13px]">{tabs.map((tab) => <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)} className={`pb-2 font-medium transition-colors ${activeTab === tab.key ? 'border-b-2 border-[#2f6bff] text-[#2f6bff]' : 'text-[#8d99ae] hover:text-[#5f6d83]'}`}>{tab.label}</button>)}</div>
       <div className="mt-4">
         {activeTab === 'overview' && <div className="space-y-4"><div className="grid grid-cols-3 gap-3">{results.map((item) => <div key={item.label} className="rounded-[10px] bg-[#f6f8fc] p-3"><div className="text-[11px] text-[#98a3b7]">{item.label}</div><div className="mt-1 text-[16px] font-semibold text-[#1d2740]">{item.value}</div></div>)}</div><div className="grid grid-cols-2 gap-3 text-[13px]"><div className="text-[#8d99ae]">分配给：<span className="text-[#5f6d83]">{task.owner}</span></div><div className="text-[#8d99ae]">角色：<span className="text-[#5f6d83]">{task.role}</span></div></div></div>}
-        {activeTab === 'process' && <div className="space-y-4"><div className="space-y-3">{executionSteps.map((step) => <div key={step.step} className="flex items-center justify-between rounded-[10px] bg-[#f6f8fc] px-4 py-3"><div className="flex items-center gap-3"><span className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-medium ${step.status === '已完成' ? 'bg-[#2bb36b] text-white' : step.status === '开发中' ? 'bg-[#2f6bff] text-white' : 'bg-[#eef2f8] text-[#8d99ae]'}`}>{step.step}</span><div><div className="text-[13px] font-medium text-[#1d2740]">{step.name}</div><div className="text-[11px] text-[#8d99ae]">{step.role}：{step.owner}</div></div></div><StatusPill color={step.status === '已完成' ? 'green' : step.status === '开发中' ? 'blue' : 'gray'} className="text-[10px]">{step.status}</StatusPill></div>)}</div><div><div className="mb-2 text-[13px] font-medium text-[#1d2740]">执行日志</div><div className="space-y-2 rounded-[10px] bg-[#f6f8fc] p-4 text-[12px] text-[#6d7b92]">{executionLogs.map((log, i) => <div key={i}>{log}</div>)}</div></div></div>}
         {activeTab === 'result' && <div className="grid grid-cols-3 gap-3">{results.map((item) => <div key={item.label} className="rounded-[10px] bg-[#f6f8fc] p-3"><div className="text-[11px] text-[#98a3b7]">{item.label}</div><div className="mt-1 text-[16px] font-semibold text-[#1d2740]">{item.value}</div></div>)}</div>}
         {activeTab === 'files' && <div className="space-y-2">{files.map((file) => <div key={file.name} className="flex items-center justify-between rounded-[10px] border border-[#edf1f8] bg-white px-4 py-3"><div>{file.name}</div><div className="text-[11px] text-[#8d99ae]">{file.time}</div></div>)}</div>}
       </div>
@@ -193,7 +190,7 @@ export default function Tasks() {
   const [tasks, setTasks] = useState([]);
   const [details, setDetails] = useState({});
   const [employees, setEmployees] = useState([]);
-  const tabs = [{ key: 'all', label: '全部任务' }, { key: 'mine', label: '我的任务' }, { key: 'developing', label: '开发中' }, { key: 'deploying', label: '部署中' }, { key: 'done', label: '已完成' }, { key: 'failed', label: '已失败' }];
+  const tabs = [{ key: 'all', label: '全部任务' }, { key: 'product', label: '需求规划' }, { key: 'development', label: '开发任务' }, { key: 'review', label: '代码审查' }, { key: 'deployment', label: '部署任务' }, { key: 'done', label: '已完成' }, { key: 'failed', label: '已失败' }];
 
   const reload = async () => {
     try {
@@ -215,7 +212,7 @@ export default function Tasks() {
     }
   };
   useEffect(() => { reload(); employeeApi.getList().then((res) => setEmployees(res.data || [])).catch(() => {}); }, []);
-  const visible = tasks.filter((task) => activeTab === 'all' || (activeTab === 'mine' && task.owner === 'Alex') || (activeTab === 'developing' && task.status === '开发中') || (activeTab === 'deploying' && task.status === '部署中') || (activeTab === 'done' && task.status === '已完成') || (activeTab === 'failed' && task.status === '已失败'));
+  const visible = tasks.filter((task) => activeTab === 'all' || (activeTab === 'product' && task.taskType === 'product') || (activeTab === 'development' && task.taskType === 'development') || (activeTab === 'review' && task.taskType === 'review') || (activeTab === 'deployment' && task.taskType === 'deployment') || (activeTab === 'done' && task.status === '已完成') || (activeTab === 'failed' && task.status === '已失败'));
   const deleteTask = async (task, event) => {
     event.stopPropagation();
     await taskApi.delete(task.id);

@@ -37,10 +37,6 @@ export function buildEmployeePageData(rawEmployees = []) {
       duty: text(employee.position),
       skills: [text(employee.role), '协作', '自动化'],
       task: number(employee.taskCount) > 0 ? '处理当前分配任务' : '暂无进行中任务',
-      workingTime: `${number(employee.taskCount)}项任务`,
-      commits: '真实代码产物见云端开发',
-      testPass: 'Review 产物见工作产物',
-      deployCount: '部署记录见运维部署',
       permissions: permissionCatalog.map((permission) => ({
         ...permission,
         enabled: enabled.get(permission.code) || false,
@@ -72,20 +68,11 @@ export function taskRow(task) {
 
 export function taskDetail(detail) {
   if (!detail) return null;
-  const steps = detail.steps || [];
   return {
-    executionSteps: steps.map((step, index) => ({
-      step: step.stepOrder || index + 1,
-      name: text(step.stepName),
-      status: text(step.status, '待处理'),
-      owner: text(detail.executor?.name),
-      role: text(detail.taskType),
-    })),
-    executionLogs: (detail.logs || []).map((log) => `${text(log.time)} ${text(log.content, '')}`),
     results: [
       { label: '状态', value: text(detail.status) },
-      { label: '步骤数', value: steps.length },
       { label: '执行人', value: text(detail.executor?.name) },
+      { label: '创建时间', value: text(detail.createTime) },
     ],
     files: [],
   };

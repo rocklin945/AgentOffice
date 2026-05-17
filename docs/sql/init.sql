@@ -13,7 +13,6 @@ DROP TABLE IF EXISTS notification_message;
 DROP TABLE IF EXISTS deploy_service;
 DROP TABLE IF EXISTS dev_file;
 DROP TABLE IF EXISTS dev_project;
-DROP TABLE IF EXISTS task_step;
 DROP TABLE IF EXISTS work_product;
 DROP TABLE IF EXISTS employee_permission;
 DROP TABLE IF EXISTS task_info;
@@ -82,18 +81,6 @@ CREATE TABLE employee_permission (
     KEY idx_employee_id (employee_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='员工工作权限表';
 
-CREATE TABLE office_desk (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
-    desk_code VARCHAR(20) NOT NULL COMMENT '工位编号',
-    row_num INT NOT NULL COMMENT '排号',
-    col_num INT NOT NULL COMMENT '列号',
-    employee_id BIGINT DEFAULT NULL COMMENT '员工 ID',
-    status TINYINT DEFAULT 0 COMMENT '状态: 0 空闲, 1 占用',
-    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    UNIQUE KEY uk_desk_code (desk_code),
-    KEY idx_employee_id (employee_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='工位表';
-
 CREATE TABLE task_info (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
     task_name VARCHAR(100) NOT NULL COMMENT '任务名称',
@@ -111,15 +98,6 @@ CREATE TABLE task_info (
     KEY idx_priority (priority)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务表';
 
-CREATE TABLE task_step (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
-    task_id BIGINT NOT NULL COMMENT '任务 ID',
-    step_name VARCHAR(100) NOT NULL COMMENT '步骤名称',
-    step_order INT NOT NULL COMMENT '步骤顺序',
-    status VARCHAR(20) DEFAULT '待处理' COMMENT '状态',
-    complete_time DATETIME DEFAULT NULL COMMENT '完成时间',
-    KEY idx_task_id (task_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务步骤表';
 
 CREATE TABLE work_product (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
@@ -236,29 +214,17 @@ CREATE TABLE chat_message (
 INSERT INTO sys_user (username, password, nickname, email, role, status) VALUES
 ('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', '管理员', 'admin@agent.com', 'admin', 1);
 
-INSERT INTO office_desk (desk_code, row_num, col_num, status) VALUES
-('A1', 1, 1, 1), ('A2', 1, 2, 1), ('A3', 1, 3, 1), ('A4', 1, 4, 1),
-('B1', 2, 1, 1), ('B2', 2, 2, 1), ('B3', 2, 3, 0), ('B4', 2, 4, 0),
-('C1', 3, 1, 0), ('C2', 3, 2, 0), ('C3', 3, 3, 0), ('C4', 3, 4, 0);
-
 INSERT INTO model_config (config_name, provider, model_name, api_base, api_key, is_default, enabled, remark) VALUES
-('默认模型', 'Nacos迁移', 'MiniMax-M2.7', NULL, NULL, 1, 1, '系统默认模型，员工未单独配置时使用'),
-('代码审查模型', 'OpenAI Compatible', 'gpt-4o-mini', 'https://api.openai.com/v1', NULL, 0, 1, '适合开发、Code Review 和测试分析');
+('默认模型', 'MiniMax', 'MiniMax-M2.7', 'https://api.minimaxi.com/v1', 'sk-cp-v0V4WR8igps5rEUZhdWR-0FGHxPPVkmT35iFNFi3Nb1ffU64aHTyZqnLewRs1ikeZIEjYM6teHmlzbM22SXkSRqVp4DF3XOn40glCrsoo0SkjjXdUw8X2og', 1, 1, '系统默认模型，员工未单独配置时使用'),
+('DeepSeek', 'DeepSeek', 'deepseek-v4-flash', 'https://api.deepseek.com', 'sk-29fd74c3c34a43bb8fb97b4d3c9cd330', 0, 1, '适合开发、Code Review 和测试分析');
 
 INSERT INTO agent_employee (name, avatar, role, position, status, desk_id, model_config_id) VALUES
 ('ProductKing', 'https://api.dicebear.com/7.x/avataaars/svg?seed=ProductKing', '产品经理', '产品负责人', '在线', 1, 1),
 ('Dispatcher', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Dispatcher', '调度员', '任务调度', '在线', 2, 1),
-('AlexBE', 'https://api.dicebear.com/7.x/avataaars/svg?seed=AlexBE', '后端开发工程师', '后端开发', '工作中', 3, 2),
-('LilyFE', 'https://api.dicebear.com/7.x/avataaars/svg?seed=LilyFE', '前端开发工程师', '前端开发', '工作中', 4, 2),
-('ReviewBot', 'https://api.dicebear.com/7.x/avataaars/svg?seed=ReviewBot', 'CodeReviewer', '代码审查', 'Review中', 5, 2),
-('OpsMaster', 'https://api.dicebear.com/7.x/avataaars/svg?seed=OpsMaster', '运维工程师', '容器运维', '部署中', 6, 1);
-
-UPDATE office_desk SET employee_id = 1 WHERE id = 1;
-UPDATE office_desk SET employee_id = 2 WHERE id = 2;
-UPDATE office_desk SET employee_id = 3 WHERE id = 3;
-UPDATE office_desk SET employee_id = 4 WHERE id = 4;
-UPDATE office_desk SET employee_id = 5 WHERE id = 5;
-UPDATE office_desk SET employee_id = 6 WHERE id = 6;
+('AlexBE', 'https://api.dicebear.com/7.x/avataaars/svg?seed=AlexBE', '后端开发工程师', '后端开发', '在线', 3, 2),
+('LilyFE', 'https://api.dicebear.com/7.x/avataaars/svg?seed=LilyFE', '前端开发工程师', '前端开发', '在线', 4, 2),
+('ReviewBot', 'https://api.dicebear.com/7.x/avataaars/svg?seed=ReviewBot', 'CodeReviewer', '代码审查', '在线', 5, 2),
+('OpsMaster', 'https://api.dicebear.com/7.x/avataaars/svg?seed=OpsMaster', '运维工程师', '容器运维', '在线', 6, 1);
 
 INSERT INTO employee_permission (employee_id, permission_code, permission_name, enabled) VALUES
 (1, 'task.view', '查看任务', 1), (1, 'product.plan', '产品规划', 1), (1, 'task.assign', '任务拆解', 1), (1, 'report.write', '输出报告', 1),
@@ -268,39 +234,11 @@ INSERT INTO employee_permission (employee_id, permission_code, permission_name, 
 (5, 'task.view', '查看任务', 1), (5, 'code.review', 'Code Review', 1), (5, 'report.write', '输出报告', 1),
 (6, 'task.view', '查看任务', 1), (6, 'deploy.manage', '部署服务', 1), (6, 'log.view', '查看日志', 1);
 
-INSERT INTO task_info (task_name, task_type, description, priority, executor_id, status, create_user) VALUES
-('登录功能需求拆解', 'product', '由产品经理输出 PRD 并交由调度员分发', '高', 1, '已完成', 1),
-('登录功能后端开发', 'development', '实现用户登录注册和 JWT 鉴权能力', '高', 3, '进行中', 1),
-('登录功能前端开发', 'development', '实现登录页面与表单交互', '高', 4, '进行中', 1),
-('登录功能 Code Review', 'review', '审查前后端代码质量与风险', '中', 5, '待分配', 1),
-('CI/CD 流程搭建', 'deployment', '搭建持续集成和部署流程', '高', 6, '待分配', 1);
-
-INSERT INTO task_step (task_id, step_name, step_order, status, complete_time) VALUES
-(1, '需求分析', 1, '已完成', NOW()),
-(1, '接口设计', 2, '已完成', NOW()),
-(1, '代码开发', 3, '进行中', NULL),
-(1, '测试验证', 4, '待处理', NULL),
-(1, '部署上线', 5, '待处理', NULL);
-
-INSERT INTO work_product (employee_id, task_id, name, product_type, status, file_url, content) VALUES
-(1, 1, '登录功能需求说明', '需求文档', '已完成', '/products/login-prd', '目标：完成用户登录注册与 JWT 鉴权。验收：登录成功返回 Token，失败提示清晰，接口可追踪。'),
-(3, 2, '登录后端实现代码', '代码', '进行中', '/products/login-api-code', '登录后端代码已进入开发中，当前完成 JWT 鉴权入口和用户校验逻辑。'),
-(4, 3, '登录前端页面代码', '代码', '进行中', '/products/login-page-code', '登录前端页面正在开发中，包含表单校验与登录态管理。'),
-(5, 4, '登录功能 Code Review 报告', 'Code Review报告', '进行中', '/products/login-review', '已识别 JWT 过期处理与表单校验若干优化点，等待开发反馈。'),
-(6, 5, 'CI/CD 部署配置', '部署记录', '进行中', '/products/cicd-config', 'CI/CD 配置正在搭建，包含构建、镜像推送和部署健康检查步骤。');
-
 INSERT INTO deploy_service (service_name, image, version, status, port, container_id, cpu_usage, memory_usage, running_time) VALUES
 ('user-service', 'agentoffice/user-service', 'v1.0.0', '运行中', 8080, 'container_user_001', 25.50, 40.20, 86400),
 ('order-service', 'agentoffice/order-service', 'v1.2.0', '运行中', 8081, 'container_order_001', 18.30, 35.00, 172800),
 ('payment-service', 'agentoffice/payment-service', 'v1.1.0', '已停止', 8082, NULL, 0.00, 0.00, 0),
 ('message-service', 'agentoffice/message-service', 'v2.0.0', '异常', 8083, 'container_msg_001', 95.00, 85.00, 1000);
-
-INSERT INTO notification_message (user_id, category, title, content, source_type, source_id, read_status, priority) VALUES
-(1, 'task', '任务进度更新', '登录功能 PRD 已交付，调度员已分发前后端开发任务。', 'task', 1, 0, 'high'),
-(1, 'test', 'Code Review 启动', 'ReviewBot 已开始登录功能的代码审查。', 'task', 4, 0, 'normal'),
-(1, 'deploy', '服务部署异常', 'message-service 当前资源占用较高，请在运维部署中查看服务详情。', 'deploy_service', 4, 0, 'high'),
-(1, 'task', '调度员已接管流程', '团队协作已切换为调度员统一调度模式，后续由调度员负责阶段流转。', 'dispatcher', 2, 1, 'normal');
-
 
 INSERT INTO dev_project (project_name, description, language, owner_id, status) VALUES
 ('user-center', '用户中心服务', 'java', 1, 1),

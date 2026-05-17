@@ -7,7 +7,6 @@ import com.agentoffice.entity.DevProject;
 import com.agentoffice.entity.NotificationMessage;
 import com.agentoffice.entity.OperationLog;
 import com.agentoffice.entity.TaskInfo;
-import com.agentoffice.entity.TaskStep;
 import com.agentoffice.entity.WorkProduct;
 import com.agentoffice.llm.LlmTool;
 import com.agentoffice.mapper.AgentEmployeeMapper;
@@ -17,7 +16,6 @@ import com.agentoffice.mapper.DevProjectMapper;
 import com.agentoffice.mapper.NotificationMessageMapper;
 import com.agentoffice.mapper.OperationLogMapper;
 import com.agentoffice.mapper.TaskInfoMapper;
-import com.agentoffice.mapper.TaskStepMapper;
 import com.agentoffice.mapper.WorkProductMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,7 +42,6 @@ public class ToolExecutor {
     private final ObjectMapper objectMapper;
     private final AgentEmployeeMapper employeeMapper;
     private final TaskInfoMapper taskMapper;
-    private final TaskStepMapper stepMapper;
     private final WorkProductMapper workProductMapper;
     private final DevProjectMapper projectMapper;
     private final DevFileMapper fileMapper;
@@ -468,15 +465,6 @@ public class ToolExecutor {
         task.setCreateUser(1L);
         taskMapper.insert(task);
 
-        int order = 1;
-        for (String stepName : steps) {
-            TaskStep step = new TaskStep();
-            step.setTaskId(task.getId());
-            step.setStepName(stepName);
-            step.setStepOrder(order++);
-            step.setStatus("已完成".equals(status) ? "已完成" : "待处理");
-            stepMapper.insert(step);
-        }
         return task;
     }
 

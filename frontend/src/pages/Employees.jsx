@@ -289,9 +289,6 @@ function EmployeeDetailPanel({ employee, onClose }) {
       {activeTab === 'info' ? (
         <div className="mt-4 space-y-4">
           <div><div className="mb-2 text-[13px] font-medium text-[#1d2740]">当前任务</div><div className="rounded-[10px] bg-white p-3 text-[14px] text-[#5f6d83]">{employee.task}</div></div>
-          <div className="grid grid-cols-4 gap-3">
-            {['workingTime', 'commits', 'testPass', 'deployCount'].map((key, index) => <div key={key} className="rounded-[10px] bg-white p-3"><div className="text-[11px] text-[#98a3b7]">{['工作时长', '提交次数', 'Review 通过', '部署次数'][index]}</div><div className="mt-1 text-[14px] font-medium text-[#1d2740]">{employee[key]}</div></div>)}
-          </div>
           <div><div className="mb-2 text-[13px] font-medium text-[#1d2740]">职责</div><div className="text-[13px] text-[#6d7b92]">{employee.duty}</div></div>
           <div><div className="mb-2 text-[13px] font-medium text-[#1d2740]">技能</div><div className="flex flex-wrap gap-2">{employee.skills.map((skill) => <span key={skill} className="rounded-full bg-[#f0f4ff] px-3 py-1 text-[12px] text-[#2f6bff]">{skill}</span>)}</div></div>
           <div className="grid grid-cols-2 gap-3 text-[13px]"><div className="text-[#8d99ae]">员工编号：<span className="text-[#5f6d83]">{employee.employeeNo}</span></div><div className="text-[#8d99ae]">加入时间：<span className="text-[#5f6d83]">{employee.joinedAt}</span></div></div>

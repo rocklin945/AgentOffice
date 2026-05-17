@@ -62,15 +62,6 @@ public class TaskController {
         return Result.success();
     }
 
-    @PatchMapping("/{taskId}/steps/{stepId}")
-    public Result<Void> updateStepStatus(
-            @PathVariable Long taskId,
-            @PathVariable Long stepId,
-            @RequestBody Map<String, String> body) {
-        taskService.updateStepStatus(taskId, stepId, body.get("status"));
-        return Result.success();
-    }
-
     @PostMapping("/{id}/assign")
     public Result<Void> assign(@PathVariable Long id, @RequestBody Map<String, Long> body) {
         taskService.assign(id, body.get("executorId"));

@@ -2,7 +2,6 @@ package com.agentoffice.entity;
 
 import lombok.Data;
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Data
 public class TaskInfo {
@@ -19,5 +18,4 @@ public class TaskInfo {
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
     private LocalDateTime endTime;
-    private List<TaskStep> steps;
 }

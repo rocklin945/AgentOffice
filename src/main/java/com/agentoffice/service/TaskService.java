@@ -4,10 +4,8 @@ import com.agentoffice.dto.CreateTaskRequest;
 import com.agentoffice.dto.TaskDetailResponse;
 import com.agentoffice.entity.AgentEmployee;
 import com.agentoffice.entity.TaskInfo;
-import com.agentoffice.entity.TaskStep;
 import com.agentoffice.mapper.AgentEmployeeMapper;
 import com.agentoffice.mapper.TaskInfoMapper;
-import com.agentoffice.mapper.TaskStepMapper;
 import com.agentoffice.common.exception.BusinessException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -24,9 +22,6 @@ public class TaskService {
 
     @Autowired
     private TaskInfoMapper taskMapper;
-
-    @Autowired
-    private TaskStepMapper stepMapper;
 
     @Autowired
     private AgentEmployeeMapper employeeMapper;
@@ -68,30 +63,7 @@ public class TaskService {
             }
         }
 
-        List<TaskStep> steps = stepMapper.findByTaskId(id);
-        List<TaskDetailResponse.StepInfo> stepInfoList = new ArrayList<>();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-
-        for (TaskStep step : steps) {
-            TaskDetailResponse.StepInfo stepInfo = new TaskDetailResponse.StepInfo();
-            stepInfo.setId(step.getId());
-            stepInfo.setStepName(step.getStepName());
-            stepInfo.setStepOrder(step.getStepOrder());
-            stepInfo.setStatus(step.getStatus());
-            if (step.getCompleteTime() != null) {
-                stepInfo.setCompleteTime(step.getCompleteTime().format(formatter));
-            }
-            stepInfoList.add(stepInfo);
-        }
-        response.setSteps(stepInfoList);
-
-        List<TaskDetailResponse.LogInfo> logs = new ArrayList<>();
-        TaskDetailResponse.LogInfo log1 = new TaskDetailResponse.LogInfo();
-        log1.setTime(task.getCreateTime().format(formatter));
-        log1.setContent("任务已创建");
-        logs.add(log1);
-        response.setLogs(logs);
-
         response.setCreateTime(task.getCreateTime().format(formatter));
 
         return response;
@@ -109,24 +81,6 @@ public class TaskService {
         task.setCreateUser(1L);
 
         taskMapper.insert(task);
-
-        List<String> steps = request.getSteps();
-        if (steps == null || steps.isEmpty()) {
-            steps = defaultSteps(task.getTaskType());
-        }
-
-        if (steps != null && !steps.isEmpty()) {
-            int order = 1;
-            for (String stepName : steps) {
-                TaskStep step = new TaskStep();
-                step.setTaskId(task.getId());
-                step.setStepName(stepName);
-                step.setStepOrder(order++);
-                step.setStatus("待处理");
-                stepMapper.insert(step);
-            }
-        }
-
         return task;
     }
 
@@ -160,7 +114,6 @@ public class TaskService {
 
     @Transactional
     public void delete(Long id) {
-        stepMapper.deleteByTaskId(id);
         taskMapper.deleteById(id);
     }
 
@@ -171,11 +124,6 @@ public class TaskService {
         } else {
             taskMapper.updateStatus(id, status);
         }
-    }
-
-    @Transactional
-    public void updateStepStatus(Long taskId, Long stepId, String status) {
-        stepMapper.updateStatus(stepId, status);
     }
 
     @Transactional
