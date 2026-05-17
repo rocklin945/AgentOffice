@@ -19,6 +19,7 @@ import Notifications from './pages/Notifications';
 import Profile from './pages/Profile';
 import Admin from './pages/Admin';
 import { useAppStore } from './store';
+import { ChatProvider } from './contexts/ChatContext';
 import './styles/global.css';
 
 function ProtectedRoute({ children, adminOnly = false }) {
@@ -43,7 +44,8 @@ export default function App() {
         },
       }}
     >
-      <BrowserRouter>
+      <ChatProvider>
+        <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -73,6 +75,7 @@ export default function App() {
           </Route>
         </Routes>
       </BrowserRouter>
+      </ChatProvider>
     </ConfigProvider>
   );
 }

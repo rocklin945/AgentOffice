@@ -4,6 +4,7 @@ import { officeApi } from '../api';
 import { DonutChart, Panel, StatusPill } from '../components/AppPrimitives';
 import MarkdownMessage from '../components/MarkdownMessage';
 import { getAvatarColor } from '../utils';
+import { useChatContext } from '../contexts/ChatContext';
 
 function metricIcon(label) {
   if (label?.includes('员工')) return <TeamOutlined />;
@@ -152,10 +153,7 @@ function TypingDots() {
   );
 }
 
-function ChatPanel({ initialMessages, staff, onWorkflowComplete }) {
-  const [messages, setMessages] = useState(initialMessages);
-  const [sessions, setSessions] = useState([]);
-  const [currentSessionId, setCurrentSessionId] = useState('');
+function ChatPanel({ messages, setMessages, sessions, setSessions, currentSessionId, setCurrentSessionId, staff, onWorkflowComplete }) {
   const [input, setInput] = useState('');
   const [mentionOpen, setMentionOpen] = useState(false);
   const [sessionOpen, setSessionOpen] = useState(false);
@@ -166,9 +164,6 @@ function ChatPanel({ initialMessages, staff, onWorkflowComplete }) {
   const sessionRef = useRef(null);
   const messagesEndRef = useRef(null);
 
-  useEffect(() => {
-    if (!currentSessionId) setMessages(initialMessages);
-  }, [initialMessages, currentSessionId]);
 
   useEffect(() => {
     loadSessions();
@@ -215,7 +210,18 @@ function ChatPanel({ initialMessages, staff, onWorkflowComplete }) {
     const res = await officeApi.getCollaborationMessages(sessionId);
     setCurrentSessionId(res.data?.session?.id || sessionId);
     upsertSession(res.data?.session);
-    setMessages(res.data?.messages || []);
+    
+    // 智能合并：保留当前正在 pending 的消息，但不重复添加
+    setMessages((current) => {
+      const pendingMessages = current.filter((msg) => msg.pending);
+      const newMessages = res.data?.messages || [];
+      
+      // 只有当前有 pending 消息时才合并
+      if (pendingMessages.length > 0) {
+        return [...newMessages, ...pendingMessages];
+      }
+      return newMessages;
+    });
   };
 
   const loadSessions = async () => {
@@ -572,7 +578,7 @@ function ChatPanel({ initialMessages, staff, onWorkflowComplete }) {
 
 export default function Office() {
   const [staff, setStaff] = useState([]);
-  const [messages, setMessages] = useState([]);
+  const { messages, setMessages, sessions, setSessions, currentSessionId, setCurrentSessionId } = useChatContext();
   const [stats, setStats] = useState([]);
   const [donut, setDonut] = useState([]);
   const [taskSummary, setTaskSummary] = useState([]);
@@ -586,7 +592,8 @@ export default function Office() {
         if (!alive || !res.data) return;
         const nextStaff = res.data.staffList || [];
         setStaff(nextStaff);
-        setMessages(res.data.messages || []);
+        // 不要覆盖消息状态，消息由 ChatPanel 管理
+        // setMessages(res.data.messages || []);
         setStats(res.data.statCards || []);
         setDonut(res.data.donutItems || []);
         setTaskSummary(res.data.taskSummary || []);
@@ -598,7 +605,8 @@ export default function Office() {
       .catch(() => {
         if (!alive) return;
         setStaff([]);
-        setMessages([]);
+        // 不要清空消息
+        // setMessages([]);
         setStats([]);
         setDonut([]);
         setTaskSummary([]);
@@ -645,7 +653,16 @@ export default function Office() {
           </div>
         </div>
         <div className="w-[780px] shrink-0">
-          <ChatPanel initialMessages={messages} staff={staff} onWorkflowComplete={loadCollaboration} />
+          <ChatPanel 
+            messages={messages} 
+            setMessages={setMessages}
+            sessions={sessions}
+            setSessions={setSessions}
+            currentSessionId={currentSessionId}
+            setCurrentSessionId={setCurrentSessionId}
+            staff={staff} 
+            onWorkflowComplete={loadCollaboration} 
+          />
         </div>
       </div>
 
