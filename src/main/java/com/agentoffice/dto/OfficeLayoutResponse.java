@@ -12,7 +12,6 @@ public class OfficeLayoutResponse {
     @Data
     public static class DeskInfo {
         private Long id;
-        private String deskCode;
         private Integer rowNum;
         private Integer colNum;
         private Integer status;

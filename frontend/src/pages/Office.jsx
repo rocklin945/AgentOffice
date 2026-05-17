@@ -12,6 +12,13 @@ function metricIcon(label) {
   return <ClockCircleFilled />;
 }
 
+function metricIconClass(label) {
+  if (label === '工作中') return 'bg-[#ebfbf1] text-[#2bb36b]';
+  if (label === '空闲中') return 'bg-[#fff8e8] text-[#f4b53f]';
+  if (label?.includes('完成')) return 'bg-[#ebfbf1] text-[#2bb36b]';
+  return 'bg-[#edf4ff] text-[#2f6bff]';
+}
+
 function EmployeeCard({ employee, isSelected, onClick, staff }) {
   return (
     <div
@@ -666,10 +673,10 @@ export default function Office() {
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-5">
+      <div className="grid gap-4 xl:grid-cols-4">
         {stats.map((card) => (
           <Panel key={card.label} className="flex items-center gap-4 px-6 py-5">
-            <div className={`flex h-11 w-11 items-center justify-center rounded-full text-[18px] ${card.iconClass}`}>
+            <div className={`flex h-11 w-11 items-center justify-center rounded-full text-[18px] ${metricIconClass(card.label)}`}>
               {metricIcon(card.label)}
             </div>
             <div>

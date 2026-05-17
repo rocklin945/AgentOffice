@@ -8,7 +8,6 @@ import com.agentoffice.agent.AgentRunner;
 import com.agentoffice.entity.AgentEmployee;
 import com.agentoffice.entity.ChatMessage;
 import com.agentoffice.entity.ChatSession;
-import com.agentoffice.entity.OfficeDesk;
 import com.agentoffice.entity.TaskInfo;
 import com.agentoffice.entity.WorkProduct;
 import com.agentoffice.entity.ModelConfig;
@@ -19,7 +18,6 @@ import com.agentoffice.llm.LlmService;
 import com.agentoffice.mapper.AgentEmployeeMapper;
 import com.agentoffice.mapper.ChatMessageMapper;
 import com.agentoffice.mapper.ChatSessionMapper;
-import com.agentoffice.mapper.OfficeDeskMapper;
 import com.agentoffice.mapper.OperationLogMapper;
 import com.agentoffice.mapper.TaskInfoMapper;
 import com.agentoffice.mapper.WorkProductMapper;
@@ -49,9 +47,6 @@ import java.util.stream.Collectors;
 public class OfficeService {
 
     @Autowired
-    private OfficeDeskMapper deskMapper;
-
-    @Autowired
     private AgentEmployeeMapper employeeMapper;
 
     @Autowired
@@ -79,124 +74,15 @@ public class OfficeService {
     private LlmService llmService;
 
     public OfficeLayoutResponse getLayout() {
-        List<OfficeDesk> desks = deskMapper.findAll();
-        List<AgentEmployee> employees = employeeMapper.findAll();
-
-        Map<Long, AgentEmployee> employeeMap = employees.stream()
-                .filter(e -> e.getDeskId() != null)
-                .collect(Collectors.toMap(AgentEmployee::getDeskId, e -> e));
-
-        Integer maxRow = desks.stream()
-                .mapToInt(OfficeDesk::getRowNum)
-                .max()
-                .orElse(0);
-
-        Integer maxCol = desks.stream()
-                .mapToInt(Desk -> Desk.getColNum())
-                .max()
-                .orElse(0);
-
         OfficeLayoutResponse response = new OfficeLayoutResponse();
-        response.setRows(maxRow);
-        response.setCols(maxCol);
-
-        List<OfficeLayoutResponse.DeskInfo> deskInfoList = new ArrayList<>();
-        for (OfficeDesk desk : desks) {
-            OfficeLayoutResponse.DeskInfo deskInfo = new OfficeLayoutResponse.DeskInfo();
-            deskInfo.setId(desk.getId());
-            deskInfo.setDeskCode(desk.getDeskCode());
-            deskInfo.setRowNum(desk.getRowNum());
-            deskInfo.setColNum(desk.getColNum());
-            deskInfo.setStatus(desk.getStatus());
-
-            AgentEmployee employee = employeeMap.get(desk.getId());
-            if (employee != null) {
-                OfficeLayoutResponse.EmployeeInfo employeeInfo = new OfficeLayoutResponse.EmployeeInfo();
-                employeeInfo.setId(employee.getId());
-                employeeInfo.setName(employee.getName());
-                employeeInfo.setAvatar(employee.getAvatar());
-                employeeInfo.setRole(employee.getRole());
-                employeeInfo.setPosition(employee.getPosition());
-                employeeInfo.setStatus(employee.getStatus());
-                deskInfo.setEmployee(employeeInfo);
-            }
-
-            deskInfoList.add(deskInfo);
-        }
-
-        response.setDesks(deskInfoList);
+        response.setRows(0);
+        response.setCols(0);
+        response.setDesks(List.of());
         return response;
     }
 
     public Map<String, Integer> getStatusOverview() {
-        List<AgentEmployee> employees = employeeMapper.findAll();
-        return employees.stream()
-                .collect(Collectors.groupingBy(
-                        e -> e.getStatus() != null ? e.getStatus() : "空闲",
-                        Collectors.reducing(0, e -> 1, Integer::sum)
-                ));
-    }
-
-    @Transactional
-    public OfficeDesk createDesk() {
-        Integer maxRow = deskMapper.findMaxRow();
-        int row = maxRow == null || maxRow <= 0 ? 1 : maxRow;
-        Integer maxCol = deskMapper.findMaxCol(row);
-        int col = maxCol == null ? 1 : maxCol + 1;
-
-        if (col > 4) {
-            row += 1;
-            col = 1;
-        }
-
-        OfficeDesk desk = new OfficeDesk();
-        desk.setDeskCode(rowCode(row) + col);
-        desk.setRowNum(row);
-        desk.setColNum(col);
-        desk.setStatus(0);
-        deskMapper.insert(desk);
-        return desk;
-    }
-
-    @Transactional
-    public void assignDesk(Long deskId, Long employeeId) {
-        OfficeDesk desk = deskMapper.findById(deskId);
-        if (desk == null) {
-            throw new BusinessException(404, "工位不存在");
-        }
-
-        if (desk.getEmployeeId() != null) {
-            employeeMapper.updateDeskId(desk.getEmployeeId(), null);
-        }
-
-        if (employeeId == null) {
-            deskMapper.updateEmployee(deskId, null, 0);
-            return;
-        }
-
-        AgentEmployee employee = employeeMapper.findById(employeeId);
-        if (employee == null) {
-            throw new BusinessException(404, "员工不存在");
-        }
-
-        OfficeDesk oldDesk = deskMapper.findByEmployeeId(employeeId);
-        if (oldDesk != null && !oldDesk.getId().equals(deskId)) {
-            deskMapper.updateEmployee(oldDesk.getId(), null, 0);
-        }
-
-        deskMapper.updateEmployee(deskId, employeeId, 1);
-        employeeMapper.updateDeskId(employeeId, deskId);
-    }
-
-    private String rowCode(int row) {
-        StringBuilder code = new StringBuilder();
-        int value = row;
-        while (value > 0) {
-            value--;
-            code.insert(0, (char) ('A' + (value % 26)));
-            value /= 26;
-        }
-        return code.toString();
+        return normalizedStatusOverview(employeeMapper.findAll());
     }
 
     public Map<String, Object> getCollaboration() {
@@ -208,7 +94,7 @@ public class OfficeService {
             AgentEmployee employee = employees.get(i);
             Map<String, Object> item = new HashMap<>();
             String id = employee.getName() == null ? "emp" + employee.getId() : employee.getName().toLowerCase();
-            String displayStatus = collaborationStatus(employee);
+            String displayStatus = normalizeStatus(collaborationStatus(employee));
             item.put("id", id);
             item.put("employeeId", employee.getId());
             item.put("name", employee.getName());
@@ -230,19 +116,18 @@ public class OfficeService {
             staff.add(item);
         }
 
-        Map<String, Integer> overview = getStatusOverview();
+        Map<String, Integer> overview = normalizedStatusOverview(employees);
         int total = employees.size();
-        int idle = overview.getOrDefault("空闲", 0) + overview.getOrDefault("在线", 0);
-        int busy = Math.max(total - idle, 0);
+        int idle = overview.getOrDefault("空闲中", 0);
+        int busy = overview.getOrDefault("工作中", 0);
 
         Map<String, Object> result = new HashMap<>();
         result.put("staffList", staff);
         result.put("messages", List.of());
         result.put("statCards", List.of(
                 Map.of("label", "员工总数", "value", total + "人", "iconClass", "bg-[#edf4ff] text-[#2f6bff]"),
-                Map.of("label", "在线员工", "value", total + "人", "iconClass", "bg-[#ebfbf1] text-[#2bb36b]"),
-                Map.of("label", "忙碌中", "value", busy + "人", "iconClass", "bg-[#fff4ea] text-[#ff8a32]"),
                 Map.of("label", "空闲中", "value", idle + "人", "iconClass", "bg-[#fff8e8] text-[#f4b53f]"),
+                Map.of("label", "工作中", "value", busy + "人", "iconClass", "bg-[#e8f9ed] text-[#2bb36b]"),
                 Map.of("label", "今日完成任务", "value", countTasks(tasks, "已完成") + "个", "iconClass", "bg-[#ebfbf1] text-[#2bb36b]")
         ));
         result.put("donutItems", overview.entrySet().stream()
@@ -999,11 +884,31 @@ public class OfficeService {
                 .count();
     }
 
+    private Map<String, Integer> normalizedStatusOverview(List<AgentEmployee> employees) {
+        Map<String, Integer> overview = new LinkedHashMap<>();
+        overview.put("空闲中", 0);
+        overview.put("工作中", 0);
+        for (AgentEmployee employee : employees) {
+            String status = normalizeStatus(collaborationStatus(employee));
+            overview.put(status, overview.getOrDefault(status, 0) + 1);
+        }
+        return overview;
+    }
+
+    private String normalizeStatus(String status) {
+        if (status == null || status.isBlank() || "在线".equals(status) || "空闲".equals(status)) {
+            return "空闲中";
+        }
+        if ("工作中".equals(status) || "编码中".equals(status) || "Review中".equals(status)
+                || "调度中".equals(status) || "部署中".equals(status) || "思考中".equals(status)) {
+            return "工作中";
+        }
+        return status;
+    }
+
     private String statusColor(String status) {
-        if ("工作中".equals(status) || "编码中".equals(status)) return "green";
-        if ("Review中".equals(status)) return "blue";
-        if ("部署中".equals(status)) return "purple";
-        if ("思考中".equals(status)) return "orange";
+        if ("工作中".equals(status) || "编码中".equals(status) || "Review中".equals(status) || "调度中".equals(status) || "部署中".equals(status) || "思考中".equals(status)) return "green";
+        if ("空闲中".equals(status) || "在线".equals(status) || "空闲".equals(status)) return "yellow";
         return "gray";
     }
 
@@ -1017,11 +922,8 @@ public class OfficeService {
     }
 
     private String colorForStatus(String status) {
-        if ("工作中".equals(status) || "编码中".equals(status)) return "#2f6bff";
-        if ("思考中".equals(status)) return "#8b5cf6";
-        if ("Review中".equals(status)) return "#2bb36b";
-        if ("调度中".equals(status)) return "#f4b53f";
-        if ("部署中".equals(status)) return "#ff8a32";
+        if ("工作中".equals(status) || "编码中".equals(status)) return "#9be7b0";
+        if ("空闲中".equals(status) || "在线".equals(status) || "空闲".equals(status)) return "#ffe7a3";
         return "#b8becb";
     }
 

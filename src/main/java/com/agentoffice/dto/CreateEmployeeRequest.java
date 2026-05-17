@@ -10,7 +10,6 @@ public class CreateEmployeeRequest {
     private String role;
     private String position;
     private String status;
-    private Long deskId;
     private Long modelConfigId;
     private List<PermissionItem> permissions;
 

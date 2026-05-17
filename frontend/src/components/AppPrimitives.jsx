@@ -15,6 +15,7 @@ export function StatusPill({ children, color = 'blue', className = '' }) {
     blue: 'bg-[#edf4ff] text-[#2f6bff]',
     green: 'bg-[#ebfbf1] text-[#2bb36b]',
     orange: 'bg-[#fff3e9] text-[#ff8a32]',
+    yellow: 'bg-[#fff8e8] text-[#f4b53f]',
     purple: 'bg-[#f3ecff] text-[#8b5cf6]',
     gray: 'bg-[#f3f5f8] text-[#8792a7]',
     red: 'bg-[#ffefef] text-[#ff5c5c]',
@@ -146,6 +147,13 @@ export function BarChart({ items, height = 210, color = '#2f6bff' }) {
 
 export function DonutChart({ items }) {
   const total = items.reduce((sum, item) => sum + item.value, 0);
+  if (!items.length || total <= 0) {
+    return (
+      <div className="flex h-[220px] items-center justify-center text-[13px] text-[#8d99ae]">
+        暂无状态数据
+      </div>
+    );
+  }
   const segments = items.reduce(
     (acc, item) => {
       const size = (item.value / total) * 360;
@@ -178,16 +186,29 @@ export function DonutChart({ items }) {
   return (
     <div className="flex items-center gap-8">
       <svg viewBox="0 0 220 220" className="h-[220px] w-[220px]">
-        {segments.map((segment) => (
-          <path
-            key={segment.label}
-            d={arcPath(segment.start, segment.end)}
-            fill="none"
-            stroke={segment.color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="butt"
-          />
-        ))}
+        {segments.map((segment) => {
+          const fullCircle = segment.end - segment.start >= 359.99;
+          return fullCircle ? (
+            <circle
+              key={segment.label}
+              cx={center}
+              cy={center}
+              r={radius}
+              fill="none"
+              stroke={segment.color}
+              strokeWidth={strokeWidth}
+            />
+          ) : (
+            <path
+              key={segment.label}
+              d={arcPath(segment.start, segment.end)}
+              fill="none"
+              stroke={segment.color}
+              strokeWidth={strokeWidth}
+              strokeLinecap="butt"
+            />
+          );
+        })}
       </svg>
       <div className="space-y-4 text-[14px] text-[#6f7c92]">
         {items.map((item) => (

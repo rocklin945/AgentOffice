@@ -13,11 +13,9 @@ public class AgentEmployee {
     private String position;
     private String status;
     private Integer taskCount;
-    private Long deskId;
     private Long modelConfigId;
     private String modelConfigName;
     private String modelName;
-    private String deskCode;
     private List<EmployeePermission> permissions;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;

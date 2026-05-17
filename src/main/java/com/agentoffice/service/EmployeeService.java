@@ -1,14 +1,12 @@
 package com.agentoffice.service;
 
+import com.agentoffice.common.exception.BusinessException;
 import com.agentoffice.dto.CreateEmployeeRequest;
 import com.agentoffice.entity.AgentEmployee;
 import com.agentoffice.entity.EmployeePermission;
-import com.agentoffice.entity.OfficeDesk;
 import com.agentoffice.mapper.AgentEmployeeMapper;
 import com.agentoffice.mapper.EmployeePermissionMapper;
-import com.agentoffice.mapper.OfficeDeskMapper;
 import com.agentoffice.mapper.TaskInfoMapper;
-import com.agentoffice.common.exception.BusinessException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,9 +20,6 @@ public class EmployeeService {
 
     @Autowired
     private AgentEmployeeMapper employeeMapper;
-
-    @Autowired
-    private OfficeDeskMapper deskMapper;
 
     @Autowired
     private EmployeePermissionMapper permissionMapper;
@@ -41,13 +36,7 @@ public class EmployeeService {
     public AgentEmployee getById(Long id) {
         AgentEmployee employee = employeeMapper.findById(id);
         if (employee == null) {
-            throw new BusinessException(404, "员工不存在");
-        }
-        if (employee.getDeskId() != null) {
-            OfficeDesk desk = deskMapper.findById(employee.getDeskId());
-            if (desk != null) {
-                employee.setDeskCode(desk.getDeskCode());
-            }
+            throw new BusinessException(404, "Employee does not exist");
         }
         fillTaskCount(employee);
         fillPermissions(employee);
@@ -62,34 +51,21 @@ public class EmployeeService {
         employee.setRole(request.getRole());
         employee.setPosition(request.getPosition());
         employee.setStatus(request.getStatus());
-        employee.setDeskId(request.getDeskId());
         employee.setModelConfigId(request.getModelConfigId());
 
         if (employee.getName() == null || employee.getName().isBlank()) {
-            throw new BusinessException(400, "员工姓名不能为空");
+            throw new BusinessException(400, "Employee name is required");
         }
         if (employee.getRole() == null || employee.getRole().isBlank()) {
-            throw new BusinessException(400, "员工角色不能为空");
+            throw new BusinessException(400, "Employee role is required");
         }
         if (employee.getStatus() == null) {
-            employee.setStatus("空闲");
-        }
-        if (employee.getDeskId() != null) {
-            OfficeDesk desk = deskMapper.findById(employee.getDeskId());
-            if (desk == null) {
-                throw new BusinessException(404, "工位不存在");
-            }
-            if (desk.getEmployeeId() != null) {
-                throw new BusinessException(400, "该工位已被占用");
-            }
+            employee.setStatus("idle");
         }
 
         employeeMapper.insert(employee);
-
-        if (employee.getDeskId() != null) {
-            deskMapper.updateEmployee(employee.getDeskId(), employee.getId(), 1);
-        }
         savePermissions(employee.getId(), request.getPermissions());
+        fillTaskCount(employee);
         fillPermissions(employee);
         return employee;
     }
@@ -98,28 +74,18 @@ public class EmployeeService {
     public AgentEmployee update(Long id, CreateEmployeeRequest request) {
         AgentEmployee exist = employeeMapper.findById(id);
         if (exist == null) {
-            throw new BusinessException(404, "员工不存在");
+            throw new BusinessException(404, "Employee does not exist");
         }
+
         AgentEmployee employee = new AgentEmployee();
+        employee.setId(id);
         employee.setName(request.getName());
         employee.setAvatar(request.getAvatar());
         employee.setRole(request.getRole());
         employee.setPosition(request.getPosition());
         employee.setStatus(request.getStatus());
-        employee.setDeskId(request.getDeskId() == null ? exist.getDeskId() : request.getDeskId());
         employee.setModelConfigId(request.getModelConfigId());
 
-        // 如果更换了工位
-        if (employee.getDeskId() != null && !employee.getDeskId().equals(exist.getDeskId())) {
-            // 释放原工位
-            if (exist.getDeskId() != null) {
-                deskMapper.updateEmployee(exist.getDeskId(), null, 0);
-            }
-            // 占用新工位
-            deskMapper.updateEmployee(employee.getDeskId(), id, 1);
-        }
-
-        employee.setId(id);
         employeeMapper.update(employee);
         if (request.getPermissions() != null) {
             permissionMapper.deleteByEmployeeId(id);
@@ -127,7 +93,6 @@ public class EmployeeService {
         }
         fillTaskCount(employee);
         fillPermissions(employee);
-
         return employee;
     }
 
@@ -135,15 +100,9 @@ public class EmployeeService {
     public void delete(Long id) {
         AgentEmployee employee = employeeMapper.findById(id);
         if (employee == null) {
-            throw new BusinessException(404, "员工不存在");
-        }
-
-        // 释放工位
-        if (employee.getDeskId() != null) {
-            deskMapper.updateEmployee(employee.getDeskId(), null, 0);
+            throw new BusinessException(404, "Employee does not exist");
         }
         permissionMapper.deleteByEmployeeId(id);
-
         employeeMapper.deleteById(id);
     }
 
@@ -154,16 +113,18 @@ public class EmployeeService {
 
     public Map<String, Integer> getStatusOverview() {
         Map<String, Integer> overview = new HashMap<>();
-        overview.put("working", employeeMapper.countByStatus("工作中"));
-        overview.put("thinking", employeeMapper.countByStatus("思考中"));
-        overview.put("compiling", employeeMapper.countByStatus("编译中"));
-        overview.put("deploying", employeeMapper.countByStatus("部署中"));
-        overview.put("idle", employeeMapper.countByStatus("空闲") + employeeMapper.countByStatus("在线"));
+        overview.put("working", employeeMapper.countByStatus("working"));
+        overview.put("thinking", employeeMapper.countByStatus("thinking"));
+        overview.put("compiling", employeeMapper.countByStatus("compiling"));
+        overview.put("deploying", employeeMapper.countByStatus("deploying"));
+        overview.put("idle", employeeMapper.countByStatus("idle") + employeeMapper.countByStatus("online"));
         return overview;
     }
 
     private void savePermissions(Long employeeId, List<CreateEmployeeRequest.PermissionItem> permissions) {
-        if (permissions == null) return;
+        if (permissions == null) {
+            return;
+        }
         for (CreateEmployeeRequest.PermissionItem item : permissions) {
             EmployeePermission permission = new EmployeePermission();
             permission.setEmployeeId(employeeId);
@@ -185,3 +146,5 @@ public class EmployeeService {
         }
     }
 }
+
+

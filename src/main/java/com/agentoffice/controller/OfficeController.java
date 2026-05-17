@@ -4,7 +4,6 @@ import com.agentoffice.common.result.Result;
 import com.agentoffice.common.exception.BusinessException;
 import com.agentoffice.dto.CollaborationChatRequest;
 import com.agentoffice.dto.OfficeLayoutResponse;
-import com.agentoffice.entity.OfficeDesk;
 import com.agentoffice.service.JwtService;
 import com.agentoffice.service.OfficeService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -79,17 +78,6 @@ public class OfficeController {
             @PathVariable String sessionId,
             @RequestHeader(value = "Authorization", required = false) String token) {
         officeService.deleteCollaborationSession(extractUserId(token), sessionId);
-        return Result.success();
-    }
-
-    @PostMapping("/desks")
-    public Result<OfficeDesk> createDesk() {
-        return Result.success(officeService.createDesk());
-    }
-
-    @PatchMapping("/desks/{deskId}/employee")
-    public Result<Void> assignDesk(@PathVariable Long deskId, @RequestBody Map<String, Long> body) {
-        officeService.assignDesk(deskId, body.get("employeeId"));
         return Result.success();
     }
 

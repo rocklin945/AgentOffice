@@ -27,13 +27,13 @@ public interface AgentEmployeeMapper {
             "LEFT JOIN model_config mc ON e.model_config_id = mc.id ORDER BY e.create_time DESC")
     List<AgentEmployee> findAll();
 
-    @Insert("INSERT INTO agent_employee (name, avatar, role, position, status, desk_id, model_config_id) " +
-            "VALUES (#{name}, #{avatar}, #{role}, #{position}, #{status}, #{deskId}, #{modelConfigId})")
+    @Insert("INSERT INTO agent_employee (name, avatar, role, position, status, model_config_id) " +
+            "VALUES (#{name}, #{avatar}, #{role}, #{position}, #{status}, #{modelConfigId})")
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(AgentEmployee employee);
 
     @Update("UPDATE agent_employee SET name = #{name}, avatar = #{avatar}, role = #{role}, " +
-            "position = #{position}, status = #{status}, desk_id = #{deskId}, " +
+            "position = #{position}, status = #{status}, " +
             "model_config_id = #{modelConfigId}, update_time = NOW() WHERE id = #{id}")
     int update(AgentEmployee employee);
 
@@ -42,9 +42,6 @@ public interface AgentEmployeeMapper {
 
     @Update("UPDATE agent_employee SET status = #{status}, update_time = NOW() WHERE id = #{id}")
     int updateStatus(@Param("id") Long id, @Param("status") String status);
-
-    @Update("UPDATE agent_employee SET desk_id = #{deskId}, update_time = NOW() WHERE id = #{id}")
-    int updateDeskId(@Param("id") Long id, @Param("deskId") Long deskId);
 
     @Select("SELECT COUNT(*) FROM agent_employee WHERE status = #{status}")
     int countByStatus(@Param("status") String status);
