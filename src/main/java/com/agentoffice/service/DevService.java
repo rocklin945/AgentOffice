@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -30,74 +31,96 @@ public class DevService {
     @Autowired
     private DevFileMapper fileMapper;
 
-    private static final Long CODE_PROJECT_ID = 1L;
     private static final String WORKSPACE_ROOT = "workspace_artifacts";
     private static final String CODE_DIR = "code";
 
     public List<DevProject> getProjectList() {
-        ensureCodeRoot();
-        return List.of(codeProject());
+        return listProjectRoots().stream()
+                .map(this::toProject)
+                .toList();
     }
 
     public DevProject getProjectById(Long id) {
-        ensureCodeRoot();
-        return codeProject();
+        return toProject(findProjectRoot(id));
     }
 
     @Transactional
     public DevProject createProject(DevProject project) {
-        if (project.getStatus() == null) {
-            project.setStatus(1);
+        String projectName = validateProjectName(project.getProjectName());
+        Path root = ensureCodeRoot();
+        Path projectRoot = root.resolve(projectName).normalize();
+        if (!projectRoot.startsWith(root)) {
+            throw new BusinessException(400, "Invalid project name");
         }
-        projectMapper.insert(project);
 
-        DevFile srcDir = new DevFile();
-        srcDir.setProjectId(project.getId());
-        srcDir.setFileName("src");
-        srcDir.setFilePath("/src");
-        srcDir.setFileType("directory");
-        srcDir.setParentId(null);
-        srcDir.setIsDirectory(1);
-        fileMapper.insert(srcDir);
+        try {
+            Files.createDirectories(projectRoot);
+        } catch (IOException e) {
+            throw new BusinessException(500, "Failed to create project directory: " + e.getMessage());
+        }
 
-        return project;
+        return toProject(projectRoot);
     }
 
     @Transactional
     public DevProject updateProject(Long id, DevProject project) {
-        DevProject exist = projectMapper.findById(id);
-        if (exist == null) {
-            throw new BusinessException(404, "项目不存在");
+        Path existingRoot = findProjectRoot(id);
+        String nextName = project.getProjectName();
+        if (nextName == null || nextName.isBlank() || existingRoot.getFileName().toString().equals(nextName.trim())) {
+            return toProject(existingRoot);
         }
-        project.setId(id);
-        projectMapper.update(project);
-        return project;
+
+        String projectName = validateProjectName(nextName);
+        Path root = ensureCodeRoot();
+        Path targetRoot = root.resolve(projectName).normalize();
+        if (!targetRoot.startsWith(root)) {
+            throw new BusinessException(400, "Invalid project name");
+        }
+        if (Files.exists(targetRoot)) {
+            throw new BusinessException(400, "Project directory already exists");
+        }
+
+        try {
+            Files.move(existingRoot, targetRoot, StandardCopyOption.ATOMIC_MOVE);
+        } catch (IOException e) {
+            try {
+                Files.move(existingRoot, targetRoot);
+            } catch (IOException fallback) {
+                throw new BusinessException(500, "Failed to rename project directory: " + fallback.getMessage());
+            }
+        }
+
+        return toProject(targetRoot);
     }
 
     @Transactional
     public void deleteProject(Long id) {
-        if (CODE_PROJECT_ID.equals(id)) {
-            throw new BusinessException(400, "云端开发代码目录不能删除");
+        Path projectRoot = findProjectRoot(id);
+        try (Stream<Path> stream = Files.walk(projectRoot)) {
+            List<Path> paths = stream.sorted(Comparator.reverseOrder()).toList();
+            for (Path item : paths) {
+                Files.deleteIfExists(item);
+            }
+        } catch (IOException e) {
+            throw new BusinessException(500, "Failed to delete project directory: " + e.getMessage());
         }
-        fileMapper.deleteByProjectId(id);
-        projectMapper.deleteById(id);
     }
 
     public List<DevFile> getFileTree(Long projectId) {
-        Path root = ensureCodeRoot();
-        try (Stream<Path> stream = Files.list(root)) {
+        Path projectRoot = findProjectRoot(projectId);
+        try (Stream<Path> stream = Files.list(projectRoot)) {
             return stream.sorted(fileOrder())
-                    .map(path -> toDevFile(path, null))
+                    .map(path -> toDevFile(path, null, projectId, projectRoot))
                     .toList();
         } catch (IOException e) {
-            throw new BusinessException(500, "读取代码目录失败: " + e.getMessage());
+            throw new BusinessException(500, "Failed to read project files: " + e.getMessage());
         }
     }
 
     public DevFile getFileById(Long id) {
         DevFile file = findFileById(id);
         if (file == null) {
-            throw new BusinessException(404, "文件不存在");
+            throw new BusinessException(404, "File does not exist");
         }
         return file;
     }
@@ -111,7 +134,7 @@ public class DevService {
             try {
                 result.put("content", Files.exists(path) ? Files.readString(path, StandardCharsets.UTF_8) : "");
             } catch (IOException e) {
-                throw new BusinessException(500, "读取文件失败: " + e.getMessage());
+                throw new BusinessException(500, "Failed to read file: " + e.getMessage());
             }
         }
         return result;
@@ -120,10 +143,11 @@ public class DevService {
     @Transactional
     public DevFile createFile(Long projectId, DevFile file, String content) {
         if (file.getFilePath() == null || file.getFilePath().isBlank()) {
-            throw new BusinessException(400, "文件路径为空");
+            throw new BusinessException(400, "File path is empty");
         }
 
-        Path path = resolveCodePath(file.getFilePath());
+        Path projectRoot = findProjectRoot(projectId);
+        Path path = resolveProjectPath(projectRoot, file.getFilePath());
         try {
             if (file.getIsDirectory() != null && file.getIsDirectory() == 1) {
                 Files.createDirectories(path);
@@ -132,27 +156,28 @@ public class DevService {
                 Files.writeString(path, content != null ? content : "", StandardCharsets.UTF_8);
             }
         } catch (IOException e) {
-            throw new BusinessException(500, "创建文件失败: " + e.getMessage());
+            throw new BusinessException(500, "Failed to create file: " + e.getMessage());
         }
 
-        return toDevFile(path, parentId(path));
+        return toDevFile(path, parentId(path, projectRoot), projectId, projectRoot);
     }
 
     @Transactional
     public DevFile updateFileContent(Long id, String content) {
         DevFile exist = getFileById(id);
         if (exist.getIsDirectory() != null && exist.getIsDirectory() == 1) {
-            throw new BusinessException(400, "目录不能写入内容");
+            throw new BusinessException(400, "Cannot write content to a directory");
         }
 
         Path path = resolveCodePath(exist.getFilePath());
+        Path projectRoot = projectRootForPath(path);
         try {
             Files.createDirectories(path.getParent());
             Files.writeString(path, content != null ? content : "", StandardCharsets.UTF_8);
         } catch (IOException e) {
-            throw new BusinessException(500, "文件写入失败: " + e.getMessage());
+            throw new BusinessException(500, "Failed to write file: " + e.getMessage());
         }
-        return toDevFile(path, parentId(path));
+        return toDevFile(path, parentId(path, projectRoot), exist.getProjectId(), projectRoot);
     }
 
     @Transactional
@@ -171,14 +196,14 @@ public class DevService {
                 Files.deleteIfExists(path);
             }
         } catch (IOException e) {
-            throw new BusinessException(500, "删除文件失败: " + e.getMessage());
+            throw new BusinessException(500, "Failed to delete file: " + e.getMessage());
         }
     }
 
     public String runCode(Long fileId, String language) {
         DevFile file = getFileById(fileId);
         if (file.getIsDirectory() != null && file.getIsDirectory() == 1) {
-            throw new BusinessException(400, "目录不能运行");
+            throw new BusinessException(400, "Cannot run a directory");
         }
 
         String content = "";
@@ -190,17 +215,38 @@ public class DevService {
         } catch (IOException e) {
             content = "";
         }
-        return "文件：" + file.getFilePath() + "\n语言：" + language + "\n字符数：" + content.length() + "\n";
+        return "File: " + file.getFilePath() + "\nLanguage: " + language + "\nCharacters: " + content.length() + "\n";
     }
 
-    private DevProject codeProject() {
+    private DevProject toProject(Path projectRoot) {
+        Path normalized = projectRoot.toAbsolutePath().normalize();
+        String projectName = normalized.getFileName().toString();
+
         DevProject project = new DevProject();
-        project.setId(CODE_PROJECT_ID);
-        project.setProjectName("workspace_artifacts/code");
-        project.setDescription("AI 员工真实写入的代码工作区");
+        project.setId(stableId(artifactRelative(normalized)));
+        project.setProjectName(projectName);
+        project.setDescription(WORKSPACE_ROOT + "/" + CODE_DIR + "/" + projectName);
         project.setLanguage("Mixed");
         project.setStatus(1);
         return project;
+    }
+
+    private List<Path> listProjectRoots() {
+        Path root = ensureCodeRoot();
+        try (Stream<Path> stream = Files.list(root)) {
+            return stream.filter(Files::isDirectory)
+                    .sorted(fileOrder())
+                    .toList();
+        } catch (IOException e) {
+            throw new BusinessException(500, "Failed to read code directory: " + e.getMessage());
+        }
+    }
+
+    private Path findProjectRoot(Long projectId) {
+        return listProjectRoots().stream()
+                .filter(path -> stableId(artifactRelative(path)).equals(projectId))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(404, "Project does not exist"));
     }
 
     private Path ensureCodeRoot() {
@@ -208,7 +254,7 @@ public class DevService {
         try {
             Files.createDirectories(root);
         } catch (IOException e) {
-            throw new BusinessException(500, "创建代码目录失败: " + e.getMessage());
+            throw new BusinessException(500, "Failed to create code directory: " + e.getMessage());
         }
         return root;
     }
@@ -219,9 +265,32 @@ public class DevService {
 
     private Path resolveCodePath(String filePath) {
         if (filePath == null || filePath.isBlank()) {
-            throw new BusinessException(400, "文件路径为空");
+            throw new BusinessException(400, "File path is empty");
         }
 
+        String normalized = stripVirtualRoot(filePath);
+        Path root = ensureCodeRoot();
+        Path resolved = root.resolve(normalized).normalize();
+        if (!resolved.startsWith(root)) {
+            throw new BusinessException(400, "Invalid file path");
+        }
+        return resolved;
+    }
+
+    private Path resolveProjectPath(Path projectRoot, String filePath) {
+        String normalized = stripVirtualRoot(filePath);
+        Path root = ensureCodeRoot();
+        Path resolved = root.resolve(normalized).normalize();
+        if (!resolved.startsWith(projectRoot)) {
+            resolved = projectRoot.resolve(normalized).normalize();
+        }
+        if (!resolved.startsWith(projectRoot) || resolved.equals(projectRoot)) {
+            throw new BusinessException(400, "Invalid project file path");
+        }
+        return resolved;
+    }
+
+    private String stripVirtualRoot(String filePath) {
         String normalized = filePath.replace("\\", "/").trim();
         while (normalized.startsWith("/")) {
             normalized = normalized.substring(1);
@@ -230,17 +299,25 @@ public class DevService {
             normalized = normalized.substring((WORKSPACE_ROOT + "/").length());
         }
         if (normalized.equals(CODE_DIR)) {
-            normalized = "";
-        } else if (normalized.startsWith(CODE_DIR + "/")) {
-            normalized = normalized.substring((CODE_DIR + "/").length());
+            return "";
         }
+        if (normalized.startsWith(CODE_DIR + "/")) {
+            return normalized.substring((CODE_DIR + "/").length());
+        }
+        return normalized;
+    }
 
-        Path root = ensureCodeRoot();
-        Path resolved = root.resolve(normalized).normalize();
-        if (!resolved.startsWith(root)) {
-            throw new BusinessException(400, "非法文件路径");
+    private Path projectRootForPath(Path path) {
+        Path root = codeRoot();
+        Path relative = root.relativize(path.toAbsolutePath().normalize());
+        if (relative.getNameCount() == 0) {
+            throw new BusinessException(400, "Invalid project file path");
         }
-        return resolved;
+        Path projectRoot = root.resolve(relative.getName(0)).normalize();
+        if (!Files.isDirectory(projectRoot)) {
+            throw new BusinessException(404, "Project does not exist");
+        }
+        return projectRoot;
     }
 
     private Comparator<Path> fileOrder() {
@@ -249,14 +326,14 @@ public class DevService {
                 .thenComparing(path -> path.getFileName().toString().toLowerCase());
     }
 
-    private DevFile toDevFile(Path path, Long parentId) {
+    private DevFile toDevFile(Path path, Long parentId, Long projectId, Path projectRoot) {
         Path normalized = path.toAbsolutePath().normalize();
         String relative = artifactRelative(normalized);
         boolean directory = Files.isDirectory(normalized);
 
         DevFile file = new DevFile();
         file.setId(stableId(relative));
-        file.setProjectId(CODE_PROJECT_ID);
+        file.setProjectId(projectId);
         file.setFileName(normalized.getFileName().toString());
         file.setFilePath(relative);
         file.setFileType(directory ? "directory" : fileType(normalized));
@@ -266,7 +343,7 @@ public class DevService {
         if (directory) {
             try (Stream<Path> stream = Files.list(normalized)) {
                 file.setChildren(stream.sorted(fileOrder())
-                        .map(child -> toDevFile(child, file.getId()))
+                        .map(child -> toDevFile(child, file.getId(), projectId, projectRoot))
                         .toList());
             } catch (IOException e) {
                 file.setChildren(List.of());
@@ -289,10 +366,9 @@ public class DevService {
         return CODE_DIR + "/" + root.relativize(path).toString().replace("\\", "/");
     }
 
-    private Long parentId(Path path) {
+    private Long parentId(Path path, Path projectRoot) {
         Path parent = path.toAbsolutePath().normalize().getParent();
-        Path root = codeRoot();
-        if (parent == null || parent.equals(root) || !parent.startsWith(root)) {
+        if (parent == null || parent.equals(projectRoot) || !parent.startsWith(projectRoot)) {
             return null;
         }
         return stableId(artifactRelative(parent));
@@ -304,8 +380,25 @@ public class DevService {
         return 10_000L + crc32.getValue();
     }
 
+    private String validateProjectName(String projectName) {
+        if (projectName == null || projectName.isBlank()) {
+            throw new BusinessException(400, "Project name is empty");
+        }
+        String trimmed = projectName.trim();
+        if (trimmed.contains("/") || trimmed.contains("\\") || trimmed.equals(".") || trimmed.equals("..")) {
+            throw new BusinessException(400, "Invalid project name");
+        }
+        return trimmed;
+    }
+
     private DevFile findFileById(Long id) {
-        return findInTree(getFileTree(CODE_PROJECT_ID), id);
+        for (DevProject project : getProjectList()) {
+            DevFile found = findInTree(getFileTree(project.getId()), id);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
     }
 
     private DevFile findInTree(List<DevFile> files, Long id) {
