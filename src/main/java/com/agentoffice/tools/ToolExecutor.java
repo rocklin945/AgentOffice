@@ -289,8 +289,10 @@ public class ToolExecutor {
             Path path = resolveArtifactPath(text(args, "file_path"));
             String content = Files.exists(path) ? Files.readString(path, StandardCharsets.UTF_8) : "";
             Long taskId = optionalLong(args, "task_id");
+            Long employeeId = requiredLong(args, "employee_id");
+            
             WorkProduct product = saveWorkProduct(
-                    requiredLong(args, "employee_id"),
+                    employeeId,
                     taskId,
                     value(text(args, "name"), path.getFileName().toString()),
                     value(text(args, "product_type"), "文件"),
@@ -300,6 +302,26 @@ public class ToolExecutor {
             );
             syncCodeArtifactToCloudDev(artifactRelative(path), content, product.getEmployeeId());
             logOperation("register_work_product", "work_product", product.getId(), product.getName() + " -> " + artifactRelative(path));
+            
+            // 如果有关联任务，更新任务状态为已完成
+            if (taskId != null) {
+                TaskInfo task = taskMapper.findById(taskId);
+                if (task != null && !"已完成".equals(task.getStatus())) {
+                    taskMapper.updateStatus(taskId, "已完成");
+                    logOperation("update_task_status", "task", taskId, "任务已完成: " + task.getTaskName());
+                }
+            } else {
+                // 如果没有明确的 task_id，尝试查找该员工当前进行中的任务
+                List<TaskInfo> employeeTasks = taskMapper.findList(null, null, employeeId);
+                for (TaskInfo task : employeeTasks) {
+                    if ("进行中".equals(task.getStatus())) {
+                        taskMapper.updateStatus(task.getId(), "已完成");
+                        logOperation("update_task_status", "task", task.getId(), "任务已完成: " + task.getTaskName());
+                        break; // 只更新第一个进行中的任务
+                    }
+                }
+            }
+            
             return new WorkflowResult(true, "工作产物登记成功", Map.of(
                     "productId", product.getId(),
                     "productName", product.getName(),

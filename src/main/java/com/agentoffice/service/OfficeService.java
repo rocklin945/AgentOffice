@@ -258,7 +258,12 @@ public class OfficeService {
                     logMap.put("targetType", log.getTargetType());
                     logMap.put("targetId", log.getTargetId());
                     logMap.put("detail", log.getDetail());
-                    logMap.put("time", log.getCreateTime() == null ? "" : log.getCreateTime().toString().replace('T', ' ').substring(0, 19));
+                    if (log.getCreateTime() != null) {
+                        String timeStr = log.getCreateTime().toString().replace('T', ' ');
+                        logMap.put("time", timeStr.length() >= 19 ? timeStr.substring(0, 19) : timeStr);
+                    } else {
+                        logMap.put("time", "");
+                    }
                     return logMap;
                 })
                 .collect(Collectors.toList());
