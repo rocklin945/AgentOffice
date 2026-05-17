@@ -22,8 +22,13 @@ export default function Notifications() {
   const [markingAll, setMarkingAll] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
 
-  const reload = () => {
-    notificationApi.getList().then((res) => setNotifications(res.data || [])).catch(() => {});
+  const reload = async () => {
+    try {
+      const res = await notificationApi.getList();
+      setNotifications(res.data || []);
+    } catch {
+      setNotifications([]);
+    }
   };
 
   useEffect(() => {
@@ -45,22 +50,30 @@ export default function Notifications() {
   const markRead = async (item, event) => {
     event.stopPropagation();
     if (item.readStatus) return;
+    setNotifications((current) => current.map((notification) => (
+      notification.id === item.id ? { ...notification, readStatus: true } : notification
+    )));
     await notificationApi.markRead(item.id);
-    reload();
+    await reload();
+    window.dispatchEvent(new Event('agentoffice:notifications-changed'));
   };
 
   const remove = async (item, event) => {
     event.stopPropagation();
+    setNotifications((current) => current.filter((notification) => notification.id !== item.id));
     await notificationApi.delete(item.id);
-    reload();
+    await reload();
+    window.dispatchEvent(new Event('agentoffice:notifications-changed'));
   };
 
   const markAllRead = async () => {
     if (!stats.unread || markingAll) return;
     setMarkingAll(true);
     try {
+      setNotifications((current) => current.map((notification) => ({ ...notification, readStatus: true })));
       await notificationApi.markAllRead();
-      reload();
+      await reload();
+      window.dispatchEvent(new Event('agentoffice:notifications-changed'));
     } finally {
       setMarkingAll(false);
     }

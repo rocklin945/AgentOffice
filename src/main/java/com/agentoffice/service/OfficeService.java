@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.LinkedHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -910,18 +911,33 @@ public class OfficeService {
     }
 
     private List<Map<String, Object>> workProducts(Long employeeId) {
-        return workProductMapper.findByEmployeeId(employeeId).stream()
+        Map<String, Map<String, Object>> deduped = new LinkedHashMap<>();
+        workProductMapper.findByEmployeeId(employeeId).forEach(product -> {
+            String key = value(product.getFileUrl(), "id:" + product.getId());
+            Map<String, Object> current = deduped.get(key);
+            boolean hasContent = product.getContent() != null && !product.getContent().isBlank();
+            boolean completed = "已完成".equals(product.getStatus());
+            if (current != null) {
+                boolean currentHasContent = current.get("content") != null && !String.valueOf(current.get("content")).isBlank();
+                boolean currentCompleted = "已完成".equals(String.valueOf(current.get("status")));
+                if ((currentHasContent || currentCompleted) && !(hasContent || completed)) {
+                    return;
+                }
+            }
+            Map<String, Object> item = new HashMap<>();
+            item.put("id", product.getId());
+            item.put("name", product.getName());
+            item.put("type", product.getProductType());
+            item.put("taskName", product.getTaskName() == null ? "-" : product.getTaskName());
+            item.put("time", product.getUpdateTime() == null ? "-" : product.getUpdateTime().toString().replace('T', ' '));
+            item.put("status", product.getStatus());
+            item.put("fileUrl", product.getFileUrl() == null ? "" : product.getFileUrl());
+            item.put("content", product.getContent() == null ? "" : product.getContent());
+            deduped.put(key, item);
+        });
+        return deduped.values().stream()
                 .map(product -> {
-                    Map<String, Object> item = new HashMap<>();
-                    item.put("id", product.getId());
-                    item.put("name", product.getName());
-                    item.put("type", product.getProductType());
-                    item.put("taskName", product.getTaskName() == null ? "-" : product.getTaskName());
-                    item.put("time", product.getUpdateTime() == null ? "-" : product.getUpdateTime().toString().replace('T', ' '));
-                    item.put("status", product.getStatus());
-                    item.put("fileUrl", product.getFileUrl() == null ? "" : product.getFileUrl());
-                    item.put("content", product.getContent() == null ? "" : product.getContent());
-                    return item;
+                    return product;
                 })
                 .collect(Collectors.toList());
     }

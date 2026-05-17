@@ -87,8 +87,12 @@ export default function Layout() {
       }).catch(() => {});
     };
     fetchUnread();
+    window.addEventListener('agentoffice:notifications-changed', fetchUnread);
     const interval = setInterval(fetchUnread, 10000);
-    return () => clearInterval(interval);
+    return () => {
+      window.removeEventListener('agentoffice:notifications-changed', fetchUnread);
+      clearInterval(interval);
+    };
   }, []);
 
   const userItems = {

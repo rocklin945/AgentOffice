@@ -293,7 +293,7 @@ public class ToolExecutor {
             Path path = resolveArtifactPath(text(args, "file_path"));
             String content = Files.exists(path) ? Files.readString(path, StandardCharsets.UTF_8) : "";
             Long taskId = optionalLong(args, "task_id");
-            WorkProduct product = createWorkProduct(
+            WorkProduct product = saveWorkProduct(
                     requiredLong(args, "employee_id"),
                     taskId,
                     value(text(args, "name"), path.getFileName().toString()),
@@ -334,7 +334,7 @@ public class ToolExecutor {
             String filePath = text(args, "file_path");
             Path path = resolveArtifactPath(filePath);
             String fileName = path.getFileName().toString();
-            WorkProduct product = createWorkProduct(
+            WorkProduct product = saveWorkProduct(
                     requiredLong(args, "employee_id"),
                     null,
                     value(text(args, "name"), fileName),
@@ -375,7 +375,7 @@ public class ToolExecutor {
             } catch (Exception ignored) {
             }
         }
-        workProductMapper.updateStatus(product.getId(), status);
+        workProductMapper.updateStatus(product.getId(), status, value(product.getContent(), ""));
         logOperation("update_work_product_status", "work_product", product.getId(), product.getName() + " -> " + status);
         return new WorkflowResult(true, "工作产物状态已更新为 " + status, Map.of(
                 "productId", product.getId(),
@@ -493,6 +493,22 @@ public class ToolExecutor {
         product.setContent(content);
         workProductMapper.insert(product);
         return product;
+    }
+
+    private WorkProduct saveWorkProduct(Long employeeId, Long taskId, String name, String productType, String status, String fileUrl, String content) {
+        WorkProduct existing = workProductMapper.findByFileUrl(fileUrl);
+        if (existing != null) {
+            existing.setEmployeeId(employeeId);
+            existing.setTaskId(taskId);
+            existing.setName(name);
+            existing.setProductType(productType);
+            existing.setStatus(status);
+            existing.setFileUrl(fileUrl);
+            existing.setContent(content);
+            workProductMapper.update(existing);
+            return existing;
+        }
+        return createWorkProduct(employeeId, taskId, name, productType, status, fileUrl, content);
     }
 
     private DevFile createDevFile(Long projectId, String fileName, String filePath, String fileType, Long parentId, int directory) {

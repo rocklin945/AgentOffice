@@ -39,11 +39,16 @@ public interface WorkProductMapper {
             "FROM work_product wp " +
             "LEFT JOIN agent_employee e ON wp.employee_id = e.id " +
             "LEFT JOIN task_info t ON wp.task_id = t.id " +
-            "WHERE wp.file_url = #{fileUrl}")
+            "WHERE wp.file_url = #{fileUrl} " +
+            "ORDER BY wp.update_time DESC, wp.id DESC LIMIT 1")
     WorkProduct findByFileUrl(@Param("fileUrl") String fileUrl);
 
-    @Update("UPDATE work_product SET status = #{status} WHERE id = #{id}")
-    int updateStatus(@Param("id") Long id, @Param("status") String status);
+    @Update("UPDATE work_product SET status = #{status}, content = #{content}, update_time = NOW() WHERE id = #{id}")
+    int updateStatus(@Param("id") Long id, @Param("status") String status, @Param("content") String content);
+
+    @Update("UPDATE work_product SET employee_id = #{employeeId}, task_id = #{taskId}, name = #{name}, product_type = #{productType}, " +
+            "status = #{status}, file_url = #{fileUrl}, content = #{content}, update_time = NOW() WHERE id = #{id}")
+    int update(WorkProduct product);
 
     @Select("SELECT wp.*, e.name AS employee_name, t.task_name AS task_name " +
             "FROM work_product wp " +
