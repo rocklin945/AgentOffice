@@ -33,6 +33,9 @@ public interface NotificationMessageMapper {
     @Update("UPDATE notification_message SET read_status = 1, update_time = NOW() WHERE id = #{id} AND (user_id IS NULL OR user_id = #{userId})")
     int markRead(@Param("id") Long id, @Param("userId") Long userId);
 
+    @Update("UPDATE notification_message SET read_status = 1, update_time = NOW() WHERE read_status = 0 AND (user_id IS NULL OR user_id = #{userId})")
+    int markAllRead(@Param("userId") Long userId);
+
     @Delete("DELETE FROM notification_message WHERE id = #{id} AND (user_id IS NULL OR user_id = #{userId})")
     int deleteById(@Param("id") Long id, @Param("userId") Long userId);
 }

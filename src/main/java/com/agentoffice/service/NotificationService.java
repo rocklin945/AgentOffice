@@ -27,6 +27,10 @@ public class NotificationService {
         notificationMapper.markRead(id, userId);
     }
 
+    public void markAllRead(Long userId) {
+        notificationMapper.markAllRead(userId);
+    }
+
     public void delete(Long userId, Long id) {
         notificationMapper.deleteById(id, userId);
     }

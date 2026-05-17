@@ -43,6 +43,13 @@ public class NotificationController {
         return Result.success();
     }
 
+    @PatchMapping("/read-all")
+    public Result<Void> markAllRead(
+            @RequestHeader(value = "Authorization", required = false) String token) {
+        notificationService.markAllRead(extractUserId(token));
+        return Result.success();
+    }
+
     @DeleteMapping("/{id}")
     public Result<Void> delete(
             @PathVariable Long id,

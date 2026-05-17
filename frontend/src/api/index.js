@@ -46,6 +46,7 @@ export const officeApi = {
 export const notificationApi = {
   getList: (params) => request.get('/notifications', { params }),
   markRead: (id) => request.patch(`/notifications/${id}/read`),
+  markAllRead: () => request.patch('/notifications/read-all'),
   delete: (id) => request.delete(`/notifications/${id}`),
 };
 
