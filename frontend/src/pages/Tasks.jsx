@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { employeeApi, taskApi } from '../api';
 import { Panel, StatusPill } from '../components/AppPrimitives';
-import { taskDetail, taskRow } from '../pageData';
+import { taskRow } from '../pageData';
 
 function CreateTaskModal({ onClose, onCreated }) {
   const [types, setTypes] = useState([]);
@@ -162,33 +162,11 @@ function EditTaskModal({ task, employees, onClose, onSaved }) {
   );
 }
 
-function TaskDetail({ task, detail, onClose }) {
-  const [activeTab, setActiveTab] = useState('overview');
-  const tabs = [{ key: 'overview', label: '任务概览' }, { key: 'result', label: '成果展示' }, { key: 'files', label: '相关文件' }];
-  const results = detail?.results || [];
-  const files = detail?.files || [];
-
-  return (
-    <Panel className="p-5">
-      <div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-3"><div className="text-[18px] font-semibold text-[#1d2740]">{task.name}</div><StatusPill color={task.status === '已完成' ? 'green' : task.status === '部署中' ? 'purple' : 'blue'}>{task.status}</StatusPill></div><button onClick={onClose} type="button" className="text-[18px] text-[#8d99ae] hover:text-[#5f6d83]">×</button></div>
-      <div className="text-[12px] text-[#8d99ae]">创建时间：{task.createdAt} 优先级：<span className={task.level === '高' ? 'text-[#ff6a5f]' : 'text-[#ff9b42]'}>{task.level}</span></div>
-      <div className="mt-4 flex gap-6 border-b border-[#edf1f8] pb-2 text-[13px]">{tabs.map((tab) => <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)} className={`pb-2 font-medium transition-colors ${activeTab === tab.key ? 'border-b-2 border-[#2f6bff] text-[#2f6bff]' : 'text-[#8d99ae] hover:text-[#5f6d83]'}`}>{tab.label}</button>)}</div>
-      <div className="mt-4">
-        {activeTab === 'overview' && <div className="space-y-4"><div className="grid grid-cols-3 gap-3">{results.map((item) => <div key={item.label} className="rounded-[10px] bg-[#f6f8fc] p-3"><div className="text-[11px] text-[#98a3b7]">{item.label}</div><div className="mt-1 text-[16px] font-semibold text-[#1d2740]">{item.value}</div></div>)}</div><div className="grid grid-cols-2 gap-3 text-[13px]"><div className="text-[#8d99ae]">分配给：<span className="text-[#5f6d83]">{task.owner}</span></div><div className="text-[#8d99ae]">角色：<span className="text-[#5f6d83]">{task.role}</span></div></div></div>}
-        {activeTab === 'result' && <div className="grid grid-cols-3 gap-3">{results.map((item) => <div key={item.label} className="rounded-[10px] bg-[#f6f8fc] p-3"><div className="text-[11px] text-[#98a3b7]">{item.label}</div><div className="mt-1 text-[16px] font-semibold text-[#1d2740]">{item.value}</div></div>)}</div>}
-        {activeTab === 'files' && <div className="space-y-2">{files.map((file) => <div key={file.name} className="flex items-center justify-between rounded-[10px] border border-[#edf1f8] bg-white px-4 py-3"><div>{file.name}</div><div className="text-[11px] text-[#8d99ae]">{file.time}</div></div>)}</div>}
-      </div>
-    </Panel>
-  );
-}
-
 export default function Tasks() {
-  const [selectedTask, setSelectedTask] = useState(null);
   const [activeTab, setActiveTab] = useState('all');
   const [createOpen, setCreateOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [tasks, setTasks] = useState([]);
-  const [details, setDetails] = useState({});
   const [employees, setEmployees] = useState([]);
   const tabs = [{ key: 'all', label: '全部任务' }, { key: 'product', label: '需求规划' }, { key: 'development', label: '开发任务' }, { key: 'review', label: '代码审查' }, { key: 'deployment', label: '部署任务' }, { key: 'done', label: '已完成' }, { key: 'failed', label: '已失败' }];
 
@@ -196,19 +174,9 @@ export default function Tasks() {
     try {
       const res = await taskApi.getList();
       const rows = (res.data || []).map(taskRow);
-      const detailEntries = await Promise.all(rows.map(async (task) => {
-        try {
-          const detailRes = await taskApi.getDetail(task.id);
-          return [String(task.id), taskDetail(detailRes.data)];
-        } catch {
-          return [String(task.id), null];
-        }
-      }));
       setTasks(rows);
-      setDetails(Object.fromEntries(detailEntries.filter(([, detail]) => detail)));
     } catch {
       setTasks([]);
-      setDetails({});
     }
   };
   useEffect(() => { reload(); employeeApi.getList().then((res) => setEmployees(res.data || [])).catch(() => {}); }, []);
@@ -216,11 +184,53 @@ export default function Tasks() {
   const deleteTask = async (task, event) => {
     event.stopPropagation();
     await taskApi.delete(task.id);
-    if (selectedTask?.id === task.id) setSelectedTask(null);
     reload();
   };
 
   return (
-    <div className="space-y-5"><div className="flex gap-5"><div className={selectedTask ? 'w-1/2' : 'w-full'}><Panel className="p-5"><div className="flex items-center justify-between"><div className="text-[18px] font-semibold text-[#1d2740]">任务管理</div><button type="button" onClick={() => setCreateOpen(true)} className="rounded-[8px] bg-[#2f6bff] px-4 py-2 text-[12px] font-medium text-white">+ 创建任务</button></div><div className="mt-4 flex gap-8 border-b border-[#edf1f8] pb-3 text-[13px]">{tabs.map((tab) => <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)} className={activeTab === tab.key ? 'font-medium text-[#2f6bff]' : 'text-[#8d99ae] hover:text-[#5f6d83]'}>{tab.label}</button>)}</div><div className="mt-4 overflow-hidden rounded-[14px] border border-[#edf1f8]"><div className="grid grid-cols-[1.7fr_0.7fr_1.4fr_0.9fr_1.2fr_0.7fr] bg-[#fbfcff] px-4 py-3 text-[12px] text-[#8d99ae]"><div>任务名称</div><div>优先级</div><div>分配给</div><div>状态</div><div>创建时间</div><div>操作</div></div>{visible.map((task, index) => <button key={task.id} type="button" onClick={() => setSelectedTask(task)} className={`grid w-full grid-cols-[1.7fr_0.7fr_1.4fr_0.9fr_1.2fr_0.7fr] items-center px-4 py-4 text-left text-[13px] text-[#5f6d83] transition hover:bg-[#fafbff] ${index !== visible.length - 1 ? 'border-t border-[#f1f4f8]' : ''} ${selectedTask?.id === task.id ? 'bg-[#f7fbff]' : ''}`}><div>{task.name}</div><div className={task.level === '高' ? 'text-[#ff6a5f]' : task.level === '中' ? 'text-[#ff9b42]' : 'text-[#2bb36b]'}>{task.level}</div><div>{task.owner}</div><div><StatusPill color={task.status === '已完成' ? 'green' : task.status === '部署中' ? 'purple' : 'blue'}>{task.status}</StatusPill></div><div>{task.createdAt}</div><div className="flex gap-2"><span role="button" title="编辑" tabIndex={0} onClick={(event) => { event.stopPropagation(); setEditingTask(task); }} className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[#2f6bff] hover:bg-[#eef4ff]"><EditOutlined /></span><span role="button" title="删除" tabIndex={0} onClick={(event) => deleteTask(task, event)} className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[#ff5c5c] hover:bg-[#fff1f1]"><DeleteOutlined /></span></div></button>)}</div></Panel></div>{selectedTask && <div className="w-1/2"><TaskDetail task={selectedTask} detail={details[selectedTask.id]} onClose={() => setSelectedTask(null)} /></div>}</div>{createOpen ? <CreateTaskModal onClose={() => setCreateOpen(false)} onCreated={reload} /> : null}{editingTask ? <EditTaskModal task={editingTask} employees={employees} onClose={() => setEditingTask(null)} onSaved={reload} /> : null}</div>
+    <div className="space-y-5">
+      <Panel className="p-5">
+        <div className="flex items-center justify-between">
+          <div className="text-[18px] font-semibold text-[#1d2740]">任务管理</div>
+          <button type="button" onClick={() => setCreateOpen(true)} className="rounded-[8px] bg-[#2f6bff] px-4 py-2 text-[12px] font-medium text-white">+ 创建任务</button>
+        </div>
+        <div className="mt-4 flex gap-8 border-b border-[#edf1f8] pb-3 text-[13px]">
+          {tabs.map((tab) => (
+            <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)} className={activeTab === tab.key ? 'font-medium text-[#2f6bff]' : 'text-[#8d99ae] hover:text-[#5f6d83]'}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className="mt-4 overflow-hidden rounded-[14px] border border-[#edf1f8]">
+          <div className="grid grid-cols-[1.7fr_0.7fr_1.4fr_0.9fr_1.2fr_0.7fr] bg-[#fbfcff] px-4 py-3 text-[12px] text-[#8d99ae]">
+            <div>任务名称</div>
+            <div>优先级</div>
+            <div>分配给</div>
+            <div>状态</div>
+            <div>创建时间</div>
+            <div>操作</div>
+          </div>
+          {visible.map((task, index) => (
+            <div key={task.id} className={`grid grid-cols-[1.7fr_0.7fr_1.4fr_0.9fr_1.2fr_0.7fr] items-center px-4 py-4 text-[13px] text-[#5f6d83] ${index !== visible.length - 1 ? 'border-t border-[#f1f4f8]' : ''}`}>
+              <div>{task.name}</div>
+              <div className={task.level === '高' ? 'text-[#ff6a5f]' : task.level === '中' ? 'text-[#ff9b42]' : 'text-[#2bb36b]'}>{task.level}</div>
+              <div>{task.owner}</div>
+              <div><StatusPill color={task.status === '已完成' ? 'green' : task.status === '部署中' ? 'purple' : 'blue'}>{task.status}</StatusPill></div>
+              <div>{task.createdAt}</div>
+              <div className="flex gap-2">
+                <button type="button" title="编辑" onClick={() => setEditingTask(task)} className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[#2f6bff] hover:bg-[#eef4ff]">
+                  <EditOutlined />
+                </button>
+                <button type="button" title="删除" onClick={(event) => deleteTask(task, event)} className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[#ff5c5c] hover:bg-[#fff1f1]">
+                  <DeleteOutlined />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Panel>
+      {createOpen ? <CreateTaskModal onClose={() => setCreateOpen(false)} onCreated={reload} /> : null}
+      {editingTask ? <EditTaskModal task={editingTask} employees={employees} onClose={() => setEditingTask(null)} onSaved={reload} /> : null}
+    </div>
   );
 }
