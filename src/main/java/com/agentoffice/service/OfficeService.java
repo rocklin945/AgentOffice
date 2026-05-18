@@ -1046,9 +1046,15 @@ public class OfficeService {
 
                 步骤3：用 create_work_product_in_progress 工具创建一个进行中的工作产物
 
-                   - product_type 填"代码"，file_path 形如 code/{项目文件夹名}/backend/Main.java
+                   - product_type 填"代码"，file_path 形如 code/{项目文件夹名}/backend/src/main/java/com/example/{项目名}/Application.java
 
-                步骤4：用 write_file 工具写后端代码文件，路径必须是 code/{项目文件夹名}/backend/xxx
+                步骤4：用 write_file 工具写后端代码文件，必须采用标准 Maven/Spring Boot 目录：
+                   - backend/pom.xml
+                   - backend/src/main/java/{package}/Application.java
+                   - backend/src/main/java/{package}/controller/...
+                   - backend/src/main/java/{package}/entity/...
+                   - backend/src/main/java/{package}/repository/...
+                   - backend/src/main/resources/application.yml
 
                 步骤5：用 update_work_product_status 工具更新为"已完成"
 
@@ -1058,7 +1064,7 @@ public class OfficeService {
 
 
 
-                **重要**：所有代码文件必须放在 code/{项目文件夹名}/backend/ 下，例如 code/snake/backend/SnakeGame.java
+                **重要**：所有后端代码必须放在 code/{项目文件夹名}/backend/ 下，并使用标准 Maven 目录结构。Spring Boot 启动类必须包含 @SpringBootApplication 和 public static void main；pom.xml 必须配置 spring-boot-maven-plugin，并明确 mainClass/start-class 为完整启动类名。
 
                 **健康检查规则**：创建后端接口时必须同时创建健康检查接口 GET /api/health，返回 2xx 状态码和可读的健康状态内容，供运维部署界面检测服务可用性。
 

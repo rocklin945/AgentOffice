@@ -612,23 +612,92 @@ public class DockerDeployService {
                 """;
     }
 
+    private String javaSourceNormalizeCommands(Path backendDir) throws IOException {
+        StringBuilder commands = new StringBuilder();
+        try (Stream<Path> paths = Files.walk(backendDir, 8)) {
+            paths.filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().endsWith(".java"))
+                    .filter(path -> !isInsideDirectory(backendDir, path, "target"))
+                    .filter(path -> !isInsideDirectory(backendDir, path, "src/main/java"))
+                    .forEach(path -> {
+                        try {
+                            String packageName = readJavaPackage(path);
+                            String packageDir = packageName.isBlank() ? "" : packageName.replace('.', '/');
+                            Path relative = backendDir.relativize(path);
+                            String source = relative.toString().replace("\\", "/");
+                            String targetDir = packageDir.isBlank() ? "src/main/java" : "src/main/java/" + packageDir;
+                            commands.append("RUN mkdir -p ").append(targetDir)
+                                    .append(" && cp ").append(shellQuote(source))
+                                    .append(" ").append(shellQuote(targetDir + "/" + path.getFileName())).append("\n");
+                        } catch (IOException ignored) {
+                        }
+                    });
+        }
+        return commands.toString();
+    }
+
+    private Optional<String> findSpringBootMainClass(Path backendDir) throws IOException {
+        try (Stream<Path> paths = Files.walk(backendDir, 8)) {
+            return paths.filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().endsWith(".java"))
+                    .filter(path -> !isInsideDirectory(backendDir, path, "target"))
+                    .filter(this::looksLikeSpringBootMain)
+                    .findFirst()
+                    .map(path -> {
+                        try {
+                            String packageName = readJavaPackage(path);
+                            String className = path.getFileName().toString().replaceFirst("\\.java$", "");
+                            return packageName.isBlank() ? className : packageName + "." + className;
+                        } catch (IOException e) {
+                            return path.getFileName().toString().replaceFirst("\\.java$", "");
+                        }
+                    });
+        }
+    }
+
+    private boolean looksLikeSpringBootMain(Path path) {
+        try {
+            String content = Files.readString(path, StandardCharsets.UTF_8);
+            return content.contains("@SpringBootApplication") && content.contains("public static void main");
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private boolean isInsideDirectory(Path root, Path path, String directory) {
+        Path relative = root.relativize(path);
+        String normalized = relative.toString().replace("\\", "/");
+        return normalized.equals(directory) || normalized.startsWith(directory + "/");
+    }
+
+    private String shellQuote(String value) {
+        return "'" + value.replace("'", "'\"'\"'") + "'";
+    }
+
     private String javaBackendDockerfile(Path projectPath, boolean database) throws IOException {
         Path backendDir = projectPath.resolve("backend");
         boolean hasOwnPom = Files.exists(backendDir.resolve("pom.xml"));
         if (hasOwnPom) {
+            String normalizeCommands = javaSourceNormalizeCommands(backendDir);
+            String mainClass = findSpringBootMainClass(backendDir).orElse("");
+            String mainClassOption = mainClass.isBlank() ? "" : "-Dstart-class=" + mainClass;
             return """
                     FROM maven:3.9-eclipse-temurin-17 AS build
                     WORKDIR /app
                     COPY backend/ ./
+                    RUN mkdir -p src/main/resources && \\
+                        if [ -f application.yml ]; then cp application.yml src/main/resources/application.yml; fi && \\
+                        if [ -f resources/application.yml ]; then cp resources/application.yml src/main/resources/application.yml; fi
+                    %s
                     RUN rm -rf /root/.m2/repository/commons-io/commons-io/2.6 && \\
-                        (mvn -q -DskipTests package || mvn -q -DskipTests -U package || mvn -q -DskipTests -U package)
+                        (mvn -q -DskipTests %s package || mvn -q -DskipTests -U %s package || mvn -q -DskipTests -U %s package)
                     FROM eclipse-temurin:17-jre
                     WORKDIR /app
                     COPY --from=build /app/target/*.jar app.jar
                     ENV SERVER_PORT=8080
                     EXPOSE 8080
                     CMD ["java", "-jar", "app.jar"]
-                    """;
+                    """.formatted(normalizeCommands, mainClassOption, mainClassOption, mainClassOption);
         }
         Path anyJavaFile;
         try (var walk = Files.walk(backendDir, 5)) {
