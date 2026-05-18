@@ -102,7 +102,7 @@ export default function Dev() {
             ))}
           </div>
           <div className="mb-3 font-medium text-[#1d2740]">文件资源管理器</div>
-          <div className="max-h-[calc(100vh-420px)] space-y-1 overflow-auto pr-1">
+          <div className="max-h-[calc(100vh-420px)] space-y-1 overflow-auto pr-1 pb-4">
             {files.map((file, index) => (
               <div
                 key={`${file.id}-${index}`}

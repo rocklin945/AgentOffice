@@ -22,6 +22,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
@@ -710,12 +711,21 @@ public class DockerDeployService {
         }
     }
 
+    private static final Set<Integer> RESERVED_PORTS = Set.of(
+            80, 443, 3000, 3001, 3306, 5432, 5672, 6379, 8080, 8443, 8888, 9090, 9200, 27017
+    );
+
     private int findAvailablePort() {
-        try (ServerSocket socket = new ServerSocket(0)) {
-            return socket.getLocalPort();
-        } catch (IOException e) {
-            return 18080;
+        for (int attempt = 0; attempt < 20; attempt++) {
+            try (ServerSocket socket = new ServerSocket(0)) {
+                int port = socket.getLocalPort();
+                if (!RESERVED_PORTS.contains(port)) {
+                    return port;
+                }
+            } catch (IOException ignored) {
+            }
         }
+        return 18080;
     }
 
     private int firstPositive(Integer first, Integer fallback) {

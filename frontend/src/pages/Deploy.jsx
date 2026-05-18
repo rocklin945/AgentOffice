@@ -128,6 +128,12 @@ export default function Deploy() {
       }
     };
     load();
+    const timer = setInterval(async () => {
+      if (!busyAction) {
+        await refreshProjects(true).catch(() => {});
+      }
+    }, 5000);
+    return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -135,7 +141,7 @@ export default function Deploy() {
       setPort(selectedProject.port || '');
       loadLogs(selectedProject.projectName);
     }
-  }, [selectedProject?.projectName]);
+  }, [selectedProject?.projectName, selectedProject?.status]);
 
   const runAction = async (action, fn, options = {}) => {
     if (!selectedProject) return;
