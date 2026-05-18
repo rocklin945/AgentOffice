@@ -95,7 +95,7 @@ public class DockerDeployService {
                     removeContainerIfExists(mysqlContainerName(projectName));
                 }
                 // 再执行 compose down 清理网络和卷(使用 -v 删除数据卷)
-                runDocker(false, QUICK_TIMEOUT, "compose", "-p", composeProjectName(projectName),
+                runDocker(false, RUN_TIMEOUT, "compose", "-p", composeProjectName(projectName),
                         "-f", composeFile.toString(), "down", "-v");
                 CommandResult up = runDocker(true, BUILD_TIMEOUT, "compose", "-p", composeProjectName(projectName),
                         "-f", composeFile.toString(), "up", "-d", "--build");
@@ -392,6 +392,7 @@ public class DockerDeployService {
 
     private Path prepareComposeFiles(String projectName, Path projectPath, Path projectDeployDir,
                                      AppPlan plan, int frontendHostPort, int backendHostPort) throws IOException {
+        String resolvedDbName = databaseName(projectName);
         if (plan.database()) {
             Path initDir = projectDeployDir.resolve("mysql-init");
             Files.createDirectories(initDir);
@@ -405,7 +406,11 @@ public class DockerDeployService {
                     for (int i = 0; i < sqlFiles.size(); i++) {
                         Path src = sqlFiles.get(i);
                         String destName = String.format("%02d-%s", i + 1, src.getFileName());
-                        Files.copy(src, initDir.resolve(destName), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                        String detected = extractDatabaseName(src);
+                        if (detected != null) resolvedDbName = detected;
+                        String sqlContent = stripDatabaseStatements(
+                                Files.readString(src, StandardCharsets.UTF_8));
+                        Files.writeString(initDir.resolve(destName), sqlContent, StandardCharsets.UTF_8);
                     }
                 }
             }
@@ -416,6 +421,7 @@ public class DockerDeployService {
                 : nodeBackendDockerfile();
         Files.writeString(projectDeployDir.resolve("Dockerfile.backend"), backendDockerfile, StandardCharsets.UTF_8);
 
+        final String dbName = resolvedDbName;
         String mysqlService = plan.database() ? """
                   mysql:
                     image: mysql:8.0
@@ -428,7 +434,7 @@ public class DockerDeployService {
                     command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
                     volumes:
                       - "%s:/docker-entrypoint-initdb.d:ro"
-                      - "%s:/var/lib/mysql"
+                      - "mysql_data:/var/lib/mysql"
                     ports:
                       - "%d:3306"
                     healthcheck:
@@ -437,9 +443,8 @@ public class DockerDeployService {
                       timeout: 5s
                       retries: 10
                       start_period: 30s
-                """.formatted(mysqlContainerName(projectName), databaseName(projectName),
+                """.formatted(mysqlContainerName(projectName), dbName,
                 escapePath(projectDeployDir.resolve("mysql-init")),
-                composeProjectName(projectName) + "_mysql_data",
                 findAvailablePort()) : "";
         String backendDepends = plan.database() ? """
                     depends_on:
@@ -450,18 +455,16 @@ public class DockerDeployService {
                       SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/%s?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&connectTimeout=10000&socketTimeout=30000"
                       SPRING_DATASOURCE_USERNAME: "app_user"
                       SPRING_DATASOURCE_PASSWORD: "app_password"
-                      SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT: "60000"
-                      SPRING_DATASOURCE_HIKARI_MAX_LIFETIME: "1800000"
                       MYSQL_HOST: "mysql"
                       MYSQL_PORT: "3306"
                       MYSQL_DATABASE: "%s"
                       MYSQL_USER: "app_user"
                       MYSQL_PASSWORD: "app_password"
-                """.formatted(databaseName(projectName), databaseName(projectName)) : "";
+                """.formatted(dbName, dbName) : "";
         String volumes = plan.database() ? """
                 volumes:
-                  %s_mysql_data:
-                """.formatted(composeProjectName(projectName)) : "";
+                  mysql_data:
+                """ : "";
 
         String compose = """
                 services:
@@ -790,6 +793,31 @@ public class DockerDeployService {
 
     private String databaseName(String projectName) {
         return slug(projectName).replace('-', '_') + "_db";
+    }
+
+    private String stripDatabaseStatements(String sql) {
+        StringBuilder sb = new StringBuilder();
+        for (String line : sql.split("\n")) {
+            String trimmed = line.trim().toLowerCase(Locale.ROOT);
+            if (trimmed.startsWith("create database") || trimmed.startsWith("use ")) {
+                continue;
+            }
+            sb.append(line).append("\n");
+        }
+        return sb.toString();
+    }
+
+    private String extractDatabaseName(Path sqlFile) {
+        try {
+            for (String line : Files.readAllLines(sqlFile, StandardCharsets.UTF_8)) {
+                String trimmed = line.trim().toLowerCase(Locale.ROOT);
+                if (trimmed.startsWith("use ")) {
+                    String name = trimmed.substring(4).replaceAll("[;`'\"\\s]+", "");
+                    if (!name.isBlank()) return name;
+                }
+            }
+        } catch (IOException ignored) {}
+        return null;
     }
 
     private Path composeFile(String projectName) {
