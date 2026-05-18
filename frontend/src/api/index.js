@@ -75,6 +75,8 @@ export const deployApi = {
   removeProjectContainer: (projectName) => request.delete(`/deploy/projects/${projectName}/container`),
   getProjectLogs: (projectName, lines) =>
     request.get(`/deploy/projects/${projectName}/logs`, { params: { lines } }),
+  checkProjectHealth: (projectName) => request.get(`/deploy/projects/${projectName}/health`, { timeout: 10000 }),
+  checkHealthUrl: (url) => request.post('/deploy/health-check', { url }, { timeout: 10000 }),
   getServiceList: (params) => request.get('/deploy/services', { params }),
   getService: (id) => request.get(`/deploy/services/${id}`),
   createService: (data) => request.post('/deploy/services', data),

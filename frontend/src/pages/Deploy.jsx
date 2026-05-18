@@ -5,6 +5,7 @@ import {
   DeleteOutlined,
   DeploymentUnitOutlined,
   FileTextOutlined,
+  HeartOutlined,
   LinkOutlined,
   PlayCircleOutlined,
   ReloadOutlined,
@@ -80,6 +81,8 @@ export default function Deploy() {
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState('');
   const [error, setError] = useState('');
+  const [healthChecking, setHealthChecking] = useState(false);
+  const [healthResult, setHealthResult] = useState(null);
 
   const selectedProject = useMemo(
     () => projects.find((project) => project.projectName === selectedName) || projects[0],
@@ -88,6 +91,10 @@ export default function Deploy() {
 
   const runningCount = projects.filter((project) => project.status === 'RUNNING').length;
   const deployedCount = projects.filter((project) => project.status !== 'NOT_DEPLOYED').length;
+  const backendServiceUrl = selectedProject?.backendUrl || (
+    selectedProject?.appType?.includes('BACKEND') ? selectedProject?.url : ''
+  );
+  const healthUrl = backendServiceUrl ? `${backendServiceUrl.replace(/\/+$/, '')}/api/health` : '';
 
   const refreshProjects = async (keepSelection = true) => {
     const [dockerRes, projectRes] = await Promise.all([
@@ -139,6 +146,7 @@ export default function Deploy() {
   useEffect(() => {
     if (selectedProject?.projectName) {
       setPort(selectedProject.port || '');
+      setHealthResult(null);
       loadLogs(selectedProject.projectName);
     }
   }, [selectedProject?.projectName, selectedProject?.status]);
@@ -173,7 +181,26 @@ export default function Deploy() {
     );
   };
 
+  const checkBackendHealth = async () => {
+    if (!healthUrl) return;
+    setHealthChecking(true);
+    setHealthResult(null);
+    try {
+      const res = await deployApi.checkHealthUrl(healthUrl);
+      setHealthResult(res.data);
+    } catch (err) {
+      setHealthResult({
+        healthy: false,
+        statusCode: 0,
+        message: err.message || '健康检查失败',
+      });
+    } finally {
+      setHealthChecking(false);
+    }
+  };
+
   const actionDisabled = !selectedProject || !!busyAction || dockerStatus?.available === false;
+  const healthDisabled = actionDisabled || healthChecking || selectedProject?.status !== 'RUNNING' || !backendServiceUrl;
 
   return (
     <div className="space-y-5">
@@ -341,16 +368,37 @@ export default function Deploy() {
                   <Field label="应用类型" value={typeMap[selectedProject.appType] || selectedProject.appType} />
                 </div>
 
-                <div className="mt-5 grid gap-4 lg:grid-cols-[220px_1fr]">
-                  <label className="block">
-                    <span className="text-[12px] text-[#8d99ae]">宿主机端口</span>
-                    <input
-                      value={port}
-                      onChange={(event) => setPort(event.target.value.replace(/[^\d]/g, ''))}
-                      placeholder="自动分配"
-                      className="mt-1 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 text-[13px] outline-none transition focus:border-[#2f6bff]"
-                    />
-                  </label>
+                <div className="mt-5 grid gap-4 lg:grid-cols-[240px_1fr]">
+                  <div className="grid gap-3 lg:grid-rows-[auto_1fr]">
+                    <label className="block">
+                      <span className="text-[12px] text-[#8d99ae]">宿主机端口</span>
+                      <input
+                        value={port}
+                        onChange={(event) => setPort(event.target.value.replace(/[^\d]/g, ''))}
+                        placeholder="自动分配"
+                        className="mt-1 h-10 w-full rounded-[8px] border border-[#dfe7f5] px-3 text-[13px] outline-none transition focus:border-[#2f6bff]"
+                      />
+                    </label>
+                    <div className="flex min-h-[94px] flex-col justify-center rounded-[8px] border border-[#edf1f8] px-4 py-3">
+                      <div className="flex items-center gap-2 text-[12px] text-[#8d99ae]">
+                        <ApiOutlined />
+                        后端服务
+                      </div>
+                      {backendServiceUrl ? (
+                        <a
+                          href={backendServiceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-1 block truncate text-[14px] font-semibold text-[#2f6bff]"
+                          title={backendServiceUrl}
+                        >
+                          {backendServiceUrl}
+                        </a>
+                      ) : (
+                        <div className="mt-1 text-[14px] font-semibold text-[#8d99ae]">无独立后端或未部署</div>
+                      )}
+                    </div>
+                  </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="rounded-[8px] border border-[#edf1f8] px-4 py-3">
                       <div className="flex items-center gap-2 text-[12px] text-[#8d99ae]">
@@ -380,22 +428,67 @@ export default function Deploy() {
                       )}
                     </div>
                     <div className="rounded-[8px] border border-[#edf1f8] px-4 py-3 sm:col-span-2">
-                      <div className="flex items-center gap-2 text-[12px] text-[#8d99ae]">
-                        <ApiOutlined />
-                        后端服务
-                      </div>
-                      {selectedProject.backendUrl ? (
-                        <a
-                          href={selectedProject.backendUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-1 block truncate text-[15px] font-semibold text-[#2f6bff]"
+                      <div className="flex flex-col gap-2 border-b border-[#edf1f8] pb-2 md:flex-row md:items-center md:justify-between">
+                        <div className="flex min-w-0 flex-1 items-center gap-3">
+                          <div className="flex shrink-0 items-center gap-2 text-[12px] text-[#8d99ae]">
+                            <HeartOutlined />
+                            健康检查
+                          </div>
+                          <div className="flex min-w-0 flex-1 items-center gap-2">
+                            <span className="shrink-0 text-[12px] text-[#8d99ae]">检查接口</span>
+                            {healthUrl ? (
+                              <a
+                                href={healthUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="min-w-0 truncate text-[13px] font-semibold text-[#2f6bff]"
+                                title={healthUrl}
+                              >
+                                {healthUrl}
+                              </a>
+                            ) : (
+                              <span className="min-w-0 truncate text-[13px] font-semibold text-[#8d99ae]">
+                                后端服务部署后生成
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={healthDisabled}
+                          onClick={checkBackendHealth}
+                          className="inline-flex h-8 shrink-0 items-center gap-2 rounded-[8px] border border-[#dfe7f5] px-3 text-[12px] font-medium text-[#526078] transition hover:border-[#bfd0ee] hover:text-[#2f6bff] disabled:cursor-not-allowed disabled:opacity-45"
                         >
-                          {selectedProject.backendUrl}
-                        </a>
-                      ) : (
-                        <div className="mt-1 text-[15px] font-semibold text-[#8d99ae]">无独立后端或未部署</div>
-                      )}
+                          <ReloadOutlined />
+                          {healthChecking ? '检查中' : '检查'}
+                        </button>
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="text-[12px] text-[#8d99ae]">健康状态</span>
+                        {healthResult ? (
+                          <StatusPill color={healthResult.healthy ? 'green' : 'red'}>
+                            {healthResult.healthy ? '健康' : '异常'}
+                          </StatusPill>
+                        ) : (
+                          <StatusPill color={selectedProject.status === 'RUNNING' && healthUrl ? 'yellow' : 'gray'}>
+                            {selectedProject.status === 'RUNNING' && healthUrl ? '等待检查' : '未启用'}
+                          </StatusPill>
+                        )}
+                        {healthResult?.statusCode ? (
+                          <span className="text-[12px] font-semibold text-[#526078]">
+                            HTTP {healthResult.statusCode}
+                          </span>
+                        ) : null}
+                        <div className={`min-w-0 flex-1 truncate text-[12px] ${
+                          healthResult
+                            ? (healthResult.healthy ? 'text-[#207a4b]' : 'text-[#c24141]')
+                            : 'text-[#718098]'
+                        }`}
+                        title={healthResult?.message || ''}
+                        >
+                          {healthResult?.message || '点击检查按钮后获取当前后端健康状态'}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

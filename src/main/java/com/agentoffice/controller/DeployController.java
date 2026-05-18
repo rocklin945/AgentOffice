@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/deploy")
@@ -77,6 +78,16 @@ public class DeployController {
     public Result<DeployLogsResponse> getLogs(@PathVariable String projectName,
                                               @RequestParam(defaultValue = "200") Integer lines) {
         return Result.success(new DeployLogsResponse(dockerDeployService.getLogs(projectName, lines)));
+    }
+
+    @GetMapping("/projects/{projectName}/health")
+    public Result<Map<String, Object>> checkHealth(@PathVariable String projectName) {
+        return Result.success(dockerDeployService.checkBackendHealth(projectName));
+    }
+
+    @PostMapping("/health-check")
+    public Result<Map<String, Object>> checkHealthUrl(@RequestBody Map<String, String> request) {
+        return Result.success(dockerDeployService.checkHealthUrl(request == null ? null : request.get("url")));
     }
 
     @GetMapping("/services")

@@ -1024,6 +1024,8 @@ public class OfficeService {
 
                 **重要**：所有代码文件必须放在 code/{项目文件夹名}/frontend/ 下，例如 code/snake/frontend/index.html
 
+                **接口调用规则**：前端调用后端接口时必须使用相对路径 /api/xxx；部署时由 nginx 转发到后端服务。不要写 localhost、容器名、后端端口或完整后端域名。
+
                 完成后请在最终回复中 @%DISPATCHER% 汇报：「前端代码已完成」，并附上前端代码 filePath。**不要 @ 后端、CodeReviewer、运维等其他员工。**
 
                 """).replace("%DISPATCHER%", dispatcherName);
@@ -1057,6 +1059,8 @@ public class OfficeService {
 
 
                 **重要**：所有代码文件必须放在 code/{项目文件夹名}/backend/ 下，例如 code/snake/backend/SnakeGame.java
+
+                **健康检查规则**：创建后端接口时必须同时创建健康检查接口 GET /api/health，返回 2xx 状态码和可读的健康状态内容，供运维部署界面检测服务可用性。
 
                 完成后请在最终回复中 @%DISPATCHER% 汇报：「后端代码已完成」，并附上后端代码 filePath。**不要 @ 前端、CodeReviewer、运维等其他员工。**
 
@@ -1658,10 +1662,25 @@ public class OfficeService {
 
                 + "当前可指派的其他员工名单是：" + (teamRoster.isBlank() ? "暂无其他员工" : teamRoster) + "。"
 
+                + roleChatInstruction(employee.getRole())
+
                 + "请用第一人称、中文、简洁地回复，并给出你会如何执行或推进。"
 
                 + "如果下一步需要其他员工接力，只能从上述名单中选择，并在回复中使用完整的 @员工姓名 明确指派；不要编造名单外员工，也不要替其他员工发言。";
 
+    }
+
+    private String roleChatInstruction(String role) {
+        if (role == null) {
+            return "";
+        }
+        if (role.contains("前端")) {
+            return "前端接口调用必须使用相对路径 /api/xxx；部署后由 nginx 转发到后端，不要写 localhost、容器名、后端端口或完整后端域名。";
+        }
+        if (role.contains("后端")) {
+            return "后端创建接口时必须同时提供 GET /api/health 健康检查接口，返回 2xx 状态码和可读健康状态内容。";
+        }
+        return "";
     }
 
 

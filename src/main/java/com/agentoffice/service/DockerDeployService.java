@@ -12,15 +12,21 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.net.URI;
 import java.net.ServerSocket;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -39,6 +45,10 @@ public class DockerDeployService {
 
     @Autowired
     private DeployServiceMapper deployServiceMapper;
+
+    private final HttpClient httpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(3))
+            .build();
 
     public DockerStatusResponse getDockerStatus() {
         CommandResult result = runDocker(false, QUICK_TIMEOUT, "version", "--format", "{{.Server.Version}}");
@@ -222,11 +232,67 @@ public class DockerDeployService {
         return logs.toString();
     }
 
+    public Map<String, Object> checkBackendHealth(String projectName) {
+        Path projectPath = resolveProject(projectName);
+        AppPlan plan = detectApp(projectPath);
+        DockerProjectResponse project = buildProjectResponse(projectPath);
+        String baseUrl = project.getBackendUrl();
+        if ((baseUrl == null || baseUrl.isBlank()) && plan.hasBackend()) {
+            baseUrl = project.getUrl();
+        }
+        if (baseUrl == null || baseUrl.isBlank()) {
+            throw BusinessException.badRequest("Backend service is not deployed");
+        }
+
+        String healthUrl = baseUrl.replaceAll("/+$", "") + "/api/health";
+        return checkHealthUrl(healthUrl);
+    }
+
+    public Map<String, Object> checkHealthUrl(String healthUrl) {
+        if (healthUrl == null || healthUrl.isBlank()) {
+            throw BusinessException.badRequest("Health check URL is required");
+        }
+        URI uri;
+        try {
+            uri = URI.create(healthUrl.trim());
+        } catch (IllegalArgumentException e) {
+            throw BusinessException.badRequest("Invalid health check URL");
+        }
+        String scheme = uri.getScheme();
+        String host = uri.getHost();
+        if (scheme == null || host == null
+                || (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme))
+                || (!"localhost".equalsIgnoreCase(host) && !"127.0.0.1".equals(host) && !"::1".equals(host))) {
+            throw BusinessException.badRequest("Only local health check URLs are allowed");
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("url", uri.toString());
+        try {
+            HttpRequest request = HttpRequest.newBuilder(uri)
+                    .timeout(Duration.ofSeconds(5))
+                    .GET()
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            boolean healthy = response.statusCode() >= 200 && response.statusCode() < 300;
+            result.put("healthy", healthy);
+            result.put("statusCode", response.statusCode());
+            result.put("message", healthy ? "健康检查通过" : trimOutput(response.body(), 500));
+        } catch (Exception e) {
+            result.put("healthy", false);
+            result.put("statusCode", 0);
+            result.put("message", e.getMessage() == null ? "健康检查失败" : e.getMessage());
+        }
+        return result;
+    }
+
     private DockerProjectResponse buildProjectResponse(Path projectPath) {
         String projectName = projectPath.getFileName().toString();
         AppPlan plan = detectApp(projectPath);
         ContainerInfo container = inspectPrimaryContainer(projectName, plan);
-        ContainerInfo backendContainer = plan.hasBackend() ? inspectContainer(backendContainerName(projectName)) : new ContainerInfo(null, null, null, null);
+        ContainerInfo backendContainer = plan.hasBackend()
+                ? (plan.compose() ? inspectContainer(backendContainerName(projectName)) : container)
+                : new ContainerInfo(null, null, null, null);
 
         DockerProjectResponse response = new DockerProjectResponse();
         response.setProjectName(projectName);
