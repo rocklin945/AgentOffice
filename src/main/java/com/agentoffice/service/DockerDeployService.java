@@ -631,6 +631,22 @@ public class DockerDeployService {
 
     private String javaBackendDockerfile(Path projectPath, boolean database) throws IOException {
         Path backendDir = projectPath.resolve("backend");
+        boolean hasOwnPom = Files.exists(backendDir.resolve("pom.xml"));
+        if (hasOwnPom) {
+            return """
+                    FROM maven:3.9-eclipse-temurin-17 AS build
+                    WORKDIR /app
+                    COPY backend/ ./
+                    RUN rm -rf /root/.m2/repository/commons-io/commons-io/2.6 && \\
+                        (mvn -q -DskipTests package || mvn -q -DskipTests -U package || mvn -q -DskipTests -U package)
+                    FROM eclipse-temurin:17-jre
+                    WORKDIR /app
+                    COPY --from=build /app/target/*.jar app.jar
+                    ENV SERVER_PORT=8080
+                    EXPOSE 8080
+                    CMD ["java", "-jar", "app.jar"]
+                    """;
+        }
         Path anyJavaFile;
         try (var walk = Files.walk(backendDir, 5)) {
             anyJavaFile = walk.filter(p -> p.getFileName().toString().endsWith(".java"))
@@ -653,10 +669,7 @@ public class DockerDeployService {
                                 .append(" src/main/java/").append(packagePath).append(parent).append("/\n");
                     });
         }
-        boolean hasOwnPom = Files.exists(backendDir.resolve("pom.xml"));
-        String pomStep = hasOwnPom
-                ? "RUN cp /tmp/backend/pom.xml pom.xml"
-                : ("RUN printf '%%s\\n' '<project xmlns=\"http://maven.apache.org/POM/4.0.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd\">' '<modelVersion>4.0.0</modelVersion>' '<parent><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-parent</artifactId><version>3.2.0</version><relativePath/></parent>' '<groupId>agentoffice.generated</groupId><artifactId>generated-backend</artifactId><version>1.0.0</version>' '<properties><java.version>17</java.version></properties>' '<dependencies><dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency><dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-validation</artifactId></dependency>" + databaseDependencies + "</dependencies>' '<build><plugins><plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin></plugins></build>' '</project>' > pom.xml");
+        String pomStep = "RUN printf '%%s\\n' '<project xmlns=\"http://maven.apache.org/POM/4.0.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd\">' '<modelVersion>4.0.0</modelVersion>' '<parent><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-parent</artifactId><version>3.2.0</version><relativePath/></parent>' '<groupId>agentoffice.generated</groupId><artifactId>generated-backend</artifactId><version>1.0.0</version>' '<properties><java.version>17</java.version></properties>' '<dependencies><dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency><dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-validation</artifactId></dependency>" + databaseDependencies + "</dependencies>' '<build><plugins><plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin></plugins></build>' '</project>' > pom.xml";
         return """
                 FROM maven:3.9-eclipse-temurin-17 AS build
                 WORKDIR /app
@@ -665,7 +678,8 @@ public class DockerDeployService {
                 RUN if [ -f /tmp/backend/application.yml ]; then cp /tmp/backend/application.yml src/main/resources/application.yml; fi
                 %s
                 %s
-                RUN mvn -q -DskipTests package
+                RUN rm -rf /root/.m2/repository/commons-io/commons-io/2.6 && \\
+                    (mvn -q -DskipTests package || mvn -q -DskipTests -U package || mvn -q -DskipTests -U package)
                 FROM eclipse-temurin:17-jre
                 WORKDIR /app
                 COPY --from=build /app/target/*.jar app.jar

@@ -76,6 +76,7 @@ export default function Deploy() {
   const [dockerStatus, setDockerStatus] = useState(null);
   const [projects, setProjects] = useState([]);
   const [selectedName, setSelectedName] = useState('');
+  const pollCallbackRef = React.useRef(null);
   const [logs, setLogs] = useState('');
   const [port, setPort] = useState('');
   const [loading, setLoading] = useState(true);
@@ -122,6 +123,12 @@ export default function Deploy() {
     }
   };
 
+  pollCallbackRef.current = async () => {
+    if (!busyAction) {
+      await refreshProjects(true).catch(() => {});
+    }
+  };
+
   useEffect(() => {
     const load = async () => {
       setLoading(true);
@@ -135,11 +142,7 @@ export default function Deploy() {
       }
     };
     load();
-    const timer = setInterval(async () => {
-      if (!busyAction) {
-        await refreshProjects(true).catch(() => {});
-      }
-    }, 5000);
+    const timer = setInterval(() => pollCallbackRef.current?.(), 5000);
     return () => clearInterval(timer);
   }, []);
 
