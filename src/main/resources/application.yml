@@ -20,6 +20,7 @@ mybatis:
   type-aliases-package: com.agentoffice.entity
   configuration:
     map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
 
 # Actuator健康检查配置
 management:

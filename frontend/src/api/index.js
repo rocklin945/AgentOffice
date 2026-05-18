@@ -64,6 +64,17 @@ export const devApi = {
 };
 
 export const deployApi = {
+  getDockerStatus: () => request.get('/deploy/docker/status'),
+  getProjects: () => request.get('/deploy/projects'),
+  getProject: (projectName) => request.get(`/deploy/projects/${projectName}`),
+  deployProject: (projectName, data) =>
+    request.post(`/deploy/projects/${projectName}/deploy`, data, { timeout: 300000 }),
+  startProject: (projectName) => request.post(`/deploy/projects/${projectName}/start`),
+  stopProject: (projectName) => request.post(`/deploy/projects/${projectName}/stop`),
+  restartProject: (projectName) => request.post(`/deploy/projects/${projectName}/restart`),
+  removeProjectContainer: (projectName) => request.delete(`/deploy/projects/${projectName}/container`),
+  getProjectLogs: (projectName, lines) =>
+    request.get(`/deploy/projects/${projectName}/logs`, { params: { lines } }),
   getServiceList: (params) => request.get('/deploy/services', { params }),
   getService: (id) => request.get(`/deploy/services/${id}`),
   createService: (data) => request.post('/deploy/services', data),
