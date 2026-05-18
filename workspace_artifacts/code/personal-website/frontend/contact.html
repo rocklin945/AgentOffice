@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>联系方式 - 个人网站</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <header class="navbar">
+    <div class="container">
+      <a href="index.html" class="logo">My<span>Portfolio</span></a>
+      <nav class="nav-menu" id="navMenu">
+        <ul>
+          <li><a href="index.html">首页</a></li>
+          <li><a href="about.html">关于我</a></li>
+          <li><a href="portfolio.html">作品集</a></li>
+          <li><a href="blog.html">博客</a></li>
+          <li><a href="contact.html" class="active">联系方式</a></li>
+        </ul>
+      </nav>
+      <div class="nav-actions">
+        <button id="themeToggle" class="theme-toggle" aria-label="切换主题">
+          <i class="fas fa-moon"></i>
+        </button>
+        <button class="hamburger" id="hamburger" aria-label="菜单">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <section class="page-banner">
+    <div class="container">
+      <h1>联系方式</h1>
+      <p>期待与您的合作</p>
+    </div>
+  </section>
+
+  <section class="section contact-section">
+    <div class="container">
+      <div class="contact-grid">
+        <div class="contact-form-wrapper">
+          <h2>发送消息</h2>
+          <form id="contactForm" class="contact-form" novalidate>
+            <div class="form-group">
+              <label for="name">姓名 <span class="required">*</span></label>
+              <input type="text" id="name" name="name" placeholder="请输入您的姓名" required>
+              <span class="error-message" id="nameError"></span>
+            </div>
+            <div class="form-group">
+              <label for="email">邮箱 <span class="required">*</span></label>
+              <input type="email" id="email" name="email" placeholder="请输入您的邮箱" required>
+              <span class="error-message" id="emailError"></span>
+            </div>
+            <div class="form-group">
+              <label for="subject">主题 <span class="required">*</span></label>
+              <input type="text" id="subject" name="subject" placeholder="请输入主题" required>
+              <span class="error-message" id="subjectError"></span>
+            </div>
+            <div class="form-group">
+              <label for="message">留言内容 <span class="required">*</span></label>
+              <textarea id="message" name="message" rows="6" placeholder="请输入您的留言内容..." required></textarea>
+              <span class="error-message" id="messageError"></span>
+            </div>
+            <button type="submit" class="btn btn-primary btn-submit">
+              <i class="fas fa-paper-plane"></i> 发送消息
+            </button>
+          </form>
+          <div id="formSuccess" class="form-success" style="display:none;">
+            <i class="fas fa-check-circle"></i>
+            <h3>消息已发送！</h3>
+            <p>感谢您的留言，我会尽快回复您。</p>
+          </div>
+        </div>
+
+        <div class="contact-info-wrapper">
+          <h2>联系信息</h2>
+          <div class="contact-info-list">
+            <div class="contact-info-item">
+              <i class="fas fa-envelope"></i>
+              <div>
+                <h4>邮箱</h4>
+                <p>zhangsan@example.com</p>
+              </div>
+            </div>
+            <div class="contact-info-item">
+              <i class="fas fa-map-marker-alt"></i>
+              <div>
+                <h4>地址</h4>
+                <p>中国 · 北京市海淀区</p>
+              </div>
+            </div>
+            <div class="contact-info-item">
+              <i class="fas fa-phone-alt"></i>
+              <div>
+                <h4>电话</h4>
+                <p>+86 138-0000-0000</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="contact-social">
+            <h3>社交媒体</h3>
+            <div class="social-icons">
+              <a href="#" aria-label="GitHub"><i class="fab fa-github"></i></a>
+              <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+              <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+              <a href="#" aria-label="WeChat"><i class="fab fa-weixin"></i></a>
+            </div>
+          </div>
+
+          <!-- 地图占位 -->
+          <div class="map-placeholder">
+            <i class="fas fa-map-marked-alt"></i>
+            <p>地图区域</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <a href="index.html" class="logo">My<span>Portfolio</span></a>
+          <p>用代码创造价值，用设计传递美好。</p>
+        </div>
+        <div class="footer-links">
+          <h4>快速链接</h4>
+          <ul>
+            <li><a href="index.html">首页</a></li>
+            <li><a href="about.html">关于我</a></li>
+            <li><a href="portfolio.html">作品集</a></li>
+            <li><a href="blog.html">博客</a></li>
+            <li><a href="contact.html">联系方式</a></li>
+          </ul>
+        </div>
+        <div class="footer-social">
+          <h4>社交媒体</h4>
+          <div class="social-icons">
+            <a href="#" aria-label="GitHub"><i class="fab fa-github"></i></a>
+            <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+            <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+            <a href="#" aria-label="WeChat"><i class="fab fa-weixin"></i></a>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2024 MyPortfolio. All Rights Reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

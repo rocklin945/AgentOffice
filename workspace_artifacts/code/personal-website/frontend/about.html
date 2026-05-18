@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>关于我 - 个人网站</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <header class="navbar">
+    <div class="container">
+      <a href="index.html" class="logo">My<span>Portfolio</span></a>
+      <nav class="nav-menu" id="navMenu">
+        <ul>
+          <li><a href="index.html">首页</a></li>
+          <li><a href="about.html" class="active">关于我</a></li>
+          <li><a href="portfolio.html">作品集</a></li>
+          <li><a href="blog.html">博客</a></li>
+          <li><a href="contact.html">联系方式</a></li>
+        </ul>
+      </nav>
+      <div class="nav-actions">
+        <button id="themeToggle" class="theme-toggle" aria-label="切换主题">
+          <i class="fas fa-moon"></i>
+        </button>
+        <button class="hamburger" id="hamburger" aria-label="菜单">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 页面横幅 -->
+  <section class="page-banner">
+    <div class="container">
+      <h1>关于我</h1>
+      <p>了解我的故事与经历</p>
+    </div>
+  </section>
+
+  <!-- 个人详细简介 -->
+  <section class="section about-detail">
+    <div class="container">
+      <div class="about-grid">
+        <div class="about-image">
+          <div class="avatar-placeholder avatar-large">
+            <i class="fas fa-user"></i>
+          </div>
+        </div>
+        <div class="about-text">
+          <h2>嗨，我是张三</h2>
+          <p>
+            我是一名全栈开发工程师，目前居住在北京。从大学时期开始接触编程，
+            至今已有 8 年的编程经验。我热爱开源社区，积极参与各种技术分享活动，
+            并致力于用技术解决实际问题。
+          </p>
+          <p>
+            我的技术栈涵盖前端（React、Vue.js、TypeScript）、后端（Node.js、Python）
+            以及数据库（MySQL、MongoDB）。我相信持续学习是技术人员的核心竞争力，
+            因此始终保持对新技术的关注和学习。
+          </p>
+          <div class="about-info">
+            <div class="info-item">
+              <span class="info-label"><i class="fas fa-envelope"></i> 邮箱</span>
+              <span>zhangsan@example.com</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label"><i class="fas fa-map-marker-alt"></i> 地点</span>
+              <span>中国 · 北京</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label"><i class="fas fa-briefcase"></i> 职位</span>
+              <span>全栈开发工程师</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 教育背景 -->
+  <section class="section education-section">
+    <div class="container">
+      <h2 class="section-title">教育背景</h2>
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-content">
+            <h3>计算机科学与技术 硕士</h3>
+            <span class="timeline-date">2017 - 2020</span>
+            <p>北京大学，研究方向为 Web 技术与用户体验优化。</p>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-content">
+            <h3>软件工程 学士</h3>
+            <span class="timeline-date">2013 - 2017</span>
+            <p>清华大学，主修软件工程，辅修数字媒体设计。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 工作经历 -->
+  <section class="section experience-section">
+    <div class="container">
+      <h2 class="section-title">工作经历</h2>
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-content">
+            <h3>高级前端工程师</h3>
+            <span class="timeline-date">2022 - 至今</span>
+            <span class="timeline-company">ABC 科技有限公司</span>
+            <p>负责公司核心产品的前端架构设计、性能优化及团队技术指导。</p>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-content">
+            <h3>全栈开发工程师</h3>
+            <span class="timeline-date">2020 - 2022</span>
+            <span class="timeline-company">XYZ 互联网公司</span>
+            <p>参与多个从零到一的项目开发，负责前后端架构设计与实现。</p>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-content">
+            <h3>前端开发实习生</h3>
+            <span class="timeline-date">2019 - 2020</span>
+            <span class="timeline-company">DEF 科技公司</span>
+            <p>参与公司官网及内部管理系统的前端开发工作。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 个人价值观 -->
+  <section class="section values-section">
+    <div class="container">
+      <h2 class="section-title">我的理念</h2>
+      <div class="values-grid">
+        <div class="value-card">
+          <i class="fas fa-lightbulb"></i>
+          <h3>创新驱动</h3>
+          <p>持续探索新技术，用创新思维解决复杂问题。</p>
+        </div>
+        <div class="value-card">
+          <i class="fas fa-handshake"></i>
+          <h3>协作共赢</h3>
+          <p>相信团队的力量，乐于分享知识与经验。</p>
+        </div>
+        <div class="value-card">
+          <i class="fas fa-heart"></i>
+          <h3>用户至上</h3>
+          <p>始终以用户体验为核心，打造有温度的产品。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <a href="index.html" class="logo">My<span>Portfolio</span></a>
+          <p>用代码创造价值，用设计传递美好。</p>
+        </div>
+        <div class="footer-links">
+          <h4>快速链接</h4>
+          <ul>
+            <li><a href="index.html">首页</a></li>
+            <li><a href="about.html">关于我</a></li>
+            <li><a href="portfolio.html">作品集</a></li>
+            <li><a href="blog.html">博客</a></li>
+            <li><a href="contact.html">联系方式</a></li>
+          </ul>
+        </div>
+        <div class="footer-social">
+          <h4>社交媒体</h4>
+          <div class="social-icons">
+            <a href="#" aria-label="GitHub"><i class="fab fa-github"></i></a>
+            <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+            <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+            <a href="#" aria-label="WeChat"><i class="fab fa-weixin"></i></a>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2024 MyPortfolio. All Rights Reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

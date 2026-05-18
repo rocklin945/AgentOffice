@@ -1,0 +1,48 @@
+services:
+  backend:
+    build:
+      context: "D:/桌面/Java/AgentOffice/workspace_artifacts/code/book-management"
+      dockerfile: "D:/桌面/Java/AgentOffice/workspace_artifacts/deploy/book-management/Dockerfile.backend"
+    image: "agentoffice/book-management:latest-backend"
+    container_name: "agentoffice-book-management-backend"
+    labels:
+      agentoffice.managed: "true"
+      agentoffice.project: "book-management"
+    environment:
+      PORT: "8080"
+      SERVER_PORT: "8080"
+      SPRING_DATASOURCE_URL: "jdbc:mysql://agentoffice-mysql:3306/book_db?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&connectTimeout=10000&socketTimeout=30000"
+      SPRING_DATASOURCE_USERNAME: "app_user"
+      SPRING_DATASOURCE_PASSWORD: "app_password"
+      MYSQL_HOST: "agentoffice-mysql"
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: "book_db"
+      MYSQL_USER: "app_user"
+      MYSQL_PASSWORD: "app_password"
+
+    ports:
+      - "6362:8080"
+    networks:
+      - agentoffice-net
+
+  frontend:
+    build:
+      context: "D:/桌面/Java/AgentOffice/workspace_artifacts/code/book-management"
+      dockerfile: "D:/桌面/Java/AgentOffice/workspace_artifacts/deploy/book-management/Dockerfile.frontend"
+    image: "agentoffice/book-management:latest-frontend"
+    container_name: "agentoffice-book-management-frontend"
+    labels:
+      agentoffice.managed: "true"
+      agentoffice.project: "book-management"
+    depends_on:
+      - backend
+    ports:
+      - "6361:80"
+    networks:
+      - agentoffice-net
+
+networks:
+  agentoffice-net:
+    external: true
+    name: agentoffice-net
+

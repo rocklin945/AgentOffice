@@ -1,0 +1,429 @@
+/* ===== 全局样式 ===== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    background: linear-gradient(135deg, #0a0a2e 0%, #1a1a4e 50%, #0d0d3d 100%);
+    color: #fff;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+/* ===== 屏幕切换 ===== */
+.screen {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100vh;
+}
+
+.screen.hidden {
+    display: none;
+}
+
+/* ===== 主菜单 ===== */
+.menu-container {
+    text-align: center;
+    padding: 40px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.game-title {
+    font-size: 64px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #00d2ff, #3a7bd5, #00d2ff);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: gradientShift 3s ease infinite;
+    text-shadow: none;
+    letter-spacing: 4px;
+}
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.game-subtitle {
+    font-size: 28px;
+    font-weight: 300;
+    color: rgba(255, 255, 255, 0.6);
+    letter-spacing: 12px;
+    margin-bottom: 40px;
+    text-transform: uppercase;
+}
+
+.menu-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 30px;
+}
+
+/* ===== 按钮样式 ===== */
+.btn {
+    padding: 14px 40px;
+    font-size: 18px;
+    font-weight: 600;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    letter-spacing: 2px;
+    min-width: 200px;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #00d2ff, #3a7bd5);
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(0, 210, 255, 0.3);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0, 210, 255, 0.5);
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+.high-score {
+    font-size: 20px;
+    color: rgba(255, 255, 255, 0.7);
+    padding: 12px 24px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    display: inline-block;
+}
+
+.high-score span:last-child {
+    color: #ffd700;
+    font-weight: 700;
+    font-size: 24px;
+}
+
+/* ===== 游戏界面 ===== */
+.game-container {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    padding: 20px;
+}
+
+.game-left {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.info-panel {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    min-width: 120px;
+}
+
+.info-item {
+    text-align: center;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    display: block;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+}
+
+.info-value {
+    display: block;
+    font-size: 32px;
+    font-weight: 700;
+    color: #fff;
+}
+
+/* ===== 游戏画布 ===== */
+.game-center {
+    position: relative;
+}
+
+#gameCanvas {
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.4);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
+    display: block;
+}
+
+/* ===== 覆盖层（暂停/游戏结束） ===== */
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 8px;
+    z-index: 10;
+}
+
+.overlay.hidden {
+    display: none;
+}
+
+.overlay-content {
+    text-align: center;
+    padding: 40px;
+}
+
+.overlay-content h2 {
+    font-size: 36px;
+    margin-bottom: 16px;
+    color: #fff;
+}
+
+.overlay-content p {
+    font-size: 20px;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 12px;
+}
+
+.record-text {
+    color: #ffd700 !important;
+    font-weight: 700;
+    font-size: 24px !important;
+}
+
+.overlay-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 24px;
+    align-items: center;
+}
+
+/* ===== 右侧面板 ===== */
+.game-right {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.next-piece-panel {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    text-align: center;
+}
+
+.next-piece-panel .info-label {
+    margin-bottom: 12px;
+}
+
+#nextCanvas {
+    display: block;
+    margin: 0 auto;
+}
+
+.controls-hint {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.6);
+    line-height: 2;
+}
+
+.controls-hint p {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ===== 弹窗（操作说明） ===== */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background: #1a1a4e;
+    border-radius: 20px;
+    padding: 40px;
+    max-width: 480px;
+    width: 90%;
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-content h2 {
+    font-size: 28px;
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+.close {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    font-size: 28px;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.5);
+    transition: color 0.3s;
+}
+
+.close:hover {
+    color: #fff;
+}
+
+.help-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.help-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+
+.help-item span {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 16px;
+}
+
+kbd {
+    display: inline-block;
+    padding: 4px 12px;
+    font-size: 14px;
+    font-family: 'Consolas', monospace;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    color: #00d2ff;
+    min-width: 32px;
+    text-align: center;
+}
+
+/* ===== 响应式设计 ===== */
+@media (max-width: 768px) {
+    .game-container {
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .game-left {
+        flex-direction: row;
+        order: 2;
+    }
+
+    .info-panel {
+        display: flex;
+        gap: 20px;
+        padding: 12px 20px;
+        min-width: auto;
+    }
+
+    .info-item {
+        padding: 4px 0;
+        border-bottom: none;
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
+        padding-right: 20px;
+    }
+
+    .info-item:last-child {
+        border-right: none;
+    }
+
+    .info-value {
+        font-size: 24px;
+    }
+
+    .game-right {
+        flex-direction: row;
+        order: 1;
+    }
+
+    .game-title {
+        font-size: 40px;
+    }
+
+    .game-subtitle {
+        font-size: 20px;
+        letter-spacing: 8px;
+    }
+
+    #gameCanvas {
+        width: 240px;
+        height: 480px;
+    }
+}
+
+@media (max-width: 480px) {
+    #gameCanvas {
+        width: 200px;
+        height: 400px;
+    }
+
+    .game-title {
+        font-size: 32px;
+    }
+
+    .btn {
+        padding: 10px 24px;
+        font-size: 16px;
+        min-width: 160px;
+    }
+}

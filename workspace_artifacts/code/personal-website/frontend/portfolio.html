@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>作品集 - 个人网站</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <header class="navbar">
+    <div class="container">
+      <a href="index.html" class="logo">My<span>Portfolio</span></a>
+      <nav class="nav-menu" id="navMenu">
+        <ul>
+          <li><a href="index.html">首页</a></li>
+          <li><a href="about.html">关于我</a></li>
+          <li><a href="portfolio.html" class="active">作品集</a></li>
+          <li><a href="blog.html">博客</a></li>
+          <li><a href="contact.html">联系方式</a></li>
+        </ul>
+      </nav>
+      <div class="nav-actions">
+        <button id="themeToggle" class="theme-toggle" aria-label="切换主题">
+          <i class="fas fa-moon"></i>
+        </button>
+        <button class="hamburger" id="hamburger" aria-label="菜单">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <section class="page-banner">
+    <div class="container">
+      <h1>作品集</h1>
+      <p>精选项目展示</p>
+    </div>
+  </section>
+
+  <!-- 分类筛选 -->
+  <section class="section portfolio-section">
+    <div class="container">
+      <div class="filter-buttons">
+        <button class="filter-btn active" data-filter="all">全部</button>
+        <button class="filter-btn" data-filter="web">网站</button>
+        <button class="filter-btn" data-filter="mobile">移动端</button>
+        <button class="filter-btn" data-filter="design">设计</button>
+      </div>
+
+      <div class="portfolio-grid" id="portfolioGrid">
+        <!-- 作品卡片由 JavaScript 动态渲染 -->
+      </div>
+    </div>
+  </section>
+
+  <!-- 作品详情弹窗 -->
+  <div class="modal" id="portfolioModal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <button class="modal-close" id="modalClose"><i class="fas fa-times"></i></button>
+      <div class="modal-body">
+        <img id="modalImage" src="" alt="作品图片">
+        <h2 id="modalTitle"></h2>
+        <p id="modalDescription"></p>
+        <a id="modalLink" href="#" target="_blank" class="btn btn-primary">查看项目 <i class="fas fa-external-link-alt"></i></a>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <a href="index.html" class="logo">My<span>Portfolio</span></a>
+          <p>用代码创造价值，用设计传递美好。</p>
+        </div>
+        <div class="footer-links">
+          <h4>快速链接</h4>
+          <ul>
+            <li><a href="index.html">首页</a></li>
+            <li><a href="about.html">关于我</a></li>
+            <li><a href="portfolio.html">作品集</a></li>
+            <li><a href="blog.html">博客</a></li>
+            <li><a href="contact.html">联系方式</a></li>
+          </ul>
+        </div>
+        <div class="footer-social">
+          <h4>社交媒体</h4>
+          <div class="social-icons">
+            <a href="#" aria-label="GitHub"><i class="fab fa-github"></i></a>
+            <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+            <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+            <a href="#" aria-label="WeChat"><i class="fab fa-weixin"></i></a>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2024 MyPortfolio. All Rights Reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

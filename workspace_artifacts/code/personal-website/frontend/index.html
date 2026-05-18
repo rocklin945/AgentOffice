@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>个人网站 - 首页</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <!-- 导航栏 -->
+  <header class="navbar">
+    <div class="container">
+      <a href="index.html" class="logo">My<span>Portfolio</span></a>
+      <nav class="nav-menu" id="navMenu">
+        <ul>
+          <li><a href="index.html" class="active">首页</a></li>
+          <li><a href="about.html">关于我</a></li>
+          <li><a href="portfolio.html">作品集</a></li>
+          <li><a href="blog.html">博客</a></li>
+          <li><a href="contact.html">联系方式</a></li>
+        </ul>
+      </nav>
+      <div class="nav-actions">
+        <button id="themeToggle" class="theme-toggle" aria-label="切换主题">
+          <i class="fas fa-moon"></i>
+        </button>
+        <button class="hamburger" id="hamburger" aria-label="菜单">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero 区域 -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-content">
+        <div class="hero-text">
+          <p class="hero-greeting">你好，我是</p>
+          <h1 class="hero-title">张三</h1>
+          <p class="hero-subtitle">全栈开发工程师 · 创意设计师</p>
+          <p class="hero-description">
+            热衷于构建优雅、高性能的 Web 应用。拥有 5 年以上的全栈开发经验，
+            专注于前端技术栈和用户体验设计。
+          </p>
+          <div class="hero-actions">
+            <a href="portfolio.html" class="btn btn-primary">查看作品</a>
+            <a href="contact.html" class="btn btn-outline">联系我</a>
+          </div>
+        </div>
+        <div class="hero-image">
+          <div class="avatar-placeholder">
+            <i class="fas fa-user"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 简介区域 -->
+  <section class="section intro-section">
+    <div class="container">
+      <h2 class="section-title">关于我</h2>
+      <p class="section-subtitle">用代码构建美好数字世界</p>
+      <div class="intro-content">
+        <p>
+          我是一名充满热情的全栈开发工程师，擅长使用现代前端技术构建响应式、高性能的 Web 应用。
+          从用户界面设计到后端架构，我致力于在每个项目中追求卓越。
+          我相信好的代码不仅能解决问题，更能带来愉悦的用户体验。
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 技能展示 -->
+  <section class="section skills-section">
+    <div class="container">
+      <h2 class="section-title">技能专长</h2>
+      <p class="section-subtitle">技术栈与工具</p>
+      <div class="skills-grid">
+        <div class="skill-card">
+          <i class="fab fa-html5"></i>
+          <h3>HTML5</h3>
+        </div>
+        <div class="skill-card">
+          <i class="fab fa-css3-alt"></i>
+          <h3>CSS3</h3>
+        </div>
+        <div class="skill-card">
+          <i class="fab fa-js"></i>
+          <h3>JavaScript</h3>
+        </div>
+        <div class="skill-card">
+          <i class="fab fa-react"></i>
+          <h3>React</h3>
+        </div>
+        <div class="skill-card">
+          <i class="fab fa-vuejs"></i>
+          <h3>Vue.js</h3>
+        </div>
+        <div class="skill-card">
+          <i class="fab fa-node"></i>
+          <h3>Node.js</h3>
+        </div>
+        <div class="skill-card">
+          <i class="fab fa-git-alt"></i>
+          <h3>Git</h3>
+        </div>
+        <div class="skill-card">
+          <i class="fas fa-database"></i>
+          <h3>数据库</h3>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 数据统计 -->
+  <section class="section stats-section">
+    <div class="container">
+      <div class="stats-grid">
+        <div class="stat-item">
+          <span class="stat-number" data-target="50">0</span>
+          <span class="stat-label">完成项目</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number" data-target="5">0</span>
+          <span class="stat-label">经验年限</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number" data-target="30">0</span>
+          <span class="stat-label">满意客户</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number" data-target="100">0</span>
+          <span class="stat-label">代码提交</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 页脚 -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <a href="index.html" class="logo">My<span>Portfolio</span></a>
+          <p>用代码创造价值，用设计传递美好。</p>
+        </div>
+        <div class="footer-links">
+          <h4>快速链接</h4>
+          <ul>
+            <li><a href="index.html">首页</a></li>
+            <li><a href="about.html">关于我</a></li>
+            <li><a href="portfolio.html">作品集</a></li>
+            <li><a href="blog.html">博客</a></li>
+            <li><a href="contact.html">联系方式</a></li>
+          </ul>
+        </div>
+        <div class="footer-social">
+          <h4>社交媒体</h4>
+          <div class="social-icons">
+            <a href="#" aria-label="GitHub"><i class="fab fa-github"></i></a>
+            <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+            <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+            <a href="#" aria-label="WeChat"><i class="fab fa-weixin"></i></a>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2024 MyPortfolio. All Rights Reserved.</p>
+        <div id="backendStatus" class="backend-status"></div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

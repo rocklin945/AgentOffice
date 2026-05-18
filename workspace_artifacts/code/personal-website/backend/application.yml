@@ -1,0 +1,18 @@
+# 个人网站后端配置文件
+server:
+  port: 8080
+
+spring:
+  application:
+    name: personal-website-backend
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/personal_website?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+    username: ${SPRING_DATASOURCE_USERNAME:app_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:app_password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+# 日志配置
+logging:
+  level:
+    com.personalwebsite: INFO
+    org.springframework: WARN

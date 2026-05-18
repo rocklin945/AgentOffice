@@ -68,7 +68,7 @@ export const deployApi = {
   getProjects: () => request.get('/deploy/projects'),
   getProject: (projectName) => request.get(`/deploy/projects/${projectName}`),
   deployProject: (projectName, data) =>
-    request.post(`/deploy/projects/${projectName}/deploy`, data, { timeout: 300000 }),
+    request.post(`/deploy/projects/${projectName}/deploy`, data, { timeout: 600000 }),
   startProject: (projectName) => request.post(`/deploy/projects/${projectName}/start`),
   stopProject: (projectName) => request.post(`/deploy/projects/${projectName}/stop`),
   restartProject: (projectName) => request.post(`/deploy/projects/${projectName}/restart`),

@@ -1,0 +1,5 @@
+com\example\book\controller\BookController.class
+com\example\book\controller\HealthController.class
+com\example\book\repository\BookRepository.class
+com\example\book\entity\Book.class
+com\example\book\BookApplication.class

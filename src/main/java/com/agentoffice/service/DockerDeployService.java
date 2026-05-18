@@ -681,18 +681,18 @@ public class DockerDeployService {
             String mainClass = findSpringBootMainClass(backendDir).orElse("");
             String mainClassOption = mainClass.isBlank() ? "" : "-Dstart-class=" + mainClass;
             return """
-                    FROM maven:3.9-eclipse-temurin-17 AS build
+                    FROM maven:3.9-eclipse-temurin-17-alpine AS build
                     WORKDIR /app
                     COPY backend/pom.xml ./
-                    RUN mvn -q -DskipTests dependency:resolve || true
+                    RUN timeout 90 mvn -q -DskipTests dependency:go-offline || true
                     COPY backend/ ./
                     RUN mkdir -p src/main/resources && \\
                         if [ -f application.yml ]; then cp application.yml src/main/resources/application.yml; fi && \\
                         if [ -f resources/application.yml ]; then cp resources/application.yml src/main/resources/application.yml; fi
                     %s
                     RUN rm -rf /root/.m2/repository/commons-io/commons-io/2.6 && \\
-                        (mvn -q -DskipTests %s package || mvn -q -DskipTests -U %s package)
-                    FROM eclipse-temurin:17-jre
+                        (mvn -q -DskipTests %s package -Dmaven.wagon.http.retryHandler.count=3 || mvn -q -DskipTests -U %s package -Dmaven.wagon.http.retryHandler.count=3)
+                    FROM eclipse-temurin:17-jre-alpine
                     WORKDIR /app
                     COPY --from=build /app/target/*.jar app.jar
                     ENV SERVER_PORT=8080
@@ -725,17 +725,17 @@ public class DockerDeployService {
         String copyCommands = copySteps.isEmpty() ? "" : "RUN " + String.join(" && \\\n    ", copySteps) + "\n";
         String pomStep = "RUN printf '%%s\\n' '<project xmlns=\"http://maven.apache.org/POM/4.0.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd\">' '<modelVersion>4.0.0</modelVersion>' '<parent><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-parent</artifactId><version>3.2.0</version><relativePath/></parent>' '<groupId>agentoffice.generated</groupId><artifactId>generated-backend</artifactId><version>1.0.0</version>' '<properties><java.version>17</java.version></properties>' '<dependencies><dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency><dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-validation</artifactId></dependency>" + databaseDependencies + "</dependencies>' '<build><plugins><plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin></plugins></build>' '</project>' > pom.xml";
         return """
-                FROM maven:3.9-eclipse-temurin-17 AS build
+                FROM maven:3.9-eclipse-temurin-17-alpine AS build
                 WORKDIR /app
                 %s
-                RUN mvn -q -DskipTests dependency:resolve || true
+                RUN timeout 90 mvn -q -DskipTests dependency:go-offline || true
                 COPY backend/ /tmp/backend/
                 RUN mkdir -p src/main/resources && \\
                     if [ -f /tmp/backend/application.yml ]; then cp /tmp/backend/application.yml src/main/resources/application.yml; fi
                 %s
                 RUN rm -rf /root/.m2/repository/commons-io/commons-io/2.6 && \\
-                    (mvn -q -DskipTests package || mvn -q -DskipTests -U package)
-                FROM eclipse-temurin:17-jre
+                    (mvn -q -DskipTests package -Dmaven.wagon.http.retryHandler.count=3 || mvn -q -DskipTests -U package -Dmaven.wagon.http.retryHandler.count=3)
+                FROM eclipse-temurin:17-jre-alpine
                 WORKDIR /app
                 COPY --from=build /app/target/*.jar app.jar
                 ENV SERVER_PORT=8080
