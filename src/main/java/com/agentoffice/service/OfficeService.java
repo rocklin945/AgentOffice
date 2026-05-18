@@ -1068,6 +1068,8 @@ public class OfficeService {
 
                 **健康检查规则**：创建后端接口时必须同时创建健康检查接口 GET /api/health，返回 2xx 状态码和可读的健康状态内容，供运维部署界面检测服务可用性。
 
+                **数据库编码规则**：如果项目使用 MySQL，SQL 初始化文件必须保存为 UTF-8，并在文件开头写 SET NAMES utf8mb4;；建库建表必须使用 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci；连接配置必须通过 SPRING_DATASOURCE_URL、SPRING_DATASOURCE_USERNAME、SPRING_DATASOURCE_PASSWORD 读取部署环境变量，URL 必须包含 useUnicode=true&characterEncoding=utf8，不要在代码里硬编码 localhost/root/root。
+
                 完成后请在最终回复中 @%DISPATCHER% 汇报：「后端代码已完成」，并附上后端代码 filePath。**不要 @ 前端、CodeReviewer、运维等其他员工。**
 
                 """).replace("%DISPATCHER%", dispatcherName);
@@ -1684,7 +1686,7 @@ public class OfficeService {
             return "前端接口调用必须使用相对路径 /api/xxx；部署后由 nginx 转发到后端，不要写 localhost、容器名、后端端口或完整后端域名。";
         }
         if (role.contains("后端")) {
-            return "后端创建接口时必须同时提供 GET /api/health 健康检查接口，返回 2xx 状态码和可读健康状态内容。";
+            return "后端创建接口时必须同时提供 GET /api/health 健康检查接口，返回 2xx 状态码和可读健康状态内容。MySQL 项目必须使用 UTF-8/utf8mb4：SQL 文件开头写 SET NAMES utf8mb4;，建库建表使用 utf8mb4，连接配置读取 SPRING_DATASOURCE_* 环境变量并包含 useUnicode=true&characterEncoding=utf8，禁止硬编码 localhost/root/root。";
         }
         return "";
     }

@@ -495,7 +495,7 @@ public class DockerDeployService {
             ensureSharedMysql(projectDeployDir.resolve("mysql-init"), dbName, projectName);
         }
         String databaseEnvironment = plan.database() ? """
-                      SPRING_DATASOURCE_URL: "jdbc:mysql://%s:3306/%s?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&connectTimeout=10000&socketTimeout=30000"
+                      SPRING_DATASOURCE_URL: "jdbc:mysql://%s:3306/%s?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&connectTimeout=10000&socketTimeout=30000"
                       SPRING_DATASOURCE_USERNAME: "%s"
                       SPRING_DATASOURCE_PASSWORD: "%s"
                       MYSQL_HOST: "%s"
@@ -613,7 +613,7 @@ public class DockerDeployService {
     }
 
     private String javaSourceNormalizeCommands(Path backendDir) throws IOException {
-        StringBuilder commands = new StringBuilder();
+        List<String> cmds = new ArrayList<>();
         try (Stream<Path> paths = Files.walk(backendDir, 8)) {
             paths.filter(Files::isRegularFile)
                     .filter(path -> path.getFileName().toString().endsWith(".java"))
@@ -626,14 +626,13 @@ public class DockerDeployService {
                             Path relative = backendDir.relativize(path);
                             String source = relative.toString().replace("\\", "/");
                             String targetDir = packageDir.isBlank() ? "src/main/java" : "src/main/java/" + packageDir;
-                            commands.append("RUN mkdir -p ").append(targetDir)
-                                    .append(" && cp ").append(shellQuote(source))
-                                    .append(" ").append(shellQuote(targetDir + "/" + path.getFileName())).append("\n");
+                            cmds.add("mkdir -p " + targetDir + " && cp " + shellQuote(source) + " " + shellQuote(targetDir + "/" + path.getFileName()));
                         } catch (IOException ignored) {
                         }
                     });
         }
-        return commands.toString();
+        if (cmds.isEmpty()) return "";
+        return "RUN " + String.join(" && \\\n    ", cmds) + "\n";
     }
 
     private Optional<String> findSpringBootMainClass(Path backendDir) throws IOException {
@@ -684,20 +683,22 @@ public class DockerDeployService {
             return """
                     FROM maven:3.9-eclipse-temurin-17 AS build
                     WORKDIR /app
+                    COPY backend/pom.xml ./
+                    RUN mvn -q -DskipTests dependency:resolve || true
                     COPY backend/ ./
                     RUN mkdir -p src/main/resources && \\
                         if [ -f application.yml ]; then cp application.yml src/main/resources/application.yml; fi && \\
                         if [ -f resources/application.yml ]; then cp resources/application.yml src/main/resources/application.yml; fi
                     %s
                     RUN rm -rf /root/.m2/repository/commons-io/commons-io/2.6 && \\
-                        (mvn -q -DskipTests %s package || mvn -q -DskipTests -U %s package || mvn -q -DskipTests -U %s package)
+                        (mvn -q -DskipTests %s package || mvn -q -DskipTests -U %s package)
                     FROM eclipse-temurin:17-jre
                     WORKDIR /app
                     COPY --from=build /app/target/*.jar app.jar
                     ENV SERVER_PORT=8080
                     EXPOSE 8080
                     CMD ["java", "-jar", "app.jar"]
-                    """.formatted(normalizeCommands, mainClassOption, mainClassOption, mainClassOption);
+                    """.formatted(normalizeCommands, mainClassOption, mainClassOption);
         }
         Path anyJavaFile;
         try (var walk = Files.walk(backendDir, 5)) {
@@ -709,36 +710,38 @@ public class DockerDeployService {
         String databaseDependencies = database
                 ? "<dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-jdbc</artifactId></dependency><dependency><groupId>com.mysql</groupId><artifactId>mysql-connector-j</artifactId><scope>runtime</scope></dependency>"
                 : "";
-        StringBuilder copyCommands = new StringBuilder();
+        List<String> copySteps = new ArrayList<>();
         try (Stream<Path> paths = Files.walk(projectPath.resolve("backend"))) {
             paths.filter(Files::isRegularFile)
                     .filter(path -> path.toString().endsWith(".java"))
                     .forEach(path -> {
                         Path relative = projectPath.resolve("backend").relativize(path);
                         String parent = relative.getParent() == null ? "" : "/" + relative.getParent().toString().replace("\\", "/");
-                        copyCommands.append("RUN mkdir -p src/main/java/").append(packagePath).append(parent)
-                                .append(" && cp /tmp/backend/").append(relative.toString().replace("\\", "/"))
-                                .append(" src/main/java/").append(packagePath).append(parent).append("/\n");
+                        copySteps.add("mkdir -p src/main/java/" + packagePath + parent
+                                + " && cp /tmp/backend/" + relative.toString().replace("\\", "/")
+                                + " src/main/java/" + packagePath + parent + "/");
                     });
         }
+        String copyCommands = copySteps.isEmpty() ? "" : "RUN " + String.join(" && \\\n    ", copySteps) + "\n";
         String pomStep = "RUN printf '%%s\\n' '<project xmlns=\"http://maven.apache.org/POM/4.0.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd\">' '<modelVersion>4.0.0</modelVersion>' '<parent><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-parent</artifactId><version>3.2.0</version><relativePath/></parent>' '<groupId>agentoffice.generated</groupId><artifactId>generated-backend</artifactId><version>1.0.0</version>' '<properties><java.version>17</java.version></properties>' '<dependencies><dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency><dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-validation</artifactId></dependency>" + databaseDependencies + "</dependencies>' '<build><plugins><plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin></plugins></build>' '</project>' > pom.xml";
         return """
                 FROM maven:3.9-eclipse-temurin-17 AS build
                 WORKDIR /app
-                COPY backend/ /tmp/backend/
-                RUN mkdir -p src/main/resources
-                RUN if [ -f /tmp/backend/application.yml ]; then cp /tmp/backend/application.yml src/main/resources/application.yml; fi
                 %s
+                RUN mvn -q -DskipTests dependency:resolve || true
+                COPY backend/ /tmp/backend/
+                RUN mkdir -p src/main/resources && \\
+                    if [ -f /tmp/backend/application.yml ]; then cp /tmp/backend/application.yml src/main/resources/application.yml; fi
                 %s
                 RUN rm -rf /root/.m2/repository/commons-io/commons-io/2.6 && \\
-                    (mvn -q -DskipTests package || mvn -q -DskipTests -U package || mvn -q -DskipTests -U package)
+                    (mvn -q -DskipTests package || mvn -q -DskipTests -U package)
                 FROM eclipse-temurin:17-jre
                 WORKDIR /app
                 COPY --from=build /app/target/*.jar app.jar
                 ENV SERVER_PORT=8080
                 EXPOSE 8080
                 CMD ["java", "-jar", "app.jar"]
-                """.formatted(copyCommands, pomStep);
+                """.formatted(pomStep, copyCommands);
     }
 
 
@@ -988,12 +991,13 @@ public class DockerDeployService {
     }
 
     private void initializeSharedDatabase(Path initDir, String dbName, String projectName) {
-        String createSql = "CREATE DATABASE IF NOT EXISTS `" + dbName + "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; "
+        String createSql = "SET NAMES utf8mb4; "
+                + "CREATE DATABASE IF NOT EXISTS `" + dbName + "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; "
                 + "CREATE USER IF NOT EXISTS '" + MYSQL_APP_USER + "'@'%' IDENTIFIED BY '" + MYSQL_APP_PASSWORD + "'; "
                 + "GRANT ALL PRIVILEGES ON `" + dbName + "`.* TO '" + MYSQL_APP_USER + "'@'%'; "
                 + "FLUSH PRIVILEGES;";
         CommandResult createDb = runDocker(true, RUN_TIMEOUT, "exec", SHARED_MYSQL_CONTAINER,
-                "mysql", "-uroot", "-p" + MYSQL_ROOT_PASSWORD, "-e", createSql);
+                "mysql", "--default-character-set=utf8mb4", "-uroot", "-p" + MYSQL_ROOT_PASSWORD, "-e", createSql);
         if (createDb.exitCode() != 0) {
             throw BusinessException.serverError("Shared MySQL database init failed:\n" + trimOutput(createDb.output(), 3000));
         }
@@ -1023,7 +1027,7 @@ public class DockerDeployService {
                 }
             }
             CommandResult importSql = runDocker(true, BUILD_TIMEOUT, "exec", SHARED_MYSQL_CONTAINER, "sh", "-c",
-                    "for f in " + containerDir + "/*.sql; do [ -f \"$f\" ] && mysql -uroot -p" + MYSQL_ROOT_PASSWORD
+                    "for f in " + containerDir + "/*.sql; do [ -f \"$f\" ] && mysql --default-character-set=utf8mb4 -uroot -p" + MYSQL_ROOT_PASSWORD
                             + " " + dbName + " < \"$f\"; done");
             if (importSql.exitCode() != 0) {
                 throw BusinessException.serverError("Shared MySQL schema import failed:\n" + trimOutput(importSql.output(), 3000));
