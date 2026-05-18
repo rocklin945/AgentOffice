@@ -106,10 +106,14 @@ public class DevService {
         }
     }
 
+    private static final java.util.Set<String> EXCLUDED_DIRS = java.util.Set.of(
+            "target", "node_modules", ".git", ".mvn", ".idea", "__pycache__", ".gradle", "build");
+
     public List<DevFile> getFileTree(Long projectId) {
         Path projectRoot = findProjectRoot(projectId);
         try (Stream<Path> stream = Files.list(projectRoot)) {
             return stream.sorted(fileOrder())
+                    .filter(p -> !EXCLUDED_DIRS.contains(p.getFileName().toString()))
                     .map(path -> toDevFile(path, null, projectId, projectRoot))
                     .toList();
         } catch (IOException e) {
@@ -343,6 +347,7 @@ public class DevService {
         if (directory) {
             try (Stream<Path> stream = Files.list(normalized)) {
                 file.setChildren(stream.sorted(fileOrder())
+                        .filter(p -> !EXCLUDED_DIRS.contains(p.getFileName().toString()))
                         .map(child -> toDevFile(child, file.getId(), projectId, projectRoot))
                         .toList());
             } catch (IOException e) {

@@ -88,9 +88,9 @@ export default function Dev() {
         </button>
       </div>
       <div className="grid h-[calc(100vh-220px)] grid-cols-[280px_minmax(0,1fr)]">
-        <div className="overflow-hidden border-r border-[#edf1f8] bg-[#fbfcff] px-4 py-5">
-          <div className="mb-4 font-medium text-[#1d2740]">项目列表</div>
-          <div className="mb-4 space-y-1">
+        <div className="flex flex-col overflow-hidden border-r border-[#edf1f8] bg-[#fbfcff] px-4 py-5">
+          <div className="mb-4 shrink-0 font-medium text-[#1d2740]">项目列表</div>
+          <div className="mb-4 shrink-0 space-y-1">
             {projects.map((p) => (
               <div
                 key={p.id}
@@ -101,8 +101,8 @@ export default function Dev() {
               </div>
             ))}
           </div>
-          <div className="mb-3 font-medium text-[#1d2740]">文件资源管理器</div>
-          <div className="max-h-[calc(100vh-420px)] space-y-1 overflow-auto pr-1 pb-4">
+          <div className="mb-3 shrink-0 font-medium text-[#1d2740]">文件资源管理器</div>
+          <div className="min-h-0 flex-1 space-y-1 overflow-auto pr-1 pb-4">
             {files.map((file, index) => (
               <div
                 key={`${file.id}-${index}`}
