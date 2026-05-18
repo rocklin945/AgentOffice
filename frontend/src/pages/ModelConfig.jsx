@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { DeleteOutlined, EditOutlined, EyeInvisibleOutlined, EyeOutlined, PlusOutlined, StarFilled } from '@ant-design/icons';
 import { modelConfigApi } from '../api';
-import { Panel, StatusPill } from '../components/AppPrimitives';
+import { Panel, PaginationControls, StatusPill } from '../components/AppPrimitives';
 
 const emptyForm = {
   configName: '',
@@ -93,6 +93,8 @@ export default function ModelConfig() {
   const [editing, setEditing] = useState(null);
   const [creating, setCreating] = useState(false);
   const [visibleKeys, setVisibleKeys] = useState({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const maskApiKey = (apiKey) => {
     if (!apiKey) return '-';
@@ -102,6 +104,11 @@ export default function ModelConfig() {
 
   const reload = () => modelConfigApi.getList().then((res) => setModels(res.data || [])).catch(() => setModels([]));
   useEffect(() => { reload(); }, []);
+  useEffect(() => { setCurrentPage(1); }, [models.length]);
+  const paginatedModels = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return models.slice(start, start + pageSize);
+  }, [models, currentPage, pageSize]);
 
   const setDefault = async (model) => {
     await modelConfigApi.setDefault(model.id);
@@ -127,7 +134,7 @@ export default function ModelConfig() {
           <div className="grid grid-cols-[1.1fr_0.9fr_1.1fr_1.2fr_1.25fr_0.7fr_0.7fr_0.9fr] bg-[#fbfcff] px-4 py-3 text-[12px] text-[#8d99ae]">
             <div>配置名称</div><div>供应商</div><div>模型</div><div>API Base</div><div>API Key</div><div>默认</div><div>状态</div><div>操作</div>
           </div>
-          {models.map((model, index) => (
+          {paginatedModels.map((model, index) => (
             <div key={model.id} className={`grid grid-cols-[1.1fr_0.9fr_1.1fr_1.2fr_1.25fr_0.7fr_0.7fr_0.9fr] items-center px-4 py-4 text-[13px] text-[#5f6d83] ${index ? 'border-t border-[#f1f4f8]' : ''}`}>
               <div className="font-medium text-[#1d2740]">{model.configName}</div>
               <div>{model.provider || '-'}</div>
@@ -151,6 +158,7 @@ export default function ModelConfig() {
             </div>
           ))}
           {!models.length ? <div className="px-4 py-10 text-center text-[13px] text-[#8d99ae]">暂无模型配置</div> : null}
+          <PaginationControls page={currentPage} pageSize={pageSize} total={models.length} onPageChange={setCurrentPage} onPageSizeChange={setPageSize} />
         </div>
       </Panel>
       {creating ? <ModelModal onClose={() => setCreating(false)} onSaved={reload} /> : null}

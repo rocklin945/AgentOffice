@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { employeeApi, taskApi } from '../api';
-import { Panel, StatusPill } from '../components/AppPrimitives';
+import { Panel, PaginationControls, StatusPill } from '../components/AppPrimitives';
 import { taskRow } from '../pageData';
 
 function CreateTaskModal({ onClose, onCreated }) {
@@ -168,6 +168,8 @@ export default function Tasks() {
   const [editingTask, setEditingTask] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const tabs = [{ key: 'all', label: '全部任务' }, { key: 'product', label: '需求规划' }, { key: 'development', label: '开发任务' }, { key: 'review', label: '代码审查' }, { key: 'deployment', label: '部署任务' }, { key: 'done', label: '已完成' }, { key: 'failed', label: '已失败' }];
 
   const reload = async () => {
@@ -181,6 +183,11 @@ export default function Tasks() {
   };
   useEffect(() => { reload(); employeeApi.getList().then((res) => setEmployees(res.data || [])).catch(() => {}); }, []);
   const visible = tasks.filter((task) => activeTab === 'all' || (activeTab === 'product' && task.taskType === 'product') || (activeTab === 'development' && task.taskType === 'development') || (activeTab === 'review' && task.taskType === 'review') || (activeTab === 'deployment' && task.taskType === 'deployment') || (activeTab === 'done' && task.status === '已完成') || (activeTab === 'failed' && task.status === '已失败'));
+  useEffect(() => { setCurrentPage(1); }, [activeTab, tasks.length]);
+  const paginatedVisible = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return visible.slice(start, start + pageSize);
+  }, [visible, currentPage, pageSize]);
   const deleteTask = async (task, event) => {
     event.stopPropagation();
     await taskApi.delete(task.id);
@@ -210,8 +217,8 @@ export default function Tasks() {
             <div>创建时间</div>
             <div>操作</div>
           </div>
-          {visible.map((task, index) => (
-            <div key={task.id} className={`grid grid-cols-[1.7fr_0.7fr_1.4fr_0.9fr_1.2fr_0.7fr] items-center px-4 py-4 text-[13px] text-[#5f6d83] ${index !== visible.length - 1 ? 'border-t border-[#f1f4f8]' : ''}`}>
+          {paginatedVisible.map((task, index) => (
+            <div key={task.id} className={`grid grid-cols-[1.7fr_0.7fr_1.4fr_0.9fr_1.2fr_0.7fr] items-center px-4 py-4 text-[13px] text-[#5f6d83] ${index !== paginatedVisible.length - 1 ? 'border-t border-[#f1f4f8]' : ''}`}>
               <div>{task.name}</div>
               <div className={task.level === '高' ? 'text-[#ff6a5f]' : task.level === '中' ? 'text-[#ff9b42]' : 'text-[#2bb36b]'}>{task.level}</div>
               <div>{task.owner}</div>
@@ -227,6 +234,7 @@ export default function Tasks() {
               </div>
             </div>
           ))}
+          <PaginationControls page={currentPage} pageSize={pageSize} total={visible.length} onPageChange={setCurrentPage} onPageSizeChange={setPageSize} />
         </div>
       </Panel>
       {createOpen ? <CreateTaskModal onClose={() => setCreateOpen(false)} onCreated={reload} /> : null}

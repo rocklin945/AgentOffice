@@ -47,6 +47,83 @@ export function MetricCard({ label, value, trend, icon, iconClass = '' }) {
   );
 }
 
+export function PaginationControls({
+  page,
+  pageSize,
+  total,
+  onPageChange,
+  onPageSizeChange,
+  pageSizeOptions = [5, 10, 20],
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = Math.min(Math.max(page, 1), totalPages);
+  const start = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const end = Math.min(currentPage * pageSize, total);
+  const pages = Array.from({ length: totalPages }, (_, index) => index + 1)
+    .filter((item) => Math.abs(item - currentPage) <= 2 || item === 1 || item === totalPages);
+
+  const changePageSize = (event) => {
+    onPageSizeChange(Number(event.target.value));
+    onPageChange(1);
+  };
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#edf1f8] bg-white px-4 py-3 text-[12px] text-[#7b879f]">
+      <div>
+        共 {total} 条，显示 {start}-{end}
+      </div>
+      <div className="flex items-center gap-2">
+        <select
+          value={pageSize}
+          onChange={changePageSize}
+          className="h-8 rounded-[8px] border border-[#dfe7f5] bg-white px-2 outline-none focus:border-[#2f6bff]"
+        >
+          {pageSizeOptions.map((option) => (
+            <option key={option} value={option}>
+              {option} 条/页
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          disabled={currentPage <= 1}
+          onClick={() => onPageChange(currentPage - 1)}
+          className="h-8 rounded-[8px] border border-[#dfe7f5] px-3 text-[#526078] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          上一页
+        </button>
+        {pages.map((item, index) => {
+          const previous = pages[index - 1];
+          return (
+            <React.Fragment key={item}>
+              {previous && item - previous > 1 ? <span className="px-1 text-[#a5afc0]">...</span> : null}
+              <button
+                type="button"
+                onClick={() => onPageChange(item)}
+                className={`h-8 min-w-8 rounded-[8px] border px-2 ${
+                  item === currentPage
+                    ? 'border-[#2f6bff] bg-[#2f6bff] text-white'
+                    : 'border-[#dfe7f5] text-[#526078]'
+                }`}
+              >
+                {item}
+              </button>
+            </React.Fragment>
+          );
+        })}
+        <button
+          type="button"
+          disabled={currentPage >= totalPages}
+          onClick={() => onPageChange(currentPage + 1)}
+          className="h-8 rounded-[8px] border border-[#dfe7f5] px-3 text-[#526078] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          下一页
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function LineChart({
   labels,
   series,

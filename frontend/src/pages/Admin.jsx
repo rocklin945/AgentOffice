@@ -11,6 +11,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { adminApi, analyticsApi, deployApi, employeeApi, taskApi } from '../api';
+import { PaginationControls } from '../components/AppPrimitives';
 
 const menuItems = [
   { key: 'dashboard', label: '管理面板', icon: <DashboardOutlined /> },
@@ -63,6 +64,97 @@ function Dashboard({ employees, tasks, services, dashboard }) {
           yAxis: { type: 'value', axisLabel: { color: '#8d99ae' }, splitLine: { lineStyle: { color: '#eef2f8' } } },
           color: ['#2f6bff'],
           series: [{ type: 'bar', data: employees.map((item) => item.taskCount || 0), barWidth: 24, itemStyle: { borderRadius: [6, 6, 0, 0] } }],
+        }} />
+      </div>
+    </div>
+  );
+}
+
+function DashboardPanel({ employees, tasks, services, dashboard }) {
+  const taskTypeItems = [
+    { key: 'product', label: '需求规划' },
+    { key: 'development', label: '开发任务' },
+    { key: 'review', label: '代码审查' },
+    { key: 'deployment', label: '部署任务' },
+  ];
+  const taskResultItems = [
+    { key: 'all', label: '全部任务' },
+    { key: 'done', label: '已完成' },
+    { key: 'failed', label: '已失败' },
+  ];
+  const taskStatus = (task) => task.status || '';
+  const employeeName = (employee, index) => (
+    employee.name
+    || employee.nickname
+    || employee.username
+    || employee.employeeName
+    || employee.executorName
+    || `员工${employee.id || index + 1}`
+  );
+  const employeeRows = employees.map((employee, index) => ({
+    name: employeeName(employee, index),
+    taskCount: Number(employee.taskCount || employee.tasks || 0),
+  })).sort((left, right) => right.taskCount - left.taskCount);
+  const stats = [
+    { label: '员工总数', value: employees.length, color: '#2bb36b' },
+    { label: '任务总数', value: dashboard?.totalTasks || tasks.length, color: '#ff9b42' },
+    { label: '完成任务', value: dashboard?.completedTasks || tasks.filter((task) => taskStatus(task) === '已完成').length, color: '#4f8dff' },
+    { label: '服务总数', value: services.length, color: '#f5a544' },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-4 gap-4">
+        {stats.map((stat) => (
+          <div key={stat.label} className="rounded-[14px] border border-[#edf1f8] bg-white p-4">
+            <div className="text-[12px] text-[#8d99ae]">{stat.label}</div>
+            <div className="mt-2 text-[24px] font-semibold" style={{ color: stat.color }}>{stat.value}</div>
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="rounded-[14px] border border-[#edf1f8] bg-white p-4">
+          <div className="mb-3 text-[14px] font-medium text-[#1d2740]">运行服务</div>
+          <div className="text-[32px] font-semibold text-[#2f6bff]">{services.filter((item) => item.status === '运行中').length}</div>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <ChartCard title="任务类型分布" option={{
+          tooltip: { trigger: 'item' },
+          legend: { bottom: 0 },
+          color: ['#2f6bff', '#39c3a5', '#8b5cf6', '#ff9b42'],
+          series: [{
+            type: 'pie',
+            radius: ['42%', '68%'],
+            center: ['50%', '44%'],
+            data: taskTypeItems.map((item) => ({ name: item.label, value: tasks.filter((task) => task.taskType === item.key).length })),
+          }],
+        }} />
+        <ChartCard title="任务结果分布" option={{
+          tooltip: { trigger: 'item' },
+          legend: { bottom: 0 },
+          color: ['#2f6bff', '#2bb36b', '#ff5c5c'],
+          series: [{
+            type: 'pie',
+            radius: ['42%', '68%'],
+            center: ['50%', '44%'],
+            data: taskResultItems.map((item) => ({
+              name: item.label,
+              value: item.key === 'all'
+                ? tasks.length
+                : tasks.filter((task) => (item.key === 'done' ? taskStatus(task) === '已完成' : taskStatus(task) === '已失败')).length,
+            })),
+          }],
+        }} />
+      </div>
+      <div className="grid grid-cols-1 gap-4">
+        <ChartCard title="员工任务数排行" option={{
+          tooltip: { trigger: 'axis' },
+          grid: { left: 36, right: 18, top: 28, bottom: 32 },
+          xAxis: { type: 'category', data: employeeRows.map((item) => item.name), axisLabel: { color: '#8d99ae', interval: 0 } },
+          yAxis: { type: 'value', axisLabel: { color: '#8d99ae' }, splitLine: { lineStyle: { color: '#eef2f8' } } },
+          color: ['#2f6bff'],
+          series: [{ type: 'bar', data: employeeRows.map((item) => item.taskCount), barWidth: 24, itemStyle: { borderRadius: [6, 6, 0, 0] } }],
         }} />
       </div>
     </div>
@@ -125,6 +217,10 @@ export default function Admin() {
   const [form] = Form.useForm();
   const [employeeStep, setEmployeeStep] = useState(0);
   const [employeeDraft, setEmployeeDraft] = useState(null);
+  const [tablePagination, setTablePagination] = useState({
+    current: 1,
+    pageSize: 10,
+  });
 
   const reload = async () => {
     try {
@@ -148,6 +244,9 @@ export default function Admin() {
     }
   };
   useEffect(() => { reload(); }, []);
+  useEffect(() => {
+    setTablePagination((current) => ({ ...current, current: 1 }));
+  }, [activeMenu]);
 
   const openEdit = (type, record) => {
     setEditing({ type, record });
@@ -301,8 +400,32 @@ export default function Admin() {
   };
 
   const renderContent = () => {
-    if (activeMenu === 'dashboard') return <Dashboard employees={data.employees} tasks={data.tasks} services={data.services} dashboard={data.dashboard} />;
-    return <><div className="mb-4 text-[16px] font-medium text-[#1d2740]">{menuItems.find((m) => m.key === activeMenu)?.label}</div><Table columns={columnsMap[activeMenu]} dataSource={data[activeMenu]} rowKey="id" pagination={{ pageSize: 5 }} /></>;
+    if (activeMenu === 'dashboard') return <DashboardPanel employees={data.employees} tasks={data.tasks} services={data.services} dashboard={data.dashboard} />;
+    const rows = data[activeMenu] || [];
+    const start = (tablePagination.current - 1) * tablePagination.pageSize;
+    const paginatedRows = rows.slice(start, start + tablePagination.pageSize);
+    return (
+      <>
+        <div className="mb-4 text-[16px] font-medium text-[#1d2740]">
+          {menuItems.find((m) => m.key === activeMenu)?.label}
+        </div>
+        <div className="overflow-hidden rounded-[14px] border border-[#edf1f8] bg-white">
+          <Table
+            columns={columnsMap[activeMenu]}
+            dataSource={paginatedRows}
+            rowKey="id"
+            pagination={false}
+          />
+          <PaginationControls
+            page={tablePagination.current}
+            pageSize={tablePagination.pageSize}
+            total={rows.length}
+            onPageChange={(current) => setTablePagination((state) => ({ ...state, current }))}
+            onPageSizeChange={(pageSize) => setTablePagination({ current: 1, pageSize })}
+          />
+        </div>
+      </>
+    );
   };
 
   const renderEmployeeEditStep = () => {

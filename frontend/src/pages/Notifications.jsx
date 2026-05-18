@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { BellOutlined, CheckCircleOutlined, DeleteOutlined, InboxOutlined } from '@ant-design/icons';
 import { notificationApi } from '../api';
-import { Panel, StatusPill } from '../components/AppPrimitives';
+import { Panel, PaginationControls, StatusPill } from '../components/AppPrimitives';
 import MarkdownMessage from '../components/MarkdownMessage';
 
 const categoryColor = {
@@ -21,6 +21,8 @@ export default function Notifications() {
   const [activeFilter, setActiveFilter] = useState('all');
   const [markingAll, setMarkingAll] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const reload = async () => {
     try {
@@ -46,6 +48,13 @@ export default function Notifications() {
     if (activeFilter === 'unread') return !item.readStatus;
     return item.category === activeFilter;
   });
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeFilter, notifications.length]);
+  const paginatedVisible = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return visible.slice(start, start + pageSize);
+  }, [visible, currentPage, pageSize]);
 
   const markRead = async (item, event) => {
     event.stopPropagation();
@@ -140,7 +149,7 @@ export default function Notifications() {
         </div>
 
         <div className="mt-5 overflow-hidden rounded-[14px] border border-[#edf1f8]">
-          {visible.map((item, index) => (
+          {paginatedVisible.map((item, index) => (
             <div
               key={item.id}
               className={`${index ? 'border-t border-[#f1f4f8]' : ''} ${item.readStatus ? 'bg-white' : 'bg-[#f8fbff]'}`}
@@ -186,6 +195,7 @@ export default function Notifications() {
           {!visible.length ? (
             <div className="px-5 py-12 text-center text-[13px] text-[#8d99ae]">暂无消息通知</div>
           ) : null}
+          <PaginationControls page={currentPage} pageSize={pageSize} total={visible.length} onPageChange={setCurrentPage} onPageSizeChange={setPageSize} />
         </div>
       </Panel>
     </div>

@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { UserOutlined, CheckCircleFilled, CloseCircleFilled, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { employeeApi, modelConfigApi } from '../api';
-import { Panel, StatusPill } from '../components/AppPrimitives';
+import { Panel, PaginationControls, StatusPill } from '../components/AppPrimitives';
 import { getAvatarColor } from '../utils';
 import { buildEmployeePageData } from '../pageData';
 
@@ -308,6 +308,8 @@ export default function Employees() {
   const [modelConfigs, setModelConfigs] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [editingEmployee, setEditingEmployee] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const reload = async () => {
     try {
@@ -337,6 +339,15 @@ export default function Employees() {
     reload();
   }, []);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [employees.length]);
+
+  const paginatedEmployees = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return employees.slice(start, start + pageSize);
+  }, [employees, currentPage, pageSize]);
+
   const getStatusColor = (status) => {
     if (status === '编码中') return 'green';
     if (status === 'Review中') return 'blue';
@@ -363,11 +374,12 @@ export default function Employees() {
             </div>
             <div className="mt-5 overflow-hidden rounded-[14px] border border-[#edf1f8]">
               <div className="grid grid-cols-[1.4fr_1.1fr_1fr_1.2fr_0.7fr_0.7fr] bg-[#fbfcff] px-4 py-3 text-[12px] text-[#8d99ae]"><div>员工信息</div><div>角色</div><div>状态</div><div>模型</div><div>任务</div><div>操作</div></div>
-              {employees.map((emp, index) => (
-                <div key={emp.id || emp.name} className={`grid grid-cols-[1.4fr_1.1fr_1fr_1.2fr_0.7fr_0.7fr] cursor-pointer items-center px-4 py-4 text-[13px] text-[#5f6d83] transition-colors ${index !== employees.length - 1 ? 'border-t border-[#f1f4f8]' : ''} ${selectedEmployee?.name === emp.name ? 'bg-[#f7fbff]' : 'hover:bg-[#fafbff]'}`} onClick={() => setSelectedEmployee(emp)}>
+              {paginatedEmployees.map((emp, index) => (
+                <div key={emp.id || emp.name} className={`grid grid-cols-[1.4fr_1.1fr_1fr_1.2fr_0.7fr_0.7fr] cursor-pointer items-center px-4 py-4 text-[13px] text-[#5f6d83] transition-colors ${index !== paginatedEmployees.length - 1 ? 'border-t border-[#f1f4f8]' : ''} ${selectedEmployee?.name === emp.name ? 'bg-[#f7fbff]' : 'hover:bg-[#fafbff]'}`} onClick={() => setSelectedEmployee(emp)}>
                   <AvatarToken employee={emp} /><div>{emp.role}</div><div><StatusPill color={getStatusColor(emp.status)}>{emp.status}</StatusPill></div><div className="truncate pr-2">{emp.modelConfigName || emp.modelName || '默认模型'}</div><div>{emp.tasks}</div><div className="flex gap-2"><button type="button" title="编辑" onClick={(event) => { event.stopPropagation(); setEditingEmployee(emp); }} className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[#2f6bff] hover:bg-[#eef4ff]"><EditOutlined /></button><button type="button" title="删除" onClick={(event) => deleteEmployee(emp, event)} className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[#ff5c5c] hover:bg-[#fff1f1]"><DeleteOutlined /></button></div>
                 </div>
               ))}
+              <PaginationControls page={currentPage} pageSize={pageSize} total={employees.length} onPageChange={setCurrentPage} onPageSizeChange={setPageSize} />
             </div>
           </Panel>
         </div>
