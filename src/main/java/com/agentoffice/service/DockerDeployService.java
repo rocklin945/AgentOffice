@@ -305,7 +305,7 @@ public class DockerDeployService {
         boolean hasFrontend = Files.exists(projectPath.resolve("frontend").resolve("index.html"))
                 || Files.exists(projectPath.resolve("frontend").resolve("package.json"));
         boolean hasNodeBackend = Files.exists(projectPath.resolve("backend").resolve("package.json"));
-        boolean hasJavaBackend = Files.exists(projectPath.resolve("backend").resolve("Main.java"));
+        boolean hasJavaBackend = hasJavaBackend(projectPath.resolve("backend"));
         if (hasFrontend && hasNodeBackend) {
             return new AppPlan("FULL_STACK_NODE", true, true, true, true, hasDatabase, 80, 3000, "Deploy frontend and Node backend with Docker Compose");
         }
@@ -327,7 +327,7 @@ public class DockerDeployService {
         if (Files.exists(projectPath.resolve("backend").resolve("package.json"))) {
             return new AppPlan("NODE_BACKEND", true, false, false, true, hasDatabase, 3000, null, "Run backend Node project with npm start");
         }
-        if (Files.exists(projectPath.resolve("backend").resolve("Main.java"))) {
+        if (hasJavaBackend(projectPath.resolve("backend"))) {
             return new AppPlan("JAVA_BACKEND", true, false, false, true, hasDatabase, 8080, null, "Run backend Java project");
         }
         return new AppPlan("UNKNOWN", false, false, false, false, hasDatabase, 80, null, "No Dockerfile, package.json, or index.html found");
@@ -395,9 +395,19 @@ public class DockerDeployService {
         if (plan.database()) {
             Path initDir = projectDeployDir.resolve("mysql-init");
             Files.createDirectories(initDir);
-            Path schema = projectPath.resolve("backend").resolve("schema.sql");
-            if (Files.exists(schema)) {
-                Files.copy(schema, initDir.resolve("01-schema.sql"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            Path backendDir = projectPath.resolve("backend");
+            if (Files.isDirectory(backendDir)) {
+                try (var entries = Files.list(backendDir)) {
+                    List<Path> sqlFiles = entries
+                            .filter(p -> p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".sql"))
+                            .sorted()
+                            .toList();
+                    for (int i = 0; i < sqlFiles.size(); i++) {
+                        Path src = sqlFiles.get(i);
+                        String destName = String.format("%02d-%s", i + 1, src.getFileName());
+                        Files.copy(src, initDir.resolve(destName), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    }
+                }
             }
         }
         Files.writeString(projectDeployDir.resolve("Dockerfile.frontend"), frontendDockerfile(projectPath, plan), StandardCharsets.UTF_8);
@@ -421,18 +431,27 @@ public class DockerDeployService {
                       - "%s:/var/lib/mysql"
                     ports:
                       - "%d:3306"
+                    healthcheck:
+                      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "app_user", "-papp_password"]
+                      interval: 10s
+                      timeout: 5s
+                      retries: 10
+                      start_period: 30s
                 """.formatted(mysqlContainerName(projectName), databaseName(projectName),
                 escapePath(projectDeployDir.resolve("mysql-init")),
                 composeProjectName(projectName) + "_mysql_data",
                 findAvailablePort()) : "";
         String backendDepends = plan.database() ? """
                     depends_on:
-                      - mysql
+                      mysql:
+                        condition: service_healthy
                 """ : "";
         String databaseEnvironment = plan.database() ? """
-                      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/%s?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
+                      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/%s?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&connectTimeout=10000&socketTimeout=30000"
                       SPRING_DATASOURCE_USERNAME: "app_user"
                       SPRING_DATASOURCE_PASSWORD: "app_password"
+                      SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT: "60000"
+                      SPRING_DATASOURCE_HIKARI_MAX_LIFETIME: "1800000"
                       MYSQL_HOST: "mysql"
                       MYSQL_PORT: "3306"
                       MYSQL_DATABASE: "%s"
@@ -542,7 +561,13 @@ public class DockerDeployService {
     }
 
     private String javaBackendDockerfile(Path projectPath, boolean database) throws IOException {
-        String packageName = readJavaPackage(projectPath.resolve("backend").resolve("Main.java"));
+        Path backendDir = projectPath.resolve("backend");
+        Path anyJavaFile;
+        try (var walk = Files.walk(backendDir, 5)) {
+            anyJavaFile = walk.filter(p -> p.getFileName().toString().endsWith(".java"))
+                    .findFirst().orElse(backendDir.resolve("Main.java"));
+        }
+        String packageName = readJavaPackage(anyJavaFile);
         String packagePath = packageName.replace('.', '/');
         String databaseDependencies = database
                 ? "<dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-jdbc</artifactId></dependency><dependency><groupId>com.mysql</groupId><artifactId>mysql-connector-j</artifactId><scope>runtime</scope></dependency>"
@@ -559,6 +584,10 @@ public class DockerDeployService {
                                 .append(" src/main/java/").append(packagePath).append(parent).append("/\n");
                     });
         }
+        boolean hasOwnPom = Files.exists(backendDir.resolve("pom.xml"));
+        String pomStep = hasOwnPom
+                ? "RUN cp /tmp/backend/pom.xml pom.xml"
+                : ("RUN printf '%%s\\n' '<project xmlns=\"http://maven.apache.org/POM/4.0.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd\">' '<modelVersion>4.0.0</modelVersion>' '<parent><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-parent</artifactId><version>3.2.0</version><relativePath/></parent>' '<groupId>agentoffice.generated</groupId><artifactId>generated-backend</artifactId><version>1.0.0</version>' '<properties><java.version>17</java.version></properties>' '<dependencies><dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency><dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-validation</artifactId></dependency>" + databaseDependencies + "</dependencies>' '<build><plugins><plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin></plugins></build>' '</project>' > pom.xml");
         return """
                 FROM maven:3.9-eclipse-temurin-17 AS build
                 WORKDIR /app
@@ -566,7 +595,7 @@ public class DockerDeployService {
                 RUN mkdir -p src/main/resources
                 RUN if [ -f /tmp/backend/application.yml ]; then cp /tmp/backend/application.yml src/main/resources/application.yml; fi
                 %s
-                RUN printf '%%s\\n' '<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">' '<modelVersion>4.0.0</modelVersion>' '<parent><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-parent</artifactId><version>3.2.0</version><relativePath/></parent>' '<groupId>agentoffice.generated</groupId><artifactId>generated-backend</artifactId><version>1.0.0</version>' '<properties><java.version>17</java.version></properties>' '<dependencies><dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency><dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-validation</artifactId></dependency>%s</dependencies>' '<build><plugins><plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin></plugins></build>' '</project>' > pom.xml
+                %s
                 RUN mvn -q -DskipTests package
                 FROM eclipse-temurin:17-jre
                 WORKDIR /app
@@ -574,7 +603,7 @@ public class DockerDeployService {
                 ENV SERVER_PORT=8080
                 EXPOSE 8080
                 CMD ["java", "-jar", "app.jar"]
-                """.formatted(copyCommands, databaseDependencies);
+                """.formatted(copyCommands, pomStep);
     }
 
 
@@ -784,9 +813,25 @@ public class DockerDeployService {
         return "com.agentoffice.generated";
     }
 
+    private boolean hasJavaBackend(Path backendDir) {
+        if (!Files.isDirectory(backendDir)) return false;
+        if (Files.exists(backendDir.resolve("pom.xml"))) return true;
+        try (var entries = Files.walk(backendDir, 5)) {
+            return entries.anyMatch(p -> p.getFileName().toString().endsWith(".java"));
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
     private boolean requiresMysql(Path projectPath) {
-        if (Files.exists(projectPath.resolve("backend").resolve("schema.sql"))) {
-            return true;
+        Path backendDir = projectPath.resolve("backend");
+        if (Files.isDirectory(backendDir)) {
+            try (var entries = Files.list(backendDir)) {
+                if (entries.anyMatch(p -> p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".sql"))) {
+                    return true;
+                }
+            } catch (IOException ignored) {
+            }
         }
         Path deployConfig = projectPath.resolve("deploy.yml");
         if (Files.exists(deployConfig)) {
