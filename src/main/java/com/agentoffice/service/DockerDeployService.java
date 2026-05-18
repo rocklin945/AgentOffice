@@ -79,32 +79,51 @@ public class DockerDeployService {
             throw BusinessException.badRequest("Project is not deployable: " + plan.message());
         }
 
-        int internalPort = firstPositive(request == null ? null : request.getInternalPort(), plan.internalPort());
         int hostPort = firstPositive(request == null ? null : request.getPort(), findAvailablePort());
-        String containerName = containerName(projectName);
-        String imageName = imageName(projectName);
-
         Path projectDeployDir = deployRoot.resolve(projectName).normalize();
         ensureInside(deployRoot, projectDeployDir);
         try {
             Files.createDirectories(projectDeployDir);
-            Path dockerfile = prepareDockerfile(projectPath, projectDeployDir, plan);
-            CommandResult build = runDocker(true, BUILD_TIMEOUT, "build", "-t", imageName, "-f",
-                    dockerfile.toString(), projectPath.toString());
-            Files.writeString(projectDeployDir.resolve("last-build.log"), build.output(), StandardCharsets.UTF_8);
-            if (build.exitCode() != 0) {
-                throw BusinessException.serverError("Docker build failed:\n" + trimOutput(build.output(), 4000));
-            }
+            if (plan.compose()) {
+                int backendHostPort = firstPositive(request == null ? null : request.getBackendPort(), findAvailablePort());
+                Path composeFile = prepareComposeFiles(projectName, projectPath, projectDeployDir, plan, hostPort, backendHostPort);
+                // 先强制删除可能存在的同名容器,避免名称冲突
+                removeContainerIfExists(frontendContainerName(projectName));
+                removeContainerIfExists(backendContainerName(projectName));
+                if (plan.database()) {
+                    removeContainerIfExists(mysqlContainerName(projectName));
+                }
+                // 再执行 compose down 清理网络和卷(使用 -v 删除数据卷)
+                runDocker(false, QUICK_TIMEOUT, "compose", "-p", composeProjectName(projectName),
+                        "-f", composeFile.toString(), "down", "-v");
+                CommandResult up = runDocker(true, BUILD_TIMEOUT, "compose", "-p", composeProjectName(projectName),
+                        "-f", composeFile.toString(), "up", "-d", "--build");
+                Files.writeString(projectDeployDir.resolve("last-build.log"), up.output(), StandardCharsets.UTF_8);
+                if (up.exitCode() != 0) {
+                    throw BusinessException.serverError("Docker compose deploy failed:\n" + trimOutput(up.output(), 4000));
+                }
+            } else {
+                int internalPort = firstPositive(request == null ? null : request.getInternalPort(), plan.internalPort());
+                String containerName = containerName(projectName);
+                String imageName = imageName(projectName);
+                Path dockerfile = prepareDockerfile(projectPath, projectDeployDir, plan);
+                CommandResult build = runDocker(true, BUILD_TIMEOUT, "build", "-t", imageName, "-f",
+                        dockerfile.toString(), projectPath.toString());
+                Files.writeString(projectDeployDir.resolve("last-build.log"), build.output(), StandardCharsets.UTF_8);
+                if (build.exitCode() != 0) {
+                    throw BusinessException.serverError("Docker build failed:\n" + trimOutput(build.output(), 4000));
+                }
 
-            removeContainerIfExists(containerName);
-            CommandResult run = runDocker(true, RUN_TIMEOUT, "run", "-d",
-                    "--name", containerName,
-                    "--label", MANAGED_LABEL,
-                    "--label", "agentoffice.project=" + projectName,
-                    "-p", hostPort + ":" + internalPort,
-                    imageName);
-            if (run.exitCode() != 0) {
-                throw BusinessException.serverError("Docker run failed:\n" + trimOutput(run.output(), 4000));
+                removeContainerIfExists(containerName);
+                CommandResult run = runDocker(true, RUN_TIMEOUT, "run", "-d",
+                        "--name", containerName,
+                        "--label", MANAGED_LABEL,
+                        "--label", "agentoffice.project=" + projectName,
+                        "-p", hostPort + ":" + internalPort,
+                        imageName);
+                if (run.exitCode() != 0) {
+                    throw BusinessException.serverError("Docker run failed:\n" + trimOutput(run.output(), 4000));
+                }
             }
         } catch (IOException e) {
             throw BusinessException.serverError("Failed to prepare deployment: " + e.getMessage());
@@ -116,8 +135,10 @@ public class DockerDeployService {
     }
 
     public DockerProjectResponse start(String projectName) {
-        String containerName = containerName(projectName);
-        CommandResult result = runDocker(true, RUN_TIMEOUT, "start", containerName);
+        AppPlan plan = detectApp(resolveProject(projectName));
+        CommandResult result = plan.compose()
+                ? runDocker(true, RUN_TIMEOUT, "compose", "-p", composeProjectName(projectName), "-f", composeFile(projectName).toString(), "start")
+                : runDocker(true, RUN_TIMEOUT, "start", containerName(projectName));
         if (result.exitCode() != 0) {
             throw BusinessException.serverError("Docker start failed:\n" + trimOutput(result.output(), 3000));
         }
@@ -127,8 +148,10 @@ public class DockerDeployService {
     }
 
     public DockerProjectResponse stop(String projectName) {
-        String containerName = containerName(projectName);
-        CommandResult result = runDocker(true, RUN_TIMEOUT, "stop", containerName);
+        AppPlan plan = detectApp(resolveProject(projectName));
+        CommandResult result = plan.compose()
+                ? runDocker(true, RUN_TIMEOUT, "compose", "-p", composeProjectName(projectName), "-f", composeFile(projectName).toString(), "stop")
+                : runDocker(true, RUN_TIMEOUT, "stop", containerName(projectName));
         if (result.exitCode() != 0) {
             throw BusinessException.serverError("Docker stop failed:\n" + trimOutput(result.output(), 3000));
         }
@@ -138,8 +161,10 @@ public class DockerDeployService {
     }
 
     public DockerProjectResponse restart(String projectName) {
-        String containerName = containerName(projectName);
-        CommandResult result = runDocker(true, RUN_TIMEOUT, "restart", containerName);
+        AppPlan plan = detectApp(resolveProject(projectName));
+        CommandResult result = plan.compose()
+                ? runDocker(true, RUN_TIMEOUT, "compose", "-p", composeProjectName(projectName), "-f", composeFile(projectName).toString(), "restart")
+                : runDocker(true, RUN_TIMEOUT, "restart", containerName(projectName));
         if (result.exitCode() != 0) {
             throw BusinessException.serverError("Docker restart failed:\n" + trimOutput(result.output(), 3000));
         }
@@ -149,13 +174,23 @@ public class DockerDeployService {
     }
 
     public void remove(String projectName) {
-        removeContainerIfExists(containerName(projectName));
+        AppPlan plan = detectApp(resolveProject(projectName));
+        if (plan.compose() && Files.exists(composeFile(projectName))) {
+            CommandResult result = runDocker(true, RUN_TIMEOUT, "compose", "-p", composeProjectName(projectName),
+                    "-f", composeFile(projectName).toString(), "down", "--remove-orphans");
+            if (result.exitCode() != 0) {
+                throw BusinessException.serverError("Docker compose down failed:\n" + trimOutput(result.output(), 3000));
+            }
+        } else {
+            removeContainerIfExists(containerName(projectName));
+        }
         DockerProjectResponse response = getProject(projectName);
         syncProjectRecord(response);
     }
 
     public String getLogs(String projectName, Integer lines) {
         Path projectPath = resolveProject(projectName);
+        AppPlan plan = detectApp(projectPath);
         String containerName = containerName(projectPath.getFileName().toString());
         int lineCount = Math.max(20, Math.min(Optional.ofNullable(lines).orElse(200), 1000));
         StringBuilder logs = new StringBuilder();
@@ -171,7 +206,12 @@ public class DockerDeployService {
             logs.append("\n");
         }
 
-        if (containerExists(containerName)) {
+        if (plan.compose() && Files.exists(composeFile(projectName))) {
+            logs.append("===== docker compose logs =====\n");
+            CommandResult result = runDocker(false, QUICK_TIMEOUT, "compose", "-p", composeProjectName(projectName),
+                    "-f", composeFile(projectName).toString(), "logs", "--tail", String.valueOf(lineCount));
+            logs.append(result.output());
+        } else if (containerExists(containerName)) {
             logs.append("===== docker logs =====\n");
             CommandResult result = runDocker(false, QUICK_TIMEOUT, "logs", "--tail", String.valueOf(lineCount), containerName);
             logs.append(result.output());
@@ -184,20 +224,24 @@ public class DockerDeployService {
     private DockerProjectResponse buildProjectResponse(Path projectPath) {
         String projectName = projectPath.getFileName().toString();
         AppPlan plan = detectApp(projectPath);
-        ContainerInfo container = inspectContainer(containerName(projectName));
+        ContainerInfo container = inspectPrimaryContainer(projectName, plan);
+        ContainerInfo backendContainer = plan.hasBackend() ? inspectContainer(backendContainerName(projectName)) : new ContainerInfo(null, null, null, null);
 
         DockerProjectResponse response = new DockerProjectResponse();
         response.setProjectName(projectName);
         response.setDisplayName(toDisplayName(projectName));
         response.setAppType(plan.appType());
-        response.setStatus(container.status() == null ? "NOT_DEPLOYED" : container.status().toUpperCase(Locale.ROOT));
+        response.setStatus(resolveStatus(plan, container, backendContainer));
         response.setPath(projectPath.toString());
         response.setImageName(imageName(projectName));
         response.setContainerName(containerName(projectName));
         response.setContainerId(container.containerId());
         response.setPort(container.port());
+        response.setBackendPort(backendContainer.port());
         response.setInternalPort(plan.internalPort());
+        response.setInternalBackendPort(plan.backendPort());
         response.setUrl(container.port() == null ? "" : "http://localhost:" + container.port());
+        response.setBackendUrl(backendContainer.port() == null ? "" : "http://localhost:" + backendContainer.port());
         response.setDeployable(plan.deployable());
         response.setMessage(plan.message());
         return response;
@@ -253,25 +297,39 @@ public class DockerDeployService {
     }
 
     private AppPlan detectApp(Path projectPath) {
+        boolean hasDatabase = requiresMysql(projectPath);
         if (Files.exists(projectPath.resolve("Dockerfile"))) {
-            return new AppPlan("CUSTOM_DOCKERFILE", true, 80, "Use project Dockerfile");
+            return new AppPlan("CUSTOM_DOCKERFILE", true, false, false, false, hasDatabase, 80, null, "Use project Dockerfile");
+        }
+        boolean hasFrontend = Files.exists(projectPath.resolve("frontend").resolve("index.html"))
+                || Files.exists(projectPath.resolve("frontend").resolve("package.json"));
+        boolean hasNodeBackend = Files.exists(projectPath.resolve("backend").resolve("package.json"));
+        boolean hasJavaBackend = Files.exists(projectPath.resolve("backend").resolve("Main.java"));
+        if (hasFrontend && hasNodeBackend) {
+            return new AppPlan("FULL_STACK_NODE", true, true, true, true, hasDatabase, 80, 3000, "Deploy frontend and Node backend with Docker Compose");
+        }
+        if (hasFrontend && hasJavaBackend) {
+            return new AppPlan("FULL_STACK_JAVA", true, true, true, true, hasDatabase, 80, 8080, "Deploy frontend and Java backend with Docker Compose");
         }
         if (Files.exists(projectPath.resolve("frontend").resolve("package.json"))) {
-            return new AppPlan("NODE_FRONTEND", true, 80, "Build frontend with npm and serve dist with nginx");
+            return new AppPlan("NODE_FRONTEND", true, false, true, false, hasDatabase, 80, null, "Build frontend with npm and serve dist with nginx");
         }
         if (Files.exists(projectPath.resolve("frontend").resolve("index.html"))) {
-            return new AppPlan("STATIC_FRONTEND", true, 80, "Serve frontend directory with nginx");
+            return new AppPlan("STATIC_FRONTEND", true, false, true, false, hasDatabase, 80, null, "Serve frontend directory with nginx");
         }
         if (Files.exists(projectPath.resolve("package.json"))) {
-            return new AppPlan("NODE_APP", true, 3000, "Run root Node project with npm start");
+            return new AppPlan("NODE_APP", true, false, false, false, hasDatabase, 3000, null, "Run root Node project with npm start");
         }
         if (Files.exists(projectPath.resolve("index.html"))) {
-            return new AppPlan("STATIC_SITE", true, 80, "Serve project root with nginx");
+            return new AppPlan("STATIC_SITE", true, false, true, false, hasDatabase, 80, null, "Serve project root with nginx");
         }
         if (Files.exists(projectPath.resolve("backend").resolve("package.json"))) {
-            return new AppPlan("NODE_BACKEND", true, 3000, "Run backend Node project with npm start");
+            return new AppPlan("NODE_BACKEND", true, false, false, true, hasDatabase, 3000, null, "Run backend Node project with npm start");
         }
-        return new AppPlan("UNKNOWN", false, 80, "No Dockerfile, package.json, or index.html found");
+        if (Files.exists(projectPath.resolve("backend").resolve("Main.java"))) {
+            return new AppPlan("JAVA_BACKEND", true, false, false, true, hasDatabase, 8080, null, "Run backend Java project");
+        }
+        return new AppPlan("UNKNOWN", false, false, false, false, hasDatabase, 80, null, "No Dockerfile, package.json, or index.html found");
     }
 
     private Path prepareDockerfile(Path projectPath, Path projectDeployDir, AppPlan plan) throws IOException {
@@ -322,6 +380,7 @@ public class DockerDeployService {
                     EXPOSE 3000
                     CMD ["npm", "start"]
                     """;
+            case "JAVA_BACKEND" -> javaBackendDockerfile(projectPath, plan.database());
             default -> throw BusinessException.badRequest("Unsupported app type: " + plan.appType());
         };
 
@@ -329,6 +388,194 @@ public class DockerDeployService {
         Files.writeString(dockerfilePath, dockerfile, StandardCharsets.UTF_8);
         return dockerfilePath;
     }
+
+    private Path prepareComposeFiles(String projectName, Path projectPath, Path projectDeployDir,
+                                     AppPlan plan, int frontendHostPort, int backendHostPort) throws IOException {
+        if (plan.database()) {
+            Path initDir = projectDeployDir.resolve("mysql-init");
+            Files.createDirectories(initDir);
+            Path schema = projectPath.resolve("backend").resolve("schema.sql");
+            if (Files.exists(schema)) {
+                Files.copy(schema, initDir.resolve("01-schema.sql"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+        }
+        Files.writeString(projectDeployDir.resolve("Dockerfile.frontend"), frontendDockerfile(projectPath, plan), StandardCharsets.UTF_8);
+        String backendDockerfile = "FULL_STACK_JAVA".equals(plan.appType())
+                ? javaBackendDockerfile(projectPath, plan.database())
+                : nodeBackendDockerfile();
+        Files.writeString(projectDeployDir.resolve("Dockerfile.backend"), backendDockerfile, StandardCharsets.UTF_8);
+
+        String mysqlService = plan.database() ? """
+                  mysql:
+                    image: mysql:8.0
+                    container_name: "%s"
+                    environment:
+                      MYSQL_DATABASE: "%s"
+                      MYSQL_USER: "app_user"
+                      MYSQL_PASSWORD: "app_password"
+                      MYSQL_ROOT_PASSWORD: "root_password"
+                    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+                    volumes:
+                      - "%s:/docker-entrypoint-initdb.d:ro"
+                      - "%s:/var/lib/mysql"
+                    ports:
+                      - "%d:3306"
+                """.formatted(mysqlContainerName(projectName), databaseName(projectName),
+                escapePath(projectDeployDir.resolve("mysql-init")),
+                composeProjectName(projectName) + "_mysql_data",
+                findAvailablePort()) : "";
+        String backendDepends = plan.database() ? """
+                    depends_on:
+                      - mysql
+                """ : "";
+        String databaseEnvironment = plan.database() ? """
+                      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/%s?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
+                      SPRING_DATASOURCE_USERNAME: "app_user"
+                      SPRING_DATASOURCE_PASSWORD: "app_password"
+                      MYSQL_HOST: "mysql"
+                      MYSQL_PORT: "3306"
+                      MYSQL_DATABASE: "%s"
+                      MYSQL_USER: "app_user"
+                      MYSQL_PASSWORD: "app_password"
+                """.formatted(databaseName(projectName), databaseName(projectName)) : "";
+        String volumes = plan.database() ? """
+                volumes:
+                  %s_mysql_data:
+                """.formatted(composeProjectName(projectName)) : "";
+
+        String compose = """
+                services:
+                %s
+                  backend:
+                    build:
+                      context: "%s"
+                      dockerfile: "%s"
+                    image: "%s-backend"
+                    container_name: "%s"
+                    labels:
+                      agentoffice.managed: "true"
+                      agentoffice.project: "%s"
+                    environment:
+                      PORT: "%d"
+                      SERVER_PORT: "%d"
+                %s
+                %s
+                    ports:
+                      - "%d:%d"
+                  frontend:
+                    build:
+                      context: "%s"
+                      dockerfile: "%s"
+                    image: "%s-frontend"
+                    container_name: "%s"
+                    labels:
+                      agentoffice.managed: "true"
+                      agentoffice.project: "%s"
+                    depends_on:
+                      - backend
+                    ports:
+                      - "%d:80"
+                %s
+                """.formatted(
+                mysqlService,
+                escapePath(projectPath), escapePath(projectDeployDir.resolve("Dockerfile.backend")),
+                imageName(projectName), backendContainerName(projectName), projectName, plan.backendPort(), plan.backendPort(), databaseEnvironment, backendDepends, backendHostPort, plan.backendPort(),
+                escapePath(projectPath), escapePath(projectDeployDir.resolve("Dockerfile.frontend")),
+                imageName(projectName), frontendContainerName(projectName), projectName, frontendHostPort, volumes
+        );
+        Path composeFile = projectDeployDir.resolve("docker-compose.yml");
+        Files.writeString(composeFile, compose, StandardCharsets.UTF_8);
+        return composeFile;
+    }
+
+    private String frontendDockerfile(Path projectPath, AppPlan plan) {
+        int backendPort = plan.backendPort() == null ? 3000 : plan.backendPort();
+        String prefix = Files.exists(projectPath.resolve("frontend").resolve("package.json"))
+                ? """
+                FROM node:22-alpine AS build
+                WORKDIR /app
+                COPY frontend/package*.json ./
+                RUN npm ci || npm install
+                COPY frontend/ ./
+                RUN npm run build
+
+                FROM nginx:1.27-alpine
+                COPY --from=build /app/dist/ /usr/share/nginx/html/
+                """
+                : """
+                FROM nginx:1.27-alpine
+                COPY frontend/ /usr/share/nginx/html/
+                """;
+        return prefix + """
+                RUN rm /etc/nginx/conf.d/default.conf && printf '%%s\\n' \\
+                    'server {' \\
+                    '    listen 80;' \\
+                    '    server_name _;' \\
+                    '    root /usr/share/nginx/html;' \\
+                    '    index index.html;' \\
+                    '    location /api/ {' \\
+                    '        proxy_pass http://backend:%d/api/;' \\
+                    '        proxy_set_header Host $host;' \\
+                    '        proxy_set_header X-Real-IP $remote_addr;' \\
+                    '        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;' \\
+                    '    }' \\
+                    '    location / {' \\
+                    '        try_files $uri $uri/ /index.html;' \\
+                    '    }' \\
+                    '}' > /etc/nginx/conf.d/default.conf
+                EXPOSE 80
+                """.formatted(backendPort);
+    }
+
+    private String nodeBackendDockerfile() {
+        return """
+                FROM node:22-alpine
+                WORKDIR /app
+                COPY backend/package*.json ./
+                RUN npm ci --omit=dev || npm install --omit=dev
+                COPY backend/ ./
+                ENV PORT=3000
+                EXPOSE 3000
+                CMD ["npm", "start"]
+                """;
+    }
+
+    private String javaBackendDockerfile(Path projectPath, boolean database) throws IOException {
+        String packageName = readJavaPackage(projectPath.resolve("backend").resolve("Main.java"));
+        String packagePath = packageName.replace('.', '/');
+        String databaseDependencies = database
+                ? "<dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-jdbc</artifactId></dependency><dependency><groupId>com.mysql</groupId><artifactId>mysql-connector-j</artifactId><scope>runtime</scope></dependency>"
+                : "";
+        StringBuilder copyCommands = new StringBuilder();
+        try (Stream<Path> paths = Files.walk(projectPath.resolve("backend"))) {
+            paths.filter(Files::isRegularFile)
+                    .filter(path -> path.toString().endsWith(".java"))
+                    .forEach(path -> {
+                        Path relative = projectPath.resolve("backend").relativize(path);
+                        String parent = relative.getParent() == null ? "" : "/" + relative.getParent().toString().replace("\\", "/");
+                        copyCommands.append("RUN mkdir -p src/main/java/").append(packagePath).append(parent)
+                                .append(" && cp /tmp/backend/").append(relative.toString().replace("\\", "/"))
+                                .append(" src/main/java/").append(packagePath).append(parent).append("/\n");
+                    });
+        }
+        return """
+                FROM maven:3.9-eclipse-temurin-17 AS build
+                WORKDIR /app
+                COPY backend/ /tmp/backend/
+                RUN mkdir -p src/main/resources
+                RUN if [ -f /tmp/backend/application.yml ]; then cp /tmp/backend/application.yml src/main/resources/application.yml; fi
+                %s
+                RUN printf '%%s\\n' '<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">' '<modelVersion>4.0.0</modelVersion>' '<parent><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-parent</artifactId><version>3.2.0</version><relativePath/></parent>' '<groupId>agentoffice.generated</groupId><artifactId>generated-backend</artifactId><version>1.0.0</version>' '<properties><java.version>17</java.version></properties>' '<dependencies><dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency><dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-validation</artifactId></dependency>%s</dependencies>' '<build><plugins><plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin></plugins></build>' '</project>' > pom.xml
+                RUN mvn -q -DskipTests package
+                FROM eclipse-temurin:17-jre
+                WORKDIR /app
+                COPY --from=build /app/target/*.jar app.jar
+                ENV SERVER_PORT=8080
+                EXPOSE 8080
+                CMD ["java", "-jar", "app.jar"]
+                """.formatted(copyCommands, databaseDependencies);
+    }
+
 
     private ContainerInfo inspectContainer(String containerName) {
         CommandResult inspect = runDocker(false, QUICK_TIMEOUT, "inspect", "--format",
@@ -342,6 +589,27 @@ public class DockerDeployService {
         String image = parts.length > 2 ? parts[2] : null;
         Integer port = inspectPort(containerName);
         return new ContainerInfo(id, status, image, port);
+    }
+
+    private ContainerInfo inspectPrimaryContainer(String projectName, AppPlan plan) {
+        if (plan.compose()) {
+            ContainerInfo frontend = inspectContainer(frontendContainerName(projectName));
+            if (frontend.containerId() != null) {
+                return frontend;
+            }
+            return inspectContainer(backendContainerName(projectName));
+        }
+        return inspectContainer(containerName(projectName));
+    }
+
+    private String resolveStatus(AppPlan plan, ContainerInfo primary, ContainerInfo backend) {
+        if (primary.status() == null) {
+            return "NOT_DEPLOYED";
+        }
+        if (plan.compose() && backend.status() != null && (!"running".equals(primary.status()) || !"running".equals(backend.status()))) {
+            return "EXITED";
+        }
+        return primary.status().toUpperCase(Locale.ROOT);
     }
 
     private Integer inspectPort(String containerName) {
@@ -465,6 +733,65 @@ public class DockerDeployService {
         return "agentoffice-" + slug(projectName);
     }
 
+    private String frontendContainerName(String projectName) {
+        return containerName(projectName) + "-frontend";
+    }
+
+    private String backendContainerName(String projectName) {
+        return containerName(projectName) + "-backend";
+    }
+
+    private String mysqlContainerName(String projectName) {
+        return containerName(projectName) + "-mysql";
+    }
+
+    private String composeProjectName(String projectName) {
+        return "agentoffice-" + slug(projectName);
+    }
+
+    private String databaseName(String projectName) {
+        return slug(projectName).replace('-', '_') + "_db";
+    }
+
+    private Path composeFile(String projectName) {
+        return deployRoot.resolve(projectName).resolve("docker-compose.yml").normalize();
+    }
+
+    private String escapePath(Path path) {
+        return path.toAbsolutePath().normalize().toString().replace("\\", "/").replace("\"", "\\\"");
+    }
+
+    private String readJavaPackage(Path mainFile) throws IOException {
+        if (!Files.exists(mainFile)) {
+            return "com.agentoffice.generated";
+        }
+        for (String line : Files.readAllLines(mainFile, StandardCharsets.UTF_8)) {
+            String trimmed = line.trim();
+            if (trimmed.startsWith("package ") && trimmed.endsWith(";")) {
+                return trimmed.substring("package ".length(), trimmed.length() - 1).trim();
+            }
+        }
+        return "com.agentoffice.generated";
+    }
+
+    private boolean requiresMysql(Path projectPath) {
+        if (Files.exists(projectPath.resolve("backend").resolve("schema.sql"))) {
+            return true;
+        }
+        Path deployConfig = projectPath.resolve("deploy.yml");
+        if (Files.exists(deployConfig)) {
+            try {
+                String content = Files.readString(deployConfig, StandardCharsets.UTF_8).toLowerCase(Locale.ROOT);
+                if (content.contains("mysql") || content.contains("database:")) {
+                    return true;
+                }
+            } catch (IOException ignored) {
+                return false;
+            }
+        }
+        return false;
+    }
+
     private String slug(String value) {
         String slug = value.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_.-]+", "-");
         slug = slug.replaceAll("^-+", "").replaceAll("-+$", "");
@@ -499,7 +826,8 @@ public class DockerDeployService {
         return String.join("\n", List.of(all).subList(start, all.length));
     }
 
-    private record AppPlan(String appType, boolean deployable, Integer internalPort, String message) {
+    private record AppPlan(String appType, boolean deployable, boolean compose, boolean hasFrontend, boolean hasBackend,
+                           boolean database, Integer internalPort, Integer backendPort, String message) {
     }
 
     private record ContainerInfo(String containerId, String status, String image, Integer port) {

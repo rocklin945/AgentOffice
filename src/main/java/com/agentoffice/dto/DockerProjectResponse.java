@@ -13,8 +13,11 @@ public class DockerProjectResponse {
     private String containerName;
     private String containerId;
     private Integer port;
+    private Integer backendPort;
     private Integer internalPort;
+    private Integer internalBackendPort;
     private String url;
+    private String backendUrl;
     private Boolean deployable;
     private String message;
 }

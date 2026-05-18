@@ -24,6 +24,8 @@ const statusMap = {
 
 const typeMap = {
   CUSTOM_DOCKERFILE: '自定义 Dockerfile',
+  FULL_STACK_NODE: '完整前后端（Node）',
+  FULL_STACK_JAVA: '完整前后端（Java）',
   NODE_FRONTEND: 'Node 前端构建',
   STATIC_FRONTEND: '静态前端',
   NODE_APP: 'Node 应用',
@@ -369,6 +371,24 @@ export default function Deploy() {
                         </a>
                       ) : (
                         <div className="mt-1 text-[15px] font-semibold text-[#8d99ae]">部署后生成</div>
+                      )}
+                    </div>
+                    <div className="rounded-[8px] border border-[#edf1f8] px-4 py-3 sm:col-span-2">
+                      <div className="flex items-center gap-2 text-[12px] text-[#8d99ae]">
+                        <ApiOutlined />
+                        后端服务
+                      </div>
+                      {selectedProject.backendUrl ? (
+                        <a
+                          href={selectedProject.backendUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-1 block truncate text-[15px] font-semibold text-[#2f6bff]"
+                        >
+                          {selectedProject.backendUrl}
+                        </a>
+                      ) : (
+                        <div className="mt-1 text-[15px] font-semibold text-[#8d99ae]">无独立后端或未部署</div>
                       )}
                     </div>
                   </div>

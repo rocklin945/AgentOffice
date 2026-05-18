@@ -8,6 +8,8 @@ import com.agentoffice.entity.NotificationMessage;
 import com.agentoffice.entity.OperationLog;
 import com.agentoffice.entity.TaskInfo;
 import com.agentoffice.entity.WorkProduct;
+import com.agentoffice.dto.DeployRequest;
+import com.agentoffice.dto.DockerProjectResponse;
 import com.agentoffice.llm.LlmTool;
 import com.agentoffice.mapper.AgentEmployeeMapper;
 import com.agentoffice.mapper.DeployServiceMapper;
@@ -17,6 +19,7 @@ import com.agentoffice.mapper.NotificationMessageMapper;
 import com.agentoffice.mapper.OperationLogMapper;
 import com.agentoffice.mapper.TaskInfoMapper;
 import com.agentoffice.mapper.WorkProductMapper;
+import com.agentoffice.service.DockerDeployService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -49,6 +52,7 @@ public class ToolExecutor {
     private final NotificationMessageMapper notificationMapper;
     private final OperationLogMapper operationLogMapper;
     private final JdbcTemplate jdbcTemplate;
+    private final DockerDeployService dockerDeployService;
 
     public static final String DATA_ENGINEER_TOOLS = "DATA_ENGINEER_TOOLS";
     public static final String WORKFLOW_TOOLS = "WORKFLOW_TOOLS";
@@ -97,6 +101,7 @@ public class ToolExecutor {
             case "create_work_product_in_progress" -> createWorkProductInProgress(args);
             case "update_work_product_status" -> updateWorkProductStatus(args);
             case "create_deploy_service" -> createDeployServiceTool(args);
+            case "deploy_project" -> deployProjectTool(args);
             default -> new WorkflowResult(false, "Unknown workflow tool: " + functionName, Map.of());
         };
         return objectMapper.writeValueAsString(result);
@@ -171,6 +176,12 @@ public class ToolExecutor {
                                 "image", new LlmTool.Parameter("string", "镜像名称"),
                                 "version", new LlmTool.Parameter("string", "版本号"),
                                 "port", new LlmTool.Parameter("integer", "服务端口")
+                        )),
+                createTool("deploy_project", "使用 Docker/Docker Compose 部署 workspace_artifacts/code 下的完整项目。项目包含 frontend 和 backend 时会同时部署前后端。",
+                        Map.of(
+                                "project_name", new LlmTool.Parameter("string", "code 目录下的项目文件夹名，例如 snake、personal-website"),
+                                "port", new LlmTool.Parameter("integer", "前端访问端口，可省略由系统自动分配"),
+                                "backend_port", new LlmTool.Parameter("integer", "后端调试端口，可省略由系统自动分配")
                         ))
         );
     }
@@ -410,6 +421,32 @@ public class ToolExecutor {
                 "image", service.getImage(),
                 "version", service.getVersion(),
                 "port", service.getPort()
+        ));
+    }
+
+    private WorkflowResult deployProjectTool(Map<String, Object> args) {
+        String projectName = value(text(args, "project_name"), "");
+        if (projectName.isBlank()) {
+            return new WorkflowResult(false, "project_name 不能为空", Map.of());
+        }
+        DeployRequest request = new DeployRequest();
+        Long port = optionalLong(args, "port");
+        Long backendPort = optionalLong(args, "backend_port");
+        if (port != null) {
+            request.setPort(port.intValue());
+        }
+        if (backendPort != null) {
+            request.setBackendPort(backendPort.intValue());
+        }
+        DockerProjectResponse response = dockerDeployService.deploy(projectName, request);
+        logOperation("deploy_project", "deploy_service", null, projectName + " -> " + response.getUrl());
+        return new WorkflowResult(true, "项目已部署", Map.of(
+                "projectName", response.getProjectName(),
+                "appType", response.getAppType(),
+                "status", response.getStatus(),
+                "url", value(response.getUrl(), ""),
+                "backendUrl", value(response.getBackendUrl(), ""),
+                "containerName", response.getContainerName()
         ));
     }
 
