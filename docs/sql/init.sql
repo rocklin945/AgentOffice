@@ -208,10 +208,4 @@ INSERT INTO employee_permission (employee_id, permission_code, permission_name, 
 (5, 'task.view', '查看任务', 1), (5, 'code.review', 'Code Review', 1), (5, 'report.write', '输出报告', 1),
 (6, 'task.view', '查看任务', 1), (6, 'deploy.manage', '部署服务', 1), (6, 'log.view', '查看日志', 1);
 
-INSERT INTO deploy_service (service_name, image, version, status, port, container_id, cpu_usage, memory_usage, running_time) VALUES
-('user-service', 'agentoffice/user-service', 'v1.0.0', '运行中', 8080, 'container_user_001', 25.50, 40.20, 86400),
-('order-service', 'agentoffice/order-service', 'v1.2.0', '运行中', 8081, 'container_order_001', 18.30, 35.00, 172800),
-('payment-service', 'agentoffice/payment-service', 'v1.1.0', '已停止', 8082, NULL, 0.00, 0.00, 0),
-('message-service', 'agentoffice/message-service', 'v2.0.0', '异常', 8083, 'container_msg_001', 95.00, 85.00, 1000);
-
 SET FOREIGN_KEY_CHECKS = 1;

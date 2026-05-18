@@ -22,6 +22,10 @@ const menuItems = [
 
 const tagColor = (status) => {
   if (['运行中', '已完成', '工作中', '在线'].includes(status)) return 'green';
+  if (['进行中', '待分配', '未部署'].includes(status)) return 'blue';
+  if (['异常', '已失败'].includes(status)) return 'red';
+  if (['已停止'].includes(status)) return 'default';
+  if (['运行中', '已完成', '工作中', '在线'].includes(status)) return 'green';
   if (['进行中', '待分配'].includes(status)) return 'blue';
   if (['异常', '已失败'].includes(status)) return 'red';
   return 'default';

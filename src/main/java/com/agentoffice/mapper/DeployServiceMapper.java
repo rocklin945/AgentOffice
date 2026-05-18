@@ -17,6 +17,9 @@ public interface DeployServiceMapper {
     @Select("SELECT * FROM deploy_service WHERE id = #{id}")
     DeployService findById(@Param("id") Long id);
 
+    @Select("SELECT * FROM deploy_service WHERE image = #{image} ORDER BY id DESC LIMIT 1")
+    DeployService findByImage(@Param("image") String image);
+
     @Select("SELECT * FROM deploy_service ORDER BY create_time DESC")
     List<DeployService> findAll();
 

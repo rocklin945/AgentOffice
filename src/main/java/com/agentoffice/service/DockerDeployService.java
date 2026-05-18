@@ -4,9 +4,14 @@ import com.agentoffice.common.exception.BusinessException;
 import com.agentoffice.dto.DeployRequest;
 import com.agentoffice.dto.DockerProjectResponse;
 import com.agentoffice.dto.DockerStatusResponse;
+import com.agentoffice.entity.DeployService;
+import com.agentoffice.mapper.DeployServiceMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -31,6 +36,9 @@ public class DockerDeployService {
     private final Path codeRoot = workspaceRoot.resolve("workspace_artifacts").resolve("code").normalize();
     private final Path deployRoot = workspaceRoot.resolve("workspace_artifacts").resolve("deploy").normalize();
 
+    @Autowired
+    private DeployServiceMapper deployServiceMapper;
+
     public DockerStatusResponse getDockerStatus() {
         CommandResult result = runDocker(false, QUICK_TIMEOUT, "version", "--format", "{{.Server.Version}}");
         if (result.exitCode() == 0) {
@@ -46,6 +54,7 @@ public class DockerDeployService {
                     .filter(Files::isDirectory)
                     .sorted(Comparator.comparing(path -> path.getFileName().toString()))
                     .map(this::buildProjectResponse)
+                    .peek(this::syncProjectRecord)
                     .toList();
         } catch (IOException e) {
             throw BusinessException.serverError("Failed to list code projects: " + e.getMessage());
@@ -53,7 +62,14 @@ public class DockerDeployService {
     }
 
     public DockerProjectResponse getProject(String projectName) {
-        return buildProjectResponse(resolveProject(projectName));
+        DockerProjectResponse response = buildProjectResponse(resolveProject(projectName));
+        syncProjectRecord(response);
+        return response;
+    }
+
+    @Transactional
+    public void syncProjectsToDatabase() {
+        listProjects();
     }
 
     public DockerProjectResponse deploy(String projectName, DeployRequest request) {
@@ -94,7 +110,9 @@ public class DockerDeployService {
             throw BusinessException.serverError("Failed to prepare deployment: " + e.getMessage());
         }
 
-        return buildProjectResponse(projectPath);
+        DockerProjectResponse response = buildProjectResponse(projectPath);
+        syncProjectRecord(response);
+        return response;
     }
 
     public DockerProjectResponse start(String projectName) {
@@ -103,7 +121,9 @@ public class DockerDeployService {
         if (result.exitCode() != 0) {
             throw BusinessException.serverError("Docker start failed:\n" + trimOutput(result.output(), 3000));
         }
-        return getProject(projectName);
+        DockerProjectResponse response = getProject(projectName);
+        syncProjectRecord(response);
+        return response;
     }
 
     public DockerProjectResponse stop(String projectName) {
@@ -112,7 +132,9 @@ public class DockerDeployService {
         if (result.exitCode() != 0) {
             throw BusinessException.serverError("Docker stop failed:\n" + trimOutput(result.output(), 3000));
         }
-        return getProject(projectName);
+        DockerProjectResponse response = getProject(projectName);
+        syncProjectRecord(response);
+        return response;
     }
 
     public DockerProjectResponse restart(String projectName) {
@@ -121,11 +143,15 @@ public class DockerDeployService {
         if (result.exitCode() != 0) {
             throw BusinessException.serverError("Docker restart failed:\n" + trimOutput(result.output(), 3000));
         }
-        return getProject(projectName);
+        DockerProjectResponse response = getProject(projectName);
+        syncProjectRecord(response);
+        return response;
     }
 
     public void remove(String projectName) {
         removeContainerIfExists(containerName(projectName));
+        DockerProjectResponse response = getProject(projectName);
+        syncProjectRecord(response);
     }
 
     public String getLogs(String projectName, Integer lines) {
@@ -175,6 +201,55 @@ public class DockerDeployService {
         response.setDeployable(plan.deployable());
         response.setMessage(plan.message());
         return response;
+    }
+
+    private void syncProjectRecord(DockerProjectResponse project) {
+        if (project == null || project.getImageName() == null) {
+            return;
+        }
+        DeployService service = deployServiceMapper.findByImage(project.getImageName());
+        if (service == null) {
+            service = new DeployService();
+            service.setServiceName(project.getDisplayName());
+            service.setImage(project.getImageName());
+            service.setVersion("latest");
+            service.setStatus(toServiceStatus(project.getStatus()));
+            service.setPort(project.getPort());
+            deployServiceMapper.insert(service);
+        } else {
+            service.setServiceName(project.getDisplayName());
+            service.setImage(project.getImageName());
+            service.setVersion("latest");
+            service.setStatus(toServiceStatus(project.getStatus()));
+            service.setPort(project.getPort());
+            deployServiceMapper.update(service);
+        }
+        deployServiceMapper.updateContainerId(service.getId(), shortContainerId(project.getContainerId()));
+        deployServiceMapper.updateMetrics(
+                service.getId(),
+                project.getStatus() != null && project.getStatus().equals("RUNNING") ? new BigDecimal("0.00") : BigDecimal.ZERO,
+                project.getStatus() != null && project.getStatus().equals("RUNNING") ? new BigDecimal("0.00") : BigDecimal.ZERO,
+                project.getStatus() != null && project.getStatus().equals("RUNNING") ? 1L : 0L
+        );
+    }
+
+    private String toServiceStatus(String dockerStatus) {
+        if (dockerStatus == null) {
+            return "未部署";
+        }
+        return switch (dockerStatus) {
+            case "RUNNING" -> "运行中";
+            case "EXITED", "CREATED", "PAUSED", "RESTARTING" -> "已停止";
+            case "NOT_DEPLOYED" -> "未部署";
+            default -> "异常";
+        };
+    }
+
+    private String shortContainerId(String containerId) {
+        if (containerId == null || containerId.isBlank()) {
+            return "";
+        }
+        return containerId.length() > 12 ? containerId.substring(0, 12) : containerId;
     }
 
     private AppPlan detectApp(Path projectPath) {

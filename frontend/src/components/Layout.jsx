@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Dropdown } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
+  ApartmentOutlined,
   BarChartOutlined,
   BellOutlined,
   CheckSquareOutlined,
   CloudOutlined,
   CodeOutlined,
-  DeploymentUnitOutlined,
   SearchOutlined,
   SettingOutlined,
   TeamOutlined,
@@ -18,7 +18,7 @@ import { useAppStore } from '../store';
 import { notificationApi } from '../api';
 
 const menuItems = [
-  { key: '/office', label: '团队协作', icon: <DeploymentUnitOutlined /> },
+  { key: '/office', label: '团队协作', icon: <ApartmentOutlined /> },
   { key: '/employees', label: '员工管理', icon: <TeamOutlined /> },
   { key: '/tasks', label: '任务管理', icon: <CheckSquareOutlined /> },
   { key: '/dev', label: '云端开发', icon: <CodeOutlined /> },

@@ -5,12 +5,15 @@ import com.agentoffice.dto.DeployLogsResponse;
 import com.agentoffice.dto.DeployRequest;
 import com.agentoffice.dto.DockerProjectResponse;
 import com.agentoffice.dto.DockerStatusResponse;
+import com.agentoffice.entity.DeployService;
+import com.agentoffice.service.DeployServiceInfo;
 import com.agentoffice.service.DockerDeployService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -24,6 +27,9 @@ public class DeployController {
 
     @Autowired
     private DockerDeployService dockerDeployService;
+
+    @Autowired
+    private DeployServiceInfo deployService;
 
     @GetMapping("/docker/status")
     public Result<DockerStatusResponse> getDockerStatus() {
@@ -71,5 +77,55 @@ public class DeployController {
     public Result<DeployLogsResponse> getLogs(@PathVariable String projectName,
                                               @RequestParam(defaultValue = "200") Integer lines) {
         return Result.success(new DeployLogsResponse(dockerDeployService.getLogs(projectName, lines)));
+    }
+
+    @GetMapping("/services")
+    public Result<List<DeployService>> getList(@RequestParam(required = false) String status) {
+        dockerDeployService.syncProjectsToDatabase();
+        return Result.success(deployService.getList(status));
+    }
+
+    @GetMapping("/services/{id}")
+    public Result<DeployService> getById(@PathVariable Long id) {
+        return Result.success(deployService.getById(id));
+    }
+
+    @PostMapping("/services")
+    public Result<DeployService> create(@RequestBody DeployService service) {
+        return Result.success(deployService.create(service));
+    }
+
+    @PutMapping("/services/{id}")
+    public Result<DeployService> update(@PathVariable Long id, @RequestBody DeployService service) {
+        return Result.success(deployService.update(id, service));
+    }
+
+    @DeleteMapping("/services/{id}")
+    public Result<Void> delete(@PathVariable Long id) {
+        deployService.delete(id);
+        return Result.success();
+    }
+
+    @PostMapping("/services/{id}/start")
+    public Result<Void> startService(@PathVariable Long id) {
+        deployService.start(id);
+        return Result.success();
+    }
+
+    @PostMapping("/services/{id}/stop")
+    public Result<Void> stopService(@PathVariable Long id) {
+        deployService.stop(id);
+        return Result.success();
+    }
+
+    @PostMapping("/services/{id}/restart")
+    public Result<Void> restartService(@PathVariable Long id) {
+        deployService.restart(id);
+        return Result.success();
+    }
+
+    @GetMapping("/services/{id}/logs")
+    public Result<String> getServiceLogs(@PathVariable Long id, @RequestParam(defaultValue = "100") Integer lines) {
+        return Result.success(deployService.getLogs(id, lines));
     }
 }

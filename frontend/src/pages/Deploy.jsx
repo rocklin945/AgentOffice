@@ -277,8 +277,10 @@ export default function Deploy() {
                       </h2>
                       <ProjectStatus status={selectedProject.status} />
                     </div>
-                    <div className="mt-2 truncate text-[13px] text-[#718098]" title={selectedProject.path}>
-                      {selectedProject.path}
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-[13px] text-[#718098]">
+                      <span>{typeMap[selectedProject.appType] || selectedProject.appType}</span>
+                      <span className="text-[#c3ccdb]">/</span>
+                      <span>{selectedProject.containerName}</span>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
