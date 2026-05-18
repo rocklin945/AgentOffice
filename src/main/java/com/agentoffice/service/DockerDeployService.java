@@ -35,6 +35,12 @@ import java.util.stream.Stream;
 @Service
 public class DockerDeployService {
     private static final String MANAGED_LABEL = "agentoffice.managed=true";
+    private static final String SHARED_NETWORK = "agentoffice-net";
+    private static final String SHARED_MYSQL_CONTAINER = "agentoffice-mysql";
+    private static final int SHARED_MYSQL_HOST_PORT = 13306;
+    private static final String MYSQL_ROOT_PASSWORD = "root_password";
+    private static final String MYSQL_APP_USER = "app_user";
+    private static final String MYSQL_APP_PASSWORD = "app_password";
     private static final Duration QUICK_TIMEOUT = Duration.ofSeconds(15);
     private static final Duration BUILD_TIMEOUT = Duration.ofMinutes(8);
     private static final Duration RUN_TIMEOUT = Duration.ofSeconds(45);
@@ -101,12 +107,9 @@ public class DockerDeployService {
                 // 先强制删除可能存在的同名容器,避免名称冲突
                 removeContainerIfExists(frontendContainerName(projectName));
                 removeContainerIfExists(backendContainerName(projectName));
-                if (plan.database()) {
-                    removeContainerIfExists(mysqlContainerName(projectName));
-                }
-                // 再执行 compose down 清理网络和卷(使用 -v 删除数据卷)
+                // 再执行 compose down 清理应用容器和网络，数据库使用独立共享容器，不随项目删除
                 runDocker(false, RUN_TIMEOUT, "compose", "-p", composeProjectName(projectName),
-                        "-f", composeFile.toString(), "down", "-v");
+                        "-f", composeFile.toString(), "down", "--remove-orphans");
                 CommandResult up = runDocker(true, BUILD_TIMEOUT, "compose", "-p", composeProjectName(projectName),
                         "-f", composeFile.toString(), "up", "-d", "--build");
                 Files.writeString(projectDeployDir.resolve("last-build.log"), up.output(), StandardCharsets.UTF_8);
@@ -487,54 +490,34 @@ public class DockerDeployService {
                 : nodeBackendDockerfile();
         Files.writeString(projectDeployDir.resolve("Dockerfile.backend"), backendDockerfile, StandardCharsets.UTF_8);
 
-        final String dbName = resolvedDbName;
-        String mysqlService = plan.database() ? """
-                  mysql:
-                    image: mysql:8.0
-                    container_name: "%s"
-                    environment:
-                      MYSQL_DATABASE: "%s"
-                      MYSQL_USER: "app_user"
-                      MYSQL_PASSWORD: "app_password"
-                      MYSQL_ROOT_PASSWORD: "root_password"
-                    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-                    volumes:
-                      - "%s:/docker-entrypoint-initdb.d:ro"
-                      - "mysql_data:/var/lib/mysql"
-                    ports:
-                      - "%d:3306"
-                    healthcheck:
-                      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "app_user", "-papp_password"]
-                      interval: 10s
-                      timeout: 5s
-                      retries: 10
-                      start_period: 30s
-                """.formatted(mysqlContainerName(projectName), dbName,
-                escapePath(projectDeployDir.resolve("mysql-init")),
-                findAvailablePort()) : "";
-        String backendDepends = plan.database() ? """
-                    depends_on:
-                      mysql:
-                        condition: service_healthy
-                """ : "";
+        final String dbName = sanitizeDatabaseName(resolvedDbName);
+        if (plan.database()) {
+            ensureSharedMysql(projectDeployDir.resolve("mysql-init"), dbName, projectName);
+        }
         String databaseEnvironment = plan.database() ? """
-                      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/%s?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&connectTimeout=10000&socketTimeout=30000"
-                      SPRING_DATASOURCE_USERNAME: "app_user"
-                      SPRING_DATASOURCE_PASSWORD: "app_password"
-                      MYSQL_HOST: "mysql"
+                      SPRING_DATASOURCE_URL: "jdbc:mysql://%s:3306/%s?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&connectTimeout=10000&socketTimeout=30000"
+                      SPRING_DATASOURCE_USERNAME: "%s"
+                      SPRING_DATASOURCE_PASSWORD: "%s"
+                      MYSQL_HOST: "%s"
                       MYSQL_PORT: "3306"
                       MYSQL_DATABASE: "%s"
-                      MYSQL_USER: "app_user"
-                      MYSQL_PASSWORD: "app_password"
-                """.formatted(dbName, dbName) : "";
-        String volumes = plan.database() ? """
-                volumes:
-                  mysql_data:
+                      MYSQL_USER: "%s"
+                      MYSQL_PASSWORD: "%s"
+                """.formatted(SHARED_MYSQL_CONTAINER, dbName, MYSQL_APP_USER, MYSQL_APP_PASSWORD,
+                SHARED_MYSQL_CONTAINER, dbName, MYSQL_APP_USER, MYSQL_APP_PASSWORD) : "";
+        String networks = plan.database() ? """
+                    networks:
+                      - agentoffice-net
+                """ : "";
+        String networkDefinitions = plan.database() ? """
+                networks:
+                  agentoffice-net:
+                    external: true
+                    name: agentoffice-net
                 """ : "";
 
         String compose = """
                 services:
-                %s
                   backend:
                     build:
                       context: "%s"
@@ -548,9 +531,9 @@ public class DockerDeployService {
                       PORT: "%d"
                       SERVER_PORT: "%d"
                 %s
-                %s
                     ports:
                       - "%d:%d"
+                %s
                   frontend:
                     build:
                       context: "%s"
@@ -565,12 +548,12 @@ public class DockerDeployService {
                     ports:
                       - "%d:80"
                 %s
+                %s
                 """.formatted(
-                mysqlService,
                 escapePath(projectPath), escapePath(projectDeployDir.resolve("Dockerfile.backend")),
-                imageName(projectName), backendContainerName(projectName), projectName, plan.backendPort(), plan.backendPort(), databaseEnvironment, backendDepends, backendHostPort, plan.backendPort(),
+                imageName(projectName), backendContainerName(projectName), projectName, plan.backendPort(), plan.backendPort(), databaseEnvironment, backendHostPort, plan.backendPort(), networks,
                 escapePath(projectPath), escapePath(projectDeployDir.resolve("Dockerfile.frontend")),
-                imageName(projectName), frontendContainerName(projectName), projectName, frontendHostPort, volumes
+                imageName(projectName), frontendContainerName(projectName), projectName, frontendHostPort, networks, networkDefinitions
         );
         Path composeFile = projectDeployDir.resolve("docker-compose.yml");
         Files.writeString(composeFile, compose, StandardCharsets.UTF_8);
@@ -873,6 +856,112 @@ public class DockerDeployService {
 
     private String databaseName(String projectName) {
         return slug(projectName).replace('-', '_') + "_db";
+    }
+
+    private String sanitizeDatabaseName(String databaseName) {
+        String sanitized = Optional.ofNullable(databaseName).orElse("app_db")
+                .replaceAll("[^A-Za-z0-9_]", "_");
+        return sanitized.isBlank() ? "app_db" : sanitized;
+    }
+
+    private void ensureSharedMysql(Path initDir, String dbName, String projectName) {
+        CommandResult networkInspect = runDocker(false, QUICK_TIMEOUT, "network", "inspect", SHARED_NETWORK);
+        if (networkInspect.exitCode() != 0) {
+            CommandResult networkCreate = runDocker(true, RUN_TIMEOUT, "network", "create", SHARED_NETWORK);
+            if (networkCreate.exitCode() != 0) {
+                throw BusinessException.serverError("Docker network create failed:\n" + trimOutput(networkCreate.output(), 3000));
+            }
+        }
+
+        if (!containerExists(SHARED_MYSQL_CONTAINER)) {
+            CommandResult run = runDocker(true, BUILD_TIMEOUT, "run", "-d",
+                    "--name", SHARED_MYSQL_CONTAINER,
+                    "--network", SHARED_NETWORK,
+                    "--label", MANAGED_LABEL,
+                    "--label", "agentoffice.infrastructure=mysql",
+                    "-p", SHARED_MYSQL_HOST_PORT + ":3306",
+                    "-e", "MYSQL_ROOT_PASSWORD=" + MYSQL_ROOT_PASSWORD,
+                    "-e", "MYSQL_DATABASE=" + dbName,
+                    "-e", "MYSQL_USER=" + MYSQL_APP_USER,
+                    "-e", "MYSQL_PASSWORD=" + MYSQL_APP_PASSWORD,
+                    "mysql:8.0",
+                    "--default-authentication-plugin=mysql_native_password",
+                    "--character-set-server=utf8mb4",
+                    "--collation-server=utf8mb4_unicode_ci");
+            if (run.exitCode() != 0) {
+                throw BusinessException.serverError("Shared MySQL start failed:\n" + trimOutput(run.output(), 3000));
+            }
+        } else {
+            runDocker(false, QUICK_TIMEOUT, "network", "connect", SHARED_NETWORK, SHARED_MYSQL_CONTAINER);
+            runDocker(false, RUN_TIMEOUT, "start", SHARED_MYSQL_CONTAINER);
+        }
+
+        waitForSharedMysql();
+        initializeSharedDatabase(initDir, dbName, projectName);
+    }
+
+    private void waitForSharedMysql() {
+        for (int i = 0; i < 45; i++) {
+            CommandResult authCheck = runDocker(false, QUICK_TIMEOUT, "exec", SHARED_MYSQL_CONTAINER,
+                    "mysql", "-uroot", "-p" + MYSQL_ROOT_PASSWORD, "-e", "SELECT 1");
+            if (authCheck.exitCode() == 0) {
+                return;
+            }
+            try {
+                Thread.sleep(2000L);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw BusinessException.serverError("Shared MySQL wait interrupted");
+            }
+        }
+        throw BusinessException.serverError("Shared MySQL did not become ready with the configured root password. "
+                + "If agentoffice-mysql was created by an older failed deploy, remove that container and deploy again.");
+    }
+
+    private void initializeSharedDatabase(Path initDir, String dbName, String projectName) {
+        String createSql = "CREATE DATABASE IF NOT EXISTS `" + dbName + "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; "
+                + "CREATE USER IF NOT EXISTS '" + MYSQL_APP_USER + "'@'%' IDENTIFIED BY '" + MYSQL_APP_PASSWORD + "'; "
+                + "GRANT ALL PRIVILEGES ON `" + dbName + "`.* TO '" + MYSQL_APP_USER + "'@'%'; "
+                + "FLUSH PRIVILEGES;";
+        CommandResult createDb = runDocker(true, RUN_TIMEOUT, "exec", SHARED_MYSQL_CONTAINER,
+                "mysql", "-uroot", "-p" + MYSQL_ROOT_PASSWORD, "-e", createSql);
+        if (createDb.exitCode() != 0) {
+            throw BusinessException.serverError("Shared MySQL database init failed:\n" + trimOutput(createDb.output(), 3000));
+        }
+
+        if (initDir == null || !Files.isDirectory(initDir)) {
+            return;
+        }
+        try (Stream<Path> sqlFiles = Files.list(initDir)) {
+            List<Path> files = sqlFiles
+                    .filter(path -> path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".sql"))
+                    .sorted()
+                    .toList();
+            if (files.isEmpty()) {
+                return;
+            }
+            String containerDir = "/tmp/agentoffice-init-" + slug(projectName);
+            runDocker(false, QUICK_TIMEOUT, "exec", SHARED_MYSQL_CONTAINER, "rm", "-rf", containerDir);
+            CommandResult mkdir = runDocker(true, RUN_TIMEOUT, "exec", SHARED_MYSQL_CONTAINER, "mkdir", "-p", containerDir);
+            if (mkdir.exitCode() != 0) {
+                throw BusinessException.serverError("Shared MySQL init dir create failed:\n" + trimOutput(mkdir.output(), 3000));
+            }
+            for (Path file : files) {
+                CommandResult copy = runDocker(true, RUN_TIMEOUT, "cp", file.toString(),
+                        SHARED_MYSQL_CONTAINER + ":" + containerDir + "/" + file.getFileName());
+                if (copy.exitCode() != 0) {
+                    throw BusinessException.serverError("Shared MySQL schema copy failed:\n" + trimOutput(copy.output(), 3000));
+                }
+            }
+            CommandResult importSql = runDocker(true, BUILD_TIMEOUT, "exec", SHARED_MYSQL_CONTAINER, "sh", "-c",
+                    "for f in " + containerDir + "/*.sql; do [ -f \"$f\" ] && mysql -uroot -p" + MYSQL_ROOT_PASSWORD
+                            + " " + dbName + " < \"$f\"; done");
+            if (importSql.exitCode() != 0) {
+                throw BusinessException.serverError("Shared MySQL schema import failed:\n" + trimOutput(importSql.output(), 3000));
+            }
+        } catch (IOException e) {
+            throw BusinessException.serverError("Failed to initialize shared MySQL schema: " + e.getMessage());
+        }
     }
 
     private String stripDatabaseStatements(String sql) {
