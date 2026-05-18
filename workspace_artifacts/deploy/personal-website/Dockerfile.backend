@@ -6,17 +6,6 @@ COPY backend/ ./
 RUN mkdir -p src/main/resources && \
     if [ -f application.yml ]; then cp application.yml src/main/resources/application.yml; fi && \
     if [ -f resources/application.yml ]; then cp resources/application.yml src/main/resources/application.yml; fi
-RUN mkdir -p src/main/java/com/personalwebsite/controller && cp 'controller/BlogController.java' 'src/main/java/com/personalwebsite/controller/BlogController.java' && \
-    mkdir -p src/main/java/com/personalwebsite/controller && cp 'controller/ContactController.java' 'src/main/java/com/personalwebsite/controller/ContactController.java' && \
-    mkdir -p src/main/java/com/personalwebsite/controller && cp 'controller/HealthController.java' 'src/main/java/com/personalwebsite/controller/HealthController.java' && \
-    mkdir -p src/main/java/com/personalwebsite/controller && cp 'controller/PortfolioController.java' 'src/main/java/com/personalwebsite/controller/PortfolioController.java' && \
-    mkdir -p src/main/java/com/personalwebsite/controller && cp 'controller/ThemeController.java' 'src/main/java/com/personalwebsite/controller/ThemeController.java' && \
-    mkdir -p src/main/java/com/personalwebsite && cp 'Main.java' 'src/main/java/com/personalwebsite/Main.java' && \
-    mkdir -p src/main/java/com/personalwebsite/model && cp 'model/BlogPost.java' 'src/main/java/com/personalwebsite/model/BlogPost.java' && \
-    mkdir -p src/main/java/com/personalwebsite/model && cp 'model/ContactForm.java' 'src/main/java/com/personalwebsite/model/ContactForm.java' && \
-    mkdir -p src/main/java/com/personalwebsite/model && cp 'model/PortfolioItem.java' 'src/main/java/com/personalwebsite/model/PortfolioItem.java' && \
-    mkdir -p src/main/java/com/personalwebsite/service && cp 'service/DataStore.java' 'src/main/java/com/personalwebsite/service/DataStore.java'
-
 RUN rm -rf /root/.m2/repository/commons-io/commons-io/2.6 && \
     (mvn -q -DskipTests -Dstart-class=com.personalwebsite.Main package -Dmaven.wagon.http.retryHandler.count=3 || mvn -q -DskipTests -U -Dstart-class=com.personalwebsite.Main package -Dmaven.wagon.http.retryHandler.count=3)
 FROM eclipse-temurin:17-jre-alpine

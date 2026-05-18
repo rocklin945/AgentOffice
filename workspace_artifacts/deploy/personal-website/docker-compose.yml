@@ -21,7 +21,7 @@ services:
       MYSQL_PASSWORD: "app_password"
 
     ports:
-      - "14600:8080"
+      - "11718:8080"
     networks:
       - agentoffice-net
 
@@ -37,7 +37,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "14599:80"
+      - "11717:80"
     networks:
       - agentoffice-net
 

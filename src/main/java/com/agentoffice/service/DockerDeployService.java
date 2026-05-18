@@ -677,7 +677,6 @@ public class DockerDeployService {
         Path backendDir = projectPath.resolve("backend");
         boolean hasOwnPom = Files.exists(backendDir.resolve("pom.xml"));
         if (hasOwnPom) {
-            String normalizeCommands = javaSourceNormalizeCommands(backendDir);
             String mainClass = findSpringBootMainClass(backendDir).orElse("");
             String mainClassOption = mainClass.isBlank() ? "" : "-Dstart-class=" + mainClass;
             return """
@@ -689,7 +688,6 @@ public class DockerDeployService {
                     RUN mkdir -p src/main/resources && \\
                         if [ -f application.yml ]; then cp application.yml src/main/resources/application.yml; fi && \\
                         if [ -f resources/application.yml ]; then cp resources/application.yml src/main/resources/application.yml; fi
-                    %s
                     RUN rm -rf /root/.m2/repository/commons-io/commons-io/2.6 && \\
                         (mvn -q -DskipTests %s package -Dmaven.wagon.http.retryHandler.count=3 || mvn -q -DskipTests -U %s package -Dmaven.wagon.http.retryHandler.count=3)
                     FROM eclipse-temurin:17-jre-alpine
@@ -698,7 +696,7 @@ public class DockerDeployService {
                     ENV SERVER_PORT=8080
                     EXPOSE 8080
                     CMD ["java", "-jar", "app.jar"]
-                    """.formatted(normalizeCommands, mainClassOption, mainClassOption);
+                    """.formatted(mainClassOption, mainClassOption);
         }
         Path anyJavaFile;
         try (var walk = Files.walk(backendDir, 5)) {
