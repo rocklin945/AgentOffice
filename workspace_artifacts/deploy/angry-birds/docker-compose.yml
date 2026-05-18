@@ -1,0 +1,32 @@
+services:
+  backend:
+    build:
+      context: "D:/桌面/Java/AgentOffice/workspace_artifacts/code/angry-birds"
+      dockerfile: "D:/桌面/Java/AgentOffice/workspace_artifacts/deploy/angry-birds/Dockerfile.backend"
+    image: "agentoffice/angry-birds:latest-backend"
+    container_name: "agentoffice-angry-birds-backend"
+    labels:
+      agentoffice.managed: "true"
+      agentoffice.project: "angry-birds"
+    environment:
+      PORT: "8080"
+      SERVER_PORT: "8080"
+
+    ports:
+      - "7777:8080"
+
+  frontend:
+    build:
+      context: "D:/桌面/Java/AgentOffice/workspace_artifacts/code/angry-birds"
+      dockerfile: "D:/桌面/Java/AgentOffice/workspace_artifacts/deploy/angry-birds/Dockerfile.frontend"
+    image: "agentoffice/angry-birds:latest-frontend"
+    container_name: "agentoffice-angry-birds-frontend"
+    labels:
+      agentoffice.managed: "true"
+      agentoffice.project: "angry-birds"
+    depends_on:
+      - backend
+    ports:
+      - "7776:80"
+
+

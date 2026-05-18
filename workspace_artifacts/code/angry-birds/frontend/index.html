@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>愤怒的小鸟 - Angry Birds</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="game-container">
+        <!-- 开始界面 -->
+        <div id="start-screen" class="screen">
+            <h1>🐦 愤怒的小鸟 🐦</h1>
+            <button id="start-btn" class="btn-primary">开始游戏</button>
+            <button id="level-select-btn" class="btn-secondary">选择关卡</button>
+            <div class="sound-controls">
+                <label>
+                    <input type="checkbox" id="sound-toggle" checked>
+                    音效
+                </label>
+                <label>
+                    <input type="checkbox" id="music-toggle" checked>
+                    音乐
+                </label>
+            </div>
+        </div>
+
+        <!-- 关卡选择界面 -->
+        <div id="level-select-screen" class="screen" style="display:none;">
+            <h2>选择关卡</h2>
+            <div class="level-grid" id="level-grid">
+                <div class="level-card" data-level="1">
+                    <button class="level-btn" data-level="1">关卡 1</button>
+                    <div class="stars" id="level-stars-1">☆☆☆</div>
+                    <div class="score" id="level-score-1">最高分: 0</div>
+                </div>
+                <div class="level-card" data-level="2">
+                    <button class="level-btn" data-level="2" disabled>关卡 2</button>
+                    <div class="stars" id="level-stars-2">☆☆☆</div>
+                    <div class="score" id="level-score-2">最高分: 0</div>
+                </div>
+                <div class="level-card" data-level="3">
+                    <button class="level-btn" data-level="3" disabled>关卡 3</button>
+                    <div class="stars" id="level-stars-3">☆☆☆</div>
+                    <div class="score" id="level-score-3">最高分: 0</div>
+                </div>
+            </div>
+            <button id="leaderboard-btn-menu" class="btn-secondary">排行榜</button>
+            <button id="back-to-menu" class="btn-secondary">返回菜单</button>
+        </div>
+
+        <!-- 游戏界面 -->
+        <div id="game-screen" class="screen" style="display:none;">
+            <canvas id="game-canvas"></canvas>
+            <div id="ui-overlay">
+                <div id="score-display">分数: <span id="score">0</span></div>
+                <div id="birds-remaining">小鸟: <span id="birds-count">0</span></div>
+                <div id="pause-btn">⏸️ 暂停</div>
+            </div>
+        </div>
+
+        <!-- 胜利界面 -->
+        <div id="victory-screen" class="screen" style="display:none;">
+            <h2>🎉 胜利！🎉</h2>
+            <p>你的分数: <span id="final-score">0</span></p>
+            <p id="stars-display">⭐⭐⭐</p>
+            <button id="next-level-btn" class="btn-primary">下一关</button>
+            <button id="replay-btn" class="btn-secondary">重玩</button>
+            <button id="leaderboard-btn-victory" class="btn-secondary">排行榜</button>
+            <button id="menu-btn" class="btn-secondary">返回菜单</button>
+        </div>
+
+        <!-- 失败界面 -->
+        <div id="defeat-screen" class="screen" style="display:none;">
+            <h2>💔 失败 💔</h2>
+            <p>猪猪还在！再试一次吧！</p>
+            <button id="retry-btn" class="btn-primary">重试</button>
+            <button id="menu-btn-defeat" class="btn-secondary">返回菜单</button>
+        </div>
+    </div>
+
+    <!-- 排行榜弹窗 -->
+    <div id="leaderboard-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:100;">
+        <div class="leaderboard-panel">
+            <h3>排行榜</h3>
+            <div id="leaderboard-content">加载中...</div>
+            <button class="leaderboard-btn" onclick="document.getElementById('leaderboard-modal').style.display='none'">关闭</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/bird.js"></script>
+    <script src="js/pig.js"></script>
+    <script src="js/slingshot.js"></script>
+    <script src="js/level.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        // 自定义渲染后置钩子 - 绘制猪猪和小鸟
+        Matter.Events.on(Matter.Render, 'afterRender', function() {
+            var ctx = Matter.Render.context;
+            var world = Matter.Composite.allBodies(Matter.Render.world);
+            
+            if (!window.Game) return;
+            
+            // 绘制小鸟
+            if (window.Game.birds) {
+                window.Game.birds.forEach(function(bird) {
+                    if (bird.label === 'bird') {
+                        Bird.drawBird(ctx, bird);
+                    }
+                });
+            }
+            
+            // 绘制猪猪
+            if (window.Game.pigs) {
+                window.Game.pigs.forEach(function(pig) {
+                    if (pig.label === 'pig') {
+                        Pig.drawPig(ctx, pig);
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
