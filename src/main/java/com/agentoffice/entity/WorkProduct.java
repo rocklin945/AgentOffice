@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 @Data
 public class WorkProduct {
     private Long id;
+    private Long userId;
     private Long employeeId;
     private Long taskId;
     private String name;

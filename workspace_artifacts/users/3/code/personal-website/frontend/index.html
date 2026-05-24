@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>个人网站 - 我的作品集</title>
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --bg-primary: #ffffff;
+      --bg-secondary: #f8fafc;
+      --bg-tertiary: #f1f5f9;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --border: #e2e8f0;
+      --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+      --radius: 12px;
+      --transition: 0.3s ease;
+    }
+
+    [data-theme="dark"] {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --border: #334155;
+      --shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.4);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      transition: background var(--transition), color var(--transition);
+    }
+
+    /* 导航栏 */
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 70px;
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 5%;
+      z-index: 1000;
+      backdrop-filter: blur(10px);
+    }
+
+    .nav-brand {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      align-items: center;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color var(--transition);
+    }
+
+    .nav-links a:hover {
+      color: var(--primary);
+    }
+
+    .theme-toggle {
+      background: var(--bg-tertiary);
+      border: none;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      transition: transform var(--transition), background var(--transition);
+    }
+
+    .theme-toggle:hover {
+      transform: scale(1.1);
+    }
+
+    /* 汉堡菜单 */
+    .menu-toggle {
+      display: none;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--text-primary);
+    }
+
+    /* 主内容 */
+    main {
+      padding-top: 70px;
+    }
+
+    section {
+      padding: 80px 5%;
+    }
+
+    .section-title {
+      font-size: 2.5rem;
+      text-align: center;
+      margin-bottom: 3rem;
+      color: var(--text-primary);
+    }
+
+    .section-title span {
+      color: var(--primary);
+    }
+
+    /* Hero 区域 */
+    .hero {
+      min-height: calc(100vh - 70px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+      padding: 0 5%;
+    }
+
+    .hero-content {
+      max-width: 800px;
+    }
+
+    .hero h1 {
+      font-size: 3.5rem;
+      margin-bottom: 1rem;
+      animation: fadeInUp 0.8s ease;
+    }
+
+    .hero p {
+      font-size: 1.25rem;
+      color: var(--text-secondary);
+      margin-bottom: 2rem;
+      animation: fadeInUp 0.8s ease 0.2s both;
+    }
+
+    .hero-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      animation: fadeInUp 0.8s ease 0.4s both;
+    }
+
+    .btn {
+      padding: 12px 32px;
+      border-radius: var(--radius);
+      font-size: 1rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all var(--transition);
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .btn-secondary {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* 作品集 - 瀑布流 */
+    .portfolio {
+      background: var(--bg-secondary);
+    }
+
+    .masonry {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .project-card {
+      background: var(--bg-primary);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      transition: all var(--transition);
+      cursor: pointer;
+    }
+
+    .project-card:hover {
+      transform: translateY(-8px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .project-image {
+      width: 100%;
+      height: 200px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+    }
+
+    .project-info {
+      padding: 1.5rem;
+    }
+
+    .project-info h3 {
+      font-size: 1.25rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .project-info p {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .project-tags {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      padding: 4px 12px;
+      background: var(--bg-tertiary);
+      border-radius: 20px;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    /* 技能树 */
+    .skills-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .skill-category {
+      background: var(--bg-secondary);
+      padding: 2rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    .skill-category h3 {
+      font-size: 1.25rem;
+      margin-bottom: 1.5rem;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .skill-item {
+      margin-bottom: 1rem;
+    }
+
+    .skill-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .skill-name {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .skill-bar {
+      height: 8px;
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .skill-progress {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dark) 100%);
+      border-radius: 4px;
+      transition: width 1s ease;
+    }
+
+    /* 留言板 */
+    .message-board {
+      background: var(--bg-secondary);
+    }
+
+    .message-form {
+      max-width: 600px;
+      margin: 0 auto 3rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .message-form input,
+    .message-form textarea {
+      padding: 14px 18px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 1rem;
+      font-family: inherit;
+      transition: border-color var(--transition);
+    }
+
+    .message-form input:focus,
+    .message-form textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .message-form textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .message-form button {
+      align-self: flex-end;
+    }
+
+    .messages-container {
+      max-width: 800px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .message-card {
+      background: var(--bg-primary);
+      padding: 1.5rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      animation: fadeInUp 0.5s ease;
+    }
+
+    .message-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .message-author {
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    .message-time {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .message-content {
+      color: var(--text-primary);
+      line-height: 1.7;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-secondary);
+    }
+
+    /* 页脚 */
+    footer {
+      background: var(--bg-secondary);
+      padding: 3rem 5%;
+      text-align: center;
+      border-top: 1px solid var(--border);
+    }
+
+    footer p {
+      color: var(--text-secondary);
+    }
+
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+      .menu-toggle {
+        display: block;
+      }
+
+      .nav-links {
+        position: fixed;
+        top: 70px;
+        left: 0;
+        right: 0;
+        background: var(--bg-primary);
+        flex-direction: column;
+        padding: 2rem;
+        gap: 1.5rem;
+        border-bottom: 1px solid var(--border);
+        transform: translateY(-100%);
+        opacity: 0;
+        pointer-events: none;
+        transition: all var(--transition);
+      }
+
+      .nav-links.active {
+        transform: translateY(0);
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .hero h1 {
+        font-size: 2.5rem;
+      }
+
+      .hero p {
+        font-size: 1.1rem;
+      }
+
+      .hero-buttons {
+        flex-direction: column;
+      }
+
+      .section-title {
+        font-size: 2rem;
+      }
+
+      .masonry {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 480px) {
+      section {
+        padding: 60px 4%;
+      }
+
+      .hero h1 {
+        font-size: 2rem;
+      }
+
+      .btn {
+        width: 100%;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- 导航栏 -->
+  <nav class="navbar">
+    <a href="#" class="nav-brand">MyPortfolio</a>
+    <button class="menu-toggle" aria-label="菜单">☰</button>
+    <div class="nav-links">
+      <a href="#hero">首页</a>
+      <a href="#portfolio">作品集</a>
+      <a href="#skills">技能</a>
+      <a href="#message">留言</a>
+      <button class="theme-toggle" aria-label="切换主题">🌙</button>
+    </div>
+  </nav>
+
+  <main>
+    <!-- Hero 区域 -->
+    <section class="hero" id="hero">
+      <div class="hero-content">
+        <h1>你好，我是全栈开发者</h1>
+        <p>专注于创造优雅、高效的Web体验。热爱技术，追求卓越。</p>
+        <div class="hero-buttons">
+          <a href="#portfolio" class="btn btn-primary">查看作品</a>
+          <a href="#message" class="btn btn-secondary">联系我</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- 作品集 -->
+    <section class="portfolio" id="portfolio">
+      <h2 class="section-title">我的<span>作品集</span></h2>
+      <div class="masonry">
+        <article class="project-card">
+          <div class="project-image">🚀</div>
+          <div class="project-info">
+            <h3>电商平台</h3>
+            <p>基于Vue3 + Node.js的现代化电商解决方案</p>
+            <div class="project-tags">
+              <span class="tag">Vue3</span>
+              <span class="tag">Node.js</span>
+              <span class="tag">MongoDB</span>
+            </div>
+          </div>
+        </article>
+        <article class="project-card">
+          <div class="project-image">📱</div>
+          <div class="project-info">
+            <h3>任务管理App</h3>
+            <p>响应式任务管理应用，支持团队协作</p>
+            <div class="project-tags">
+              <span class="tag">React</span>
+              <span class="tag">TypeScript</span>
+              <span class="tag">Firebase</span>
+            </div>
+          </div>
+        </article>
+        <article class="project-card">
+          <div class="project-image">🎨</div>
+          <div class="project-info">
+            <h3>设计系统</h3>
+            <p>企业级UI组件库，包含50+组件</p>
+            <div class="project-tags">
+              <span class="tag">Vue3</span>
+              <span class="tag">Storybook</span>
+              <span class="tag">CSS Variables</span>
+            </div>
+          </div>
+        </article>
+        <article class="project-card">
+          <div class="project-image">⚡</div>
+          <div class="project-info">
+            <h3>实时聊天应用</h3>
+            <p>WebSocket实现的即时通讯平台</p>
+            <div class="project-tags">
+              <span class="tag">Socket.io</span>
+              <span class="tag">Express</span>
+              <span class="tag">React</span>
+            </div>
+          </div>
+        </article>
+        <article class="project-card">
+          <div class="project-image">📊</div>
+          <div class="project-info">
+            <h3>数据分析仪表盘</h3>
+            <p>实时可视化业务数据，支持自定义报表</p>
+            <div class="project-tags">
+              <span class="tag">D3.js</span>
+              <span class="tag">Python</span>
+              <span class="tag">PostgreSQL</span>
+            </div>
+          </div>
+        </article>
+        <article class="project-card">
+          <div class="project-image">🌐</div>
+          <div class="project-info">
+            <h3>博客系统</h3>
+            <p>Markdown编辑器，支持SEO优化</p>
+            <div class="project-tags">
+              <span class="tag">Next.js</span>
+              <span class="tag">MDX</span>
+              <span class="tag">Vercel</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- 技能树 -->
+    <section class="skills" id="skills">
+      <h2 class="section-title">技能<span>展示</span></h2>
+      <div class="skills-grid">
+        <div class="skill-category">
+          <h3>🎨 前端开发</h3>
+          <div class="skill-item">
+            <div class="skill-name">
+              <span>HTML/CSS</span>
+              <span>95%</span>
+            </div>
+            <div class="skill-bar">
+              <div class="skill-progress" style="width: 95%"></div>
+            </div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-name">
+              <span>JavaScript</span>
+              <span>90%</span>
+            </div>
+            <div class="skill-bar">
+              <div class="skill-progress" style="width: 90%"></div>
+            </div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-name">
+              <span>Vue.js</span>
+              <span>85%</span>
+            </div>
+            <div class="skill-bar">
+              <div class="skill-progress" style="width: 85%"></div>
+            </div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-name">
+              <span>React</span>
+              <span>80%</span>
+            </div>
+            <div class="skill-bar">
+              <div class="skill-progress" style="width: 80%"></div>
+            </div>
+          </div>
+        </div>
+        <div class="skill-category">
+          <h3>⚙️ 后端开发</h3>
+          <div class="skill-item">
+            <div class="skill-name">
+              <span>Node.js</span>
+              <span>85%</span>
+            </div>
+            <div class="skill-bar">
+              <div class="skill-progress" style="width: 85%"></div>
+            </div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-name">
+              <span>Python</span>
+              <span>75%</span>
+            </div>
+            <div class="skill-bar">
+              <div class="skill-progress" style="width: 75%"></div>
+            </div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-name">
+              <span>PostgreSQL</span>
+              <span>80%</span>
+            </div>
+            <div class="skill-bar">
+              <div class="skill-progress" style="width: 80%"></div>
+            </div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-name">
+              <span>MongoDB</span>
+              <span>75%</span>
+            </div>
+            <div class="skill-bar">
+              <div class="skill-progress" style="width: 75%"></div>
+            </div>
+          </div>
+        </div>
+        <div class="skill-category">
+          <h3>🛠️ DevOps & 工具</h3>
+          <div class="skill-item">
+            <div class="skill-name">
+              <span>Git</span>
+              <span>90%</span>
+            </div>
+            <div class="skill-bar">
+              <div class="skill-progress" style="width: 90%"></div>
+            </div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-name">
+              <span>Docker</span>
+              <span>75%</span>
+            </div>
+            <div class="skill-bar">
+              <div class="skill-progress" style="width: 75%"></div>
+            </div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-name">
+              <span>CI/CD</span>
+              <span>70%</span>
+            </div>
+            <div class="skill-bar">
+              <div class="skill-progress" style="width: 70%"></div>
+            </div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-name">
+              <span>Linux</span>
+              <span>80%</span>
+            </div>
+            <div class="skill-bar">
+              <div class="skill-progress" style="width: 80%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 留言板 -->
+    <section class="message-board" id="message">
+      <h2 class="section-title">给我<span>留言</span></h2>
+      <form class="message-form" id="messageForm">
+        <input type="text" name="author" placeholder="你的名字" required>
+        <textarea name="content" placeholder="想和我说些什么..." required></textarea>
+        <button type="submit" class="btn btn-primary">发送留言</button>
+      </form>
+      <div class="messages-container" id="messagesContainer">
+        <div class="loading">加载中...</div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>© 2024 MyPortfolio. 用 ❤️ 和代码构建</p>
+  </footer>
+
+  <script>
+    // 深色主题切换
+    const themeToggle = document.querySelector('.theme-toggle');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+    
+    function setTheme(isDark) {
+      document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+      themeToggle.textContent = isDark ? '☀️' : '🌙';
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    }
+
+    // 初始化主题
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      setTheme(savedTheme === 'dark');
+    } else {
+      setTheme(prefersDark.matches);
+    }
+
+    themeToggle.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme');
+      setTheme(current !== 'dark');
+    });
+
+    // 移动端菜单
+    const menuToggle = document.querySelector('.menu-toggle');
+    const navLinks = document.querySelector('.nav-links');
+
+    menuToggle.addEventListener('click', () => {
+      navLinks.classList.toggle('active');
+      menuToggle.textContent = navLinks.classList.contains('active') ? '✕' : '☰';
+    });
+
+    // 关闭菜单当点击链接
+    navLinks.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', () => {
+        navLinks.classList.remove('active');
+        menuToggle.textContent = '☰';
+      });
+    });
+
+    // 留言板功能
+    const messageForm = document.getElementById('messageForm');
+    const messagesContainer = document.getElementById('messagesContainer');
+
+    // 加载留言
+    async function loadMessages() {
+      try {
+        const response = await fetch('/api/messages');
+        if (!response.ok) throw new Error('获取留言失败');
+        const messages = await response.json();
+        
+        if (messages.length === 0) {
+          messagesContainer.innerHTML = '<p style="text-align:center;color:var(--text-secondary)">暂无留言，来做第一个吧！</p>';
+          return;
+        }
+
+        messagesContainer.innerHTML = messages.map(msg => `
+          <div class="message-card">
+            <div class="message-header">
+              <span class="message-author">${escapeHtml(msg.author)}</span>
+              <span class="message-time">${formatTime(msg.createdAt)}</span>
+            </div>
+            <p class="message-content">${escapeHtml(msg.content)}</p>
+          </div>
+        `).join('');
+      } catch (error) {
+        messagesContainer.innerHTML = '<p style="text-align:center;color:var(--text-secondary)">留言加载失败，请稍后重试</p>';
+      }
+    }
+
+    // XSS防护
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // 时间格式化
+    function formatTime(dateString) {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('zh-CN', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    }
+
+    // 提交留言
+    messageForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(messageForm);
+      const data = {
+        author: formData.get('author'),
+        content: formData.get('content')
+      };
+
+      try {
+        const response = await fetch('/api/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        if (!response.ok) throw new Error('发送失败');
+        
+        messageForm.reset();
+        await loadMessages();
+      } catch (error) {
+        alert('发送失败，请稍后重试');
+      }
+    });
+
+    // 技能条动画
+    function animateSkillBars() {
+      document.querySelectorAll('.skill-progress').forEach(bar => {
+        const width = bar.style.width;
+        bar.style.width = '0';
+        setTimeout(() => {
+          bar.style.width = width;
+        }, 100);
+      });
+    }
+
+    // 滚动监听
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          animateSkillBars();
+          observer.disconnect();
+        }
+      });
+    }, { threshold: 0.3 });
+
+    observer.observe(document.querySelector('.skills-grid'));
+
+    // 初始化加载
+    loadMessages();
+  </script>
+</body>
+</html>

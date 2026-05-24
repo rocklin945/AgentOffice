@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 @Data
 public class DeployService {
     private Long id;
+    private Long userId;
     private String serviceName;
     private String image;
     private String version;

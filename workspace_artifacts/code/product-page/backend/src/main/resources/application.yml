@@ -1,0 +1,46 @@
+server:
+  port: ${APP_PORT:8080}
+
+spring:
+  application:
+    name: product-page-backend
+  
+  # H2 Database Configuration (Development)
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  
+  # MySQL Configuration (Production - via environment variables)
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/product_db?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+  
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+    open-in-view: false
+  
+  # H2 File Database (when MySQL is not available)
+  datasource:
+    url: jdbc:h2:file:./data/productdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+logging:
+  level:
+    com.example.productpage: DEBUG
+    org.springframework.web: INFO

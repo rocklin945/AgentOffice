@@ -7,6 +7,7 @@ import java.util.List;
 @Data
 public class AgentEmployee {
     private Long id;
+    private Long userId;
     private String name;
     private String avatar;
     private String role;

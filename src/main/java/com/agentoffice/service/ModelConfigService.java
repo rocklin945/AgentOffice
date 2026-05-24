@@ -15,60 +15,65 @@ public class ModelConfigService {
 
     private final ModelConfigMapper modelConfigMapper;
 
-    public List<ModelConfig> list(Boolean enabledOnly) {
-        return Boolean.TRUE.equals(enabledOnly) ? modelConfigMapper.findEnabled() : modelConfigMapper.findAll();
+    public List<ModelConfig> list(Long userId, Boolean enabledOnly) {
+        return Boolean.TRUE.equals(enabledOnly) ? modelConfigMapper.findEnabledByUser(userId) : modelConfigMapper.findAllByUser(userId);
     }
 
-    public ModelConfig getById(Long id) {
-        ModelConfig config = modelConfigMapper.findById(id);
+    public ModelConfig getById(Long userId, Long id) {
+        ModelConfig config = modelConfigMapper.findByIdForUser(id, userId);
         if (config == null) {
             throw new BusinessException(404, "模型配置不存在");
         }
         return config;
     }
 
-    public ModelConfig getDefault() {
-        return modelConfigMapper.findDefault();
+    public ModelConfig getDefault(Long userId) {
+        return modelConfigMapper.findDefaultByUser(userId);
     }
 
     @Transactional
-    public ModelConfig create(ModelConfig config) {
+    public ModelConfig create(Long userId, ModelConfig config) {
+        config.setUserId(userId);
         validate(config);
         normalize(config);
         modelConfigMapper.insert(config);
         if (config.getIsDefault() != null && config.getIsDefault() == 1) {
-            setDefault(config.getId());
+            setDefault(userId, config.getId());
         }
-        return getById(config.getId());
+        return getById(userId, config.getId());
     }
 
     @Transactional
-    public ModelConfig update(Long id, ModelConfig config) {
-        getById(id);
+    public ModelConfig update(Long userId, Long id, ModelConfig config) {
+        getById(userId, id);
         config.setId(id);
+        config.setUserId(userId);
         validate(config);
         normalize(config);
         modelConfigMapper.update(config);
         if (config.getIsDefault() != null && config.getIsDefault() == 1) {
-            setDefault(id);
+            setDefault(userId, id);
         }
-        return getById(id);
+        return getById(userId, id);
     }
 
     @Transactional
-    public void setDefault(Long id) {
-        getById(id);
-        modelConfigMapper.clearDefaultExcept(id);
-        modelConfigMapper.setDefault(id);
+    public void setDefault(Long userId, Long id) {
+        ModelConfig config = getById(userId, id);
+        if (config.getUserId() == null) {
+            throw new BusinessException(400, "系统默认配置不能被个人用户修改");
+        }
+        modelConfigMapper.clearDefaultExceptForUser(id, userId);
+        modelConfigMapper.setDefaultForUser(id, userId);
     }
 
     @Transactional
-    public void delete(Long id) {
-        ModelConfig config = getById(id);
+    public void delete(Long userId, Long id) {
+        ModelConfig config = getById(userId, id);
         if (config.getIsDefault() != null && config.getIsDefault() == 1) {
             throw new BusinessException(400, "默认模型不能删除，请先设置其他默认模型");
         }
-        modelConfigMapper.deleteById(id);
+        modelConfigMapper.deleteByIdForUser(id, userId);
     }
 
     private void validate(ModelConfig config) {

@@ -27,25 +27,26 @@ public class EmployeeService {
     @Autowired
     private TaskInfoMapper taskMapper;
 
-    public List<AgentEmployee> getList(String status, String role, String keyword) {
-        List<AgentEmployee> employees = employeeMapper.findList(status, role, keyword);
-        employees.forEach(this::fillTaskCount);
+    public List<AgentEmployee> getList(Long userId, String status, String role, String keyword) {
+        List<AgentEmployee> employees = employeeMapper.findListByUser(userId, status, role, keyword);
+        employees.forEach(employee -> fillTaskCount(userId, employee));
         return employees;
     }
 
-    public AgentEmployee getById(Long id) {
-        AgentEmployee employee = employeeMapper.findById(id);
+    public AgentEmployee getById(Long userId, Long id) {
+        AgentEmployee employee = employeeMapper.findByIdForUser(id, userId);
         if (employee == null) {
             throw new BusinessException(404, "Employee does not exist");
         }
-        fillTaskCount(employee);
+        fillTaskCount(userId, employee);
         fillPermissions(employee);
         return employee;
     }
 
     @Transactional
-    public AgentEmployee create(CreateEmployeeRequest request) {
+    public AgentEmployee create(Long userId, CreateEmployeeRequest request) {
         AgentEmployee employee = new AgentEmployee();
+        employee.setUserId(userId);
         employee.setName(request.getName());
         employee.setAvatar(request.getAvatar());
         employee.setRole(request.getRole());
@@ -65,20 +66,21 @@ public class EmployeeService {
 
         employeeMapper.insert(employee);
         savePermissions(employee.getId(), request.getPermissions());
-        fillTaskCount(employee);
+        fillTaskCount(userId, employee);
         fillPermissions(employee);
         return employee;
     }
 
     @Transactional
-    public AgentEmployee update(Long id, CreateEmployeeRequest request) {
-        AgentEmployee exist = employeeMapper.findById(id);
+    public AgentEmployee update(Long userId, Long id, CreateEmployeeRequest request) {
+        AgentEmployee exist = employeeMapper.findByIdForUser(id, userId);
         if (exist == null) {
             throw new BusinessException(404, "Employee does not exist");
         }
 
         AgentEmployee employee = new AgentEmployee();
         employee.setId(id);
+        employee.setUserId(userId);
         employee.setName(request.getName());
         employee.setAvatar(request.getAvatar());
         employee.setRole(request.getRole());
@@ -91,33 +93,33 @@ public class EmployeeService {
             permissionMapper.deleteByEmployeeId(id);
             savePermissions(id, request.getPermissions());
         }
-        fillTaskCount(employee);
+        fillTaskCount(userId, employee);
         fillPermissions(employee);
         return employee;
     }
 
     @Transactional
-    public void delete(Long id) {
-        AgentEmployee employee = employeeMapper.findById(id);
+    public void delete(Long userId, Long id) {
+        AgentEmployee employee = employeeMapper.findByIdForUser(id, userId);
         if (employee == null) {
             throw new BusinessException(404, "Employee does not exist");
         }
         permissionMapper.deleteByEmployeeId(id);
-        employeeMapper.deleteById(id);
+        employeeMapper.deleteByIdForUser(id, userId);
     }
 
     @Transactional
-    public void updateStatus(Long id, String status) {
-        employeeMapper.updateStatus(id, status);
+    public void updateStatus(Long userId, Long id, String status) {
+        employeeMapper.updateStatusForUser(id, status, userId);
     }
 
-    public Map<String, Integer> getStatusOverview() {
+    public Map<String, Integer> getStatusOverview(Long userId) {
         Map<String, Integer> overview = new HashMap<>();
-        overview.put("working", employeeMapper.countByStatus("working"));
-        overview.put("thinking", employeeMapper.countByStatus("thinking"));
-        overview.put("compiling", employeeMapper.countByStatus("compiling"));
-        overview.put("deploying", employeeMapper.countByStatus("deploying"));
-        overview.put("idle", employeeMapper.countByStatus("idle") + employeeMapper.countByStatus("online"));
+        overview.put("working", employeeMapper.countByStatusForUser("working", userId));
+        overview.put("thinking", employeeMapper.countByStatusForUser("thinking", userId));
+        overview.put("compiling", employeeMapper.countByStatusForUser("compiling", userId));
+        overview.put("deploying", employeeMapper.countByStatusForUser("deploying", userId));
+        overview.put("idle", employeeMapper.countByStatusForUser("idle", userId) + employeeMapper.countByStatusForUser("online", userId));
         return overview;
     }
 
@@ -140,9 +142,9 @@ public class EmployeeService {
         employee.setPermissions(permissions);
     }
 
-    private void fillTaskCount(AgentEmployee employee) {
+    private void fillTaskCount(Long userId, AgentEmployee employee) {
         if (employee != null && employee.getId() != null) {
-            employee.setTaskCount(taskMapper.countByExecutor(employee.getId()));
+            employee.setTaskCount(taskMapper.countByExecutorForUser(employee.getId(), userId));
         }
     }
 }

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>搜索结果 - SimpleShop</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <header class="header">
+        <div class="container header-content">
+            <a href="index.html" class="logo">SimpleShop</a>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="搜索商品...">
+                <button onclick="goToSearch()">搜索</button>
+            </div>
+            <nav class="nav-links">
+                <a href="index.html">首页</a>
+                <a href="cart.html" class="cart-link">
+                    购物车
+                    <span class="cart-badge" id="cartBadge">0</span>
+                </a>
+                <a href="login.html" id="userLink">登录</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 主体内容 -->
+    <main class="main-content">
+        <div class="container">
+            <div class="search-header">
+                <h2>搜索结果：<span id="searchKeyword"></span></h2>
+                <p>共找到 <span id="resultCount">0</span> 个商品</p>
+            </div>
+            
+            <div class="sort-options">
+                <label>排序：</label>
+                <select id="sortSelect" onchange="sortSearchResults()">
+                    <option value="default">默认排序</option>
+                    <option value="price-asc">价格从低到高</option>
+                    <option value="price-desc">价格从高到低</option>
+                </select>
+            </div>
+            
+            <div class="products-grid" id="productsGrid">
+                <!-- 搜索结果将通过 JS 动态渲染 -->
+            </div>
+            
+            <div class="no-results" id="noResults" style="display: none;">
+                <p>没有找到相关商品</p>
+                <a href="index.html" class="btn-continue-shopping">去首页看看</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 SimpleShop. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="js/data.js"></script>
+    <script src="js/cart.js"></script>
+    <script>
+        let searchResults = [];
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const params = new URLSearchParams(window.location.search);
+            const keyword = params.get('keyword') || '';
+            
+            document.getElementById('searchInput').value = keyword;
+            document.getElementById('searchKeyword').textContent = keyword;
+            
+            searchProducts(keyword);
+        });
+        
+        function searchProducts(keyword) {
+            if (!keyword) {
+                showNoResults();
+                return;
+            }
+            
+            searchResults = productsData.filter(p => 
+                p.name.toLowerCase().includes(keyword.toLowerCase()) ||
+                p.description.toLowerCase().includes(keyword.toLowerCase())
+            );
+            
+            document.getElementById('resultCount').textContent = searchResults.length;
+            
+            if (searchResults.length === 0) {
+                showNoResults();
+            } else {
+                renderSearchResults(searchResults);
+            }
+        }
+        
+        function renderSearchResults(products) {
+            const productsGrid = document.getElementById('productsGrid');
+            productsGrid.style.display = 'grid';
+            document.getElementById('noResults').style.display = 'none';
+            
+            productsGrid.innerHTML = products.map(product => createProductCard(product)).join('');
+        }
+        
+        function showNoResults() {
+            document.getElementById('productsGrid').style.display = 'none';
+            document.getElementById('noResults').style.display = 'block';
+        }
+        
+        function sortSearchResults() {
+            const sortValue = document.getElementById('sortSelect').value;
+            
+            switch(sortValue) {
+                case 'price-asc':
+                    searchResults.sort((a, b) => a.price - b.price);
+                    break;
+                case 'price-desc':
+                    searchResults.sort((a, b) => b.price - a.price);
+                    break;
+                default:
+                    // 保持原顺序
+                    break;
+            }
+            
+            renderSearchResults(searchResults);
+        }
+    </script>
+</body>
+</html>

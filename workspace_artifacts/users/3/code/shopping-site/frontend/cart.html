@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>购物车 - SimpleShop</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <header class="header">
+        <div class="container header-content">
+            <a href="index.html" class="logo">SimpleShop</a>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="搜索商品...">
+                <button onclick="goToSearch()">搜索</button>
+            </div>
+            <nav class="nav-links">
+                <a href="index.html">首页</a>
+                <a href="cart.html" class="cart-link active">
+                    购物车
+                    <span class="cart-badge" id="cartBadge">0</span>
+                </a>
+                <a href="login.html" id="userLink">登录</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 主体内容 -->
+    <main class="main-content">
+        <div class="container">
+            <h2>我的购物车</h2>
+            <div class="cart-container" id="cartContainer">
+                <!-- 购物车内容将通过 JS 动态渲染 -->
+            </div>
+            
+            <!-- 购物车为空时显示 -->
+            <div class="cart-empty" id="cartEmpty" style="display: none;">
+                <p>购物车是空的</p>
+                <a href="index.html" class="btn-continue-shopping">继续购物</a>
+            </div>
+            
+            <!-- 结算区域 -->
+            <div class="cart-summary" id="cartSummary">
+                <div class="summary-info">
+                    <p>已选商品 <span id="selectedCount">0</span> 件</p>
+                    <p>商品总价：<span id="totalPrice">¥0.00</span></p>
+                </div>
+                <button class="btn-checkout" onclick="checkout()">去结算</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- 结算成功弹窗 -->
+    <div class="modal" id="checkoutModal">
+        <div class="modal-content">
+            <h3>订单确认</h3>
+            <p>订单已生成！</p>
+            <p class="order-number">订单号：<span id="orderNumber"></span></p>
+            <p>感谢您的购买！</p>
+            <button onclick="closeModal()">确定</button>
+        </div>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 SimpleShop. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="js/data.js"></script>
+    <script src="js/cart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            renderCart();
+        });
+        
+        function renderCart() {
+            const cartContainer = document.getElementById('cartContainer');
+            const cartEmpty = document.getElementById('cartEmpty');
+            const cartSummary = document.getElementById('cartSummary');
+            const cart = getCart();
+            
+            if (cart.length === 0) {
+                cartContainer.style.display = 'none';
+                cartSummary.style.display = 'none';
+                cartEmpty.style.display = 'block';
+                return;
+            }
+            
+            cartContainer.style.display = 'block';
+            cartSummary.style.display = 'flex';
+            cartEmpty.style.display = 'none';
+            
+            let totalPrice = 0;
+            let totalCount = 0;
+            
+            cartContainer.innerHTML = `
+                <table class="cart-table">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll()" checked> 全选</th>
+                            <th>商品</th>
+                            <th>单价</th>
+                            <th>数量</th>
+                            <th>小计</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${cart.map(item => {
+                            const product = productsData.find(p => p.id === item.id);
+                            if (!product) return '';
+                            const subtotal = product.price * item.quantity;
+                            totalPrice += subtotal;
+                            totalCount += item.quantity;
+                            return `
+                                <tr data-id="${item.id}">
+                                    <td><input type="checkbox" class="item-checkbox" checked></td>
+                                    <td class="cart-product">
+                                        <img src="${product.image}" alt="${product.name}">
+                                        <span>${product.name}</span>
+                                    </td>
+                                    <td>¥${product.price}</td>
+                                    <td>
+                                        <div class="quantity-control">
+                                            <button onclick="updateQuantity('${item.id}', -1)">-</button>
+                                            <span>${item.quantity}</span>
+                                            <button onclick="updateQuantity('${item.id}', 1)">+</button>
+                                        </div>
+                                    </td>
+                                    <td class="subtotal">¥${subtotal.toFixed(2)}</td>
+                                    <td>
+                                        <button class="btn-delete" onclick="removeFromCart('${item.id}')">删除</button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            document.getElementById('selectedCount').textContent = totalCount;
+            document.getElementById('totalPrice').textContent = `¥${totalPrice.toFixed(2)}`;
+            updateCartBadge();
+        }
+        
+        function updateQuantity(productId, delta) {
+            const cart = getCart();
+            const item = cart.find(i => i.id === productId);
+            if (item) {
+                const product = productsData.find(p => p.id === productId);
+                item.quantity = Math.max(1, Math.min(item.quantity + delta, product.stock));
+                saveCart(cart);
+                renderCart();
+            }
+        }
+        
+        function removeFromCart(productId) {
+            const cart = getCart();
+            const newCart = cart.filter(i => i.id !== productId);
+            saveCart(newCart);
+            renderCart();
+        }
+        
+        function toggleSelectAll() {
+            const checked = document.getElementById('selectAll').checked;
+            document.querySelectorAll('.item-checkbox').forEach(cb => cb.checked = checked);
+        }
+        
+        function checkout() {
+            const user = getCurrentUser();
+            if (!user) {
+                alert('请先登录后再结算！');
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            const orderNumber = 'ORD' + Date.now();
+            document.getElementById('orderNumber').textContent = orderNumber;
+            document.getElementById('checkoutModal').style.display = 'flex';
+            
+            // 清空购物车
+            saveCart([]);
+            renderCart();
+            updateCartBadge();
+        }
+        
+        function closeModal() {
+            document.getElementById('checkoutModal').style.display = 'none';
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

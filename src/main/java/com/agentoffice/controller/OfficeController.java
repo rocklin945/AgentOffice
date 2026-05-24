@@ -4,6 +4,7 @@ import com.agentoffice.common.result.Result;
 import com.agentoffice.common.exception.BusinessException;
 import com.agentoffice.dto.CollaborationChatRequest;
 import com.agentoffice.dto.OfficeLayoutResponse;
+import com.agentoffice.service.CurrentUserService;
 import com.agentoffice.service.JwtService;
 import com.agentoffice.service.OfficeService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,20 +24,26 @@ public class OfficeController {
     @Autowired
     private JwtService jwtService;
 
+    @Autowired
+    private CurrentUserService currentUserService;
+
     @GetMapping("/layout")
-    public Result<OfficeLayoutResponse> getLayout() {
+    public Result<OfficeLayoutResponse> getLayout(@RequestHeader(value = "Authorization", required = false) String token) {
+        currentUserService.requireUserId(token);
         OfficeLayoutResponse response = officeService.getLayout();
         return Result.success(response);
     }
 
     @GetMapping("/employees/status")
-    public Result<Map<String, Integer>> getEmployeeStatusOverview() {
+    public Result<Map<String, Integer>> getEmployeeStatusOverview(@RequestHeader(value = "Authorization", required = false) String token) {
+        currentUserService.requireUserId(token);
         Map<String, Integer> overview = officeService.getStatusOverview();
         return Result.success(overview);
     }
 
     @GetMapping("/collaboration")
-    public Result<Map<String, Object>> getCollaboration() {
+    public Result<Map<String, Object>> getCollaboration(@RequestHeader(value = "Authorization", required = false) String token) {
+        currentUserService.requireUserId(token);
         return Result.success(officeService.getCollaboration());
     }
 
@@ -82,12 +89,16 @@ public class OfficeController {
     }
 
     @GetMapping("/code-reviews/latest")
-    public Result<Map<String, Object>> getLatestCodeReview(@RequestParam(required = false) Long taskId) {
+    public Result<Map<String, Object>> getLatestCodeReview(@RequestParam(required = false) Long taskId,
+                                                           @RequestHeader(value = "Authorization", required = false) String token) {
+        currentUserService.requireUserId(token);
         return Result.success(officeService.getLatestCodeReviewReport(taskId));
     }
 
     @PostMapping("/code-reviews/{taskId}/rerun")
-    public Result<Map<String, Object>> rerunCodeReview(@PathVariable Long taskId) {
+    public Result<Map<String, Object>> rerunCodeReview(@PathVariable Long taskId,
+                                                       @RequestHeader(value = "Authorization", required = false) String token) {
+        currentUserService.requireUserId(token);
         return Result.success(officeService.rerunCodeReview(taskId));
     }
 

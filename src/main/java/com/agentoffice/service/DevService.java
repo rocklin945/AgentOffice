@@ -34,20 +34,20 @@ public class DevService {
     private static final String WORKSPACE_ROOT = "workspace_artifacts";
     private static final String CODE_DIR = "code";
 
-    public List<DevProject> getProjectList() {
-        return listProjectRoots().stream()
+    public List<DevProject> getProjectList(Long userId) {
+        return listProjectRoots(userId).stream()
                 .map(this::toProject)
                 .toList();
     }
 
-    public DevProject getProjectById(Long id) {
-        return toProject(findProjectRoot(id));
+    public DevProject getProjectById(Long userId, Long id) {
+        return toProject(findProjectRoot(userId, id));
     }
 
     @Transactional
-    public DevProject createProject(DevProject project) {
+    public DevProject createProject(Long userId, DevProject project) {
         String projectName = validateProjectName(project.getProjectName());
-        Path root = ensureCodeRoot();
+        Path root = ensureCodeRoot(userId);
         Path projectRoot = root.resolve(projectName).normalize();
         if (!projectRoot.startsWith(root)) {
             throw new BusinessException(400, "Invalid project name");
@@ -63,15 +63,15 @@ public class DevService {
     }
 
     @Transactional
-    public DevProject updateProject(Long id, DevProject project) {
-        Path existingRoot = findProjectRoot(id);
+    public DevProject updateProject(Long userId, Long id, DevProject project) {
+        Path existingRoot = findProjectRoot(userId, id);
         String nextName = project.getProjectName();
         if (nextName == null || nextName.isBlank() || existingRoot.getFileName().toString().equals(nextName.trim())) {
             return toProject(existingRoot);
         }
 
         String projectName = validateProjectName(nextName);
-        Path root = ensureCodeRoot();
+        Path root = ensureCodeRoot(userId);
         Path targetRoot = root.resolve(projectName).normalize();
         if (!targetRoot.startsWith(root)) {
             throw new BusinessException(400, "Invalid project name");
@@ -94,8 +94,8 @@ public class DevService {
     }
 
     @Transactional
-    public void deleteProject(Long id) {
-        Path projectRoot = findProjectRoot(id);
+    public void deleteProject(Long userId, Long id) {
+        Path projectRoot = findProjectRoot(userId, id);
         try (Stream<Path> stream = Files.walk(projectRoot)) {
             List<Path> paths = stream.sorted(Comparator.reverseOrder()).toList();
             for (Path item : paths) {
@@ -109,8 +109,8 @@ public class DevService {
     private static final java.util.Set<String> EXCLUDED_DIRS = java.util.Set.of(
             "target", "node_modules", ".git", ".mvn", ".idea", "__pycache__", ".gradle", "build");
 
-    public List<DevFile> getFileTree(Long projectId) {
-        Path projectRoot = findProjectRoot(projectId);
+    public List<DevFile> getFileTree(Long userId, Long projectId) {
+        Path projectRoot = findProjectRoot(userId, projectId);
         try (Stream<Path> stream = Files.list(projectRoot)) {
             return stream.sorted(fileOrder())
                     .filter(p -> !EXCLUDED_DIRS.contains(p.getFileName().toString()))
@@ -121,20 +121,20 @@ public class DevService {
         }
     }
 
-    public DevFile getFileById(Long id) {
-        DevFile file = findFileById(id);
+    public DevFile getFileById(Long userId, Long id) {
+        DevFile file = findFileById(userId, id);
         if (file == null) {
             throw new BusinessException(404, "File does not exist");
         }
         return file;
     }
 
-    public Map<String, Object> getFileWithContent(Long id) {
-        DevFile file = getFileById(id);
+    public Map<String, Object> getFileWithContent(Long userId, Long id) {
+        DevFile file = getFileById(userId, id);
         Map<String, Object> result = fileToMap(file);
 
         if (file.getIsDirectory() == null || file.getIsDirectory() == 0) {
-            Path path = resolveCodePath(file.getFilePath());
+            Path path = resolveCodePath(userId, file.getFilePath());
             try {
                 result.put("content", Files.exists(path) ? Files.readString(path, StandardCharsets.UTF_8) : "");
             } catch (IOException e) {
@@ -145,13 +145,13 @@ public class DevService {
     }
 
     @Transactional
-    public DevFile createFile(Long projectId, DevFile file, String content) {
+    public DevFile createFile(Long userId, Long projectId, DevFile file, String content) {
         if (file.getFilePath() == null || file.getFilePath().isBlank()) {
             throw new BusinessException(400, "File path is empty");
         }
 
-        Path projectRoot = findProjectRoot(projectId);
-        Path path = resolveProjectPath(projectRoot, file.getFilePath());
+        Path projectRoot = findProjectRoot(userId, projectId);
+        Path path = resolveProjectPath(userId, projectRoot, file.getFilePath());
         try {
             if (file.getIsDirectory() != null && file.getIsDirectory() == 1) {
                 Files.createDirectories(path);
@@ -167,14 +167,14 @@ public class DevService {
     }
 
     @Transactional
-    public DevFile updateFileContent(Long id, String content) {
-        DevFile exist = getFileById(id);
+    public DevFile updateFileContent(Long userId, Long id, String content) {
+        DevFile exist = getFileById(userId, id);
         if (exist.getIsDirectory() != null && exist.getIsDirectory() == 1) {
             throw new BusinessException(400, "Cannot write content to a directory");
         }
 
-        Path path = resolveCodePath(exist.getFilePath());
-        Path projectRoot = projectRootForPath(path);
+        Path path = resolveCodePath(userId, exist.getFilePath());
+        Path projectRoot = projectRootForPath(userId, path);
         try {
             Files.createDirectories(path.getParent());
             Files.writeString(path, content != null ? content : "", StandardCharsets.UTF_8);
@@ -185,9 +185,9 @@ public class DevService {
     }
 
     @Transactional
-    public void deleteFile(Long id) {
-        DevFile file = getFileById(id);
-        Path path = resolveCodePath(file.getFilePath());
+    public void deleteFile(Long userId, Long id) {
+        DevFile file = getFileById(userId, id);
+        Path path = resolveCodePath(userId, file.getFilePath());
         try {
             if (Files.isDirectory(path)) {
                 try (Stream<Path> stream = Files.walk(path)) {
@@ -204,15 +204,15 @@ public class DevService {
         }
     }
 
-    public String runCode(Long fileId, String language) {
-        DevFile file = getFileById(fileId);
+    public String runCode(Long userId, Long fileId, String language) {
+        DevFile file = getFileById(userId, fileId);
         if (file.getIsDirectory() != null && file.getIsDirectory() == 1) {
             throw new BusinessException(400, "Cannot run a directory");
         }
 
         String content = "";
         try {
-            Path path = resolveCodePath(file.getFilePath());
+            Path path = resolveCodePath(userId, file.getFilePath());
             if (Files.exists(path)) {
                 content = Files.readString(path, StandardCharsets.UTF_8);
             }
@@ -235,8 +235,8 @@ public class DevService {
         return project;
     }
 
-    private List<Path> listProjectRoots() {
-        Path root = ensureCodeRoot();
+    private List<Path> listProjectRoots(Long userId) {
+        Path root = ensureCodeRoot(userId);
         try (Stream<Path> stream = Files.list(root)) {
             return stream.filter(Files::isDirectory)
                     .sorted(fileOrder())
@@ -246,15 +246,15 @@ public class DevService {
         }
     }
 
-    private Path findProjectRoot(Long projectId) {
-        return listProjectRoots().stream()
+    private Path findProjectRoot(Long userId, Long projectId) {
+        return listProjectRoots(userId).stream()
                 .filter(path -> stableId(artifactRelative(path)).equals(projectId))
                 .findFirst()
                 .orElseThrow(() -> new BusinessException(404, "Project does not exist"));
     }
 
-    private Path ensureCodeRoot() {
-        Path root = codeRoot();
+    private Path ensureCodeRoot(Long userId) {
+        Path root = codeRoot(userId);
         try {
             Files.createDirectories(root);
         } catch (IOException e) {
@@ -263,17 +263,19 @@ public class DevService {
         return root;
     }
 
-    private Path codeRoot() {
-        return Paths.get(System.getProperty("user.dir"), WORKSPACE_ROOT, CODE_DIR).toAbsolutePath().normalize();
+    private Path codeRoot(Long userId) {
+        return Paths.get(System.getProperty("user.dir"), WORKSPACE_ROOT, "users", String.valueOf(userId), CODE_DIR)
+                .toAbsolutePath()
+                .normalize();
     }
 
-    private Path resolveCodePath(String filePath) {
+    private Path resolveCodePath(Long userId, String filePath) {
         if (filePath == null || filePath.isBlank()) {
             throw new BusinessException(400, "File path is empty");
         }
 
         String normalized = stripVirtualRoot(filePath);
-        Path root = ensureCodeRoot();
+        Path root = ensureCodeRoot(userId);
         Path resolved = root.resolve(normalized).normalize();
         if (!resolved.startsWith(root)) {
             throw new BusinessException(400, "Invalid file path");
@@ -281,9 +283,9 @@ public class DevService {
         return resolved;
     }
 
-    private Path resolveProjectPath(Path projectRoot, String filePath) {
+    private Path resolveProjectPath(Long userId, Path projectRoot, String filePath) {
         String normalized = stripVirtualRoot(filePath);
-        Path root = ensureCodeRoot();
+        Path root = ensureCodeRoot(userId);
         Path resolved = root.resolve(normalized).normalize();
         if (!resolved.startsWith(projectRoot)) {
             resolved = projectRoot.resolve(normalized).normalize();
@@ -311,8 +313,8 @@ public class DevService {
         return normalized;
     }
 
-    private Path projectRootForPath(Path path) {
-        Path root = codeRoot();
+    private Path projectRootForPath(Long userId, Path path) {
+        Path root = codeRoot(userId);
         Path relative = root.relativize(path.toAbsolutePath().normalize());
         if (relative.getNameCount() == 0) {
             throw new BusinessException(400, "Invalid project file path");
@@ -364,11 +366,22 @@ public class DevService {
     }
 
     private String artifactRelative(Path path) {
-        Path root = codeRoot();
+        Path root = codeRootForPath(path);
         if (path.equals(root)) {
             return CODE_DIR;
         }
         return CODE_DIR + "/" + root.relativize(path).toString().replace("\\", "/");
+    }
+
+    private Path codeRootForPath(Path path) {
+        Path normalized = path.toAbsolutePath().normalize();
+        for (int i = 0; i < normalized.getNameCount() - 2; i++) {
+            if ("users".equals(normalized.getName(i).toString())
+                    && CODE_DIR.equals(normalized.getName(i + 2).toString())) {
+                return normalized.getRoot().resolve(normalized.subpath(0, i + 3)).normalize();
+            }
+        }
+        return Paths.get(System.getProperty("user.dir"), WORKSPACE_ROOT, CODE_DIR).toAbsolutePath().normalize();
     }
 
     private Long parentId(Path path, Path projectRoot) {
@@ -396,9 +409,9 @@ public class DevService {
         return trimmed;
     }
 
-    private DevFile findFileById(Long id) {
-        for (DevProject project : getProjectList()) {
-            DevFile found = findInTree(getFileTree(project.getId()), id);
+    private DevFile findFileById(Long userId, Long id) {
+        for (DevProject project : getProjectList(userId)) {
+            DevFile found = findInTree(getFileTree(userId, project.getId()), id);
             if (found != null) {
                 return found;
             }

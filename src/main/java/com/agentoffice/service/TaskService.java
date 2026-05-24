@@ -26,8 +26,8 @@ public class TaskService {
     @Autowired
     private AgentEmployeeMapper employeeMapper;
 
-    public List<TaskInfo> getList(String status, String priority, Long executorId) {
-        return taskMapper.findList(status, priority, executorId);
+    public List<TaskInfo> getList(Long userId, String status, String priority, Long executorId) {
+        return taskMapper.findListByUser(userId, status, priority, executorId);
     }
 
     public List<Map<String, Object>> getTaskTypes() {
@@ -40,8 +40,8 @@ public class TaskService {
         return types;
     }
 
-    public TaskDetailResponse getDetail(Long id) {
-        TaskInfo task = taskMapper.findById(id);
+    public TaskDetailResponse getDetail(Long userId, Long id) {
+        TaskInfo task = taskMapper.findByIdAndUser(id, userId);
         if (task == null) {
             throw new BusinessException(404, "任务不存在");
         }
@@ -70,7 +70,7 @@ public class TaskService {
     }
 
     @Transactional
-    public TaskInfo create(CreateTaskRequest request) {
+    public TaskInfo create(Long userId, CreateTaskRequest request) {
         TaskInfo task = new TaskInfo();
         task.setTaskName(request.getTaskName());
         task.setTaskType(request.getTaskType() != null ? request.getTaskType() : "custom");
@@ -78,7 +78,7 @@ public class TaskService {
         task.setPriority(request.getPriority() != null ? request.getPriority() : "中");
         task.setExecutorId(request.getExecutorId());
         task.setStatus(request.getExecutorId() == null ? "待分配" : "进行中");
-        task.setCreateUser(1L);
+        task.setCreateUser(userId);
 
         taskMapper.insert(task);
         return task;
@@ -102,38 +102,40 @@ public class TaskService {
     }
 
     @Transactional
-    public TaskInfo update(Long id, TaskInfo task) {
-        TaskInfo exist = taskMapper.findById(id);
+    public TaskInfo update(Long userId, Long id, TaskInfo task) {
+        TaskInfo exist = taskMapper.findByIdAndUser(id, userId);
         if (exist == null) {
             throw new BusinessException(404, "任务不存在");
         }
         task.setId(id);
+        task.setCreateUser(userId);
         taskMapper.update(task);
         return task;
     }
 
     @Transactional
-    public void delete(Long id) {
-        taskMapper.deleteById(id);
+    public void delete(Long userId, Long id) {
+        taskMapper.deleteByIdForUser(id, userId);
     }
 
     @Transactional
-    public void updateStatus(Long id, String status) {
+    public void updateStatus(Long userId, Long id, String status) {
         if ("已完成".equals(status)) {
-            taskMapper.complete(id, status);
+            taskMapper.completeForUser(id, status, userId);
         } else {
-            taskMapper.updateStatus(id, status);
+            taskMapper.updateStatusForUser(id, status, userId);
         }
     }
 
     @Transactional
-    public void assign(Long taskId, Long executorId) {
-        TaskInfo task = taskMapper.findById(taskId);
+    public void assign(Long userId, Long taskId, Long executorId) {
+        TaskInfo task = taskMapper.findByIdAndUser(taskId, userId);
         if (task == null) {
             throw new BusinessException(404, "任务不存在");
         }
         task.setExecutorId(executorId);
         task.setStatus("进行中");
+        task.setCreateUser(userId);
         taskMapper.update(task);
     }
 }

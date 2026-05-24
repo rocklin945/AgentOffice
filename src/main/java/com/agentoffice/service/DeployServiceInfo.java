@@ -38,6 +38,7 @@ public class DeployServiceInfo {
         if (service.getStatus() == null) {
             service.setStatus("已停止");
         }
+        service.setUserId(UserScope.getUserId());
         serviceMapper.insert(service);
         return service;
     }
@@ -49,6 +50,7 @@ public class DeployServiceInfo {
             throw new BusinessException(404, "服务不存在");
         }
         service.setId(id);
+        service.setUserId(UserScope.getUserId());
         serviceMapper.update(service);
         return service;
     }

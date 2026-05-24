@@ -20,6 +20,7 @@ import com.agentoffice.mapper.OperationLogMapper;
 import com.agentoffice.mapper.TaskInfoMapper;
 import com.agentoffice.mapper.WorkProductMapper;
 import com.agentoffice.service.DockerDeployService;
+import com.agentoffice.service.UserScope;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -405,6 +406,7 @@ public class ToolExecutor {
 
     private WorkflowResult createDeployServiceTool(Map<String, Object> args) {
         DeployService service = new DeployService();
+        service.setUserId(UserScope.getUserId());
         service.setServiceName(value(text(args, "service_name"), "agentoffice-service"));
         service.setImage(value(text(args, "image"), "agentoffice/workflow"));
         service.setVersion(value(text(args, "version"), "v1.0.0"));
@@ -511,7 +513,7 @@ public class ToolExecutor {
         task.setPriority(priority);
         task.setExecutorId(executorId);
         task.setStatus(status);
-        task.setCreateUser(1L);
+        task.setCreateUser(UserScope.getUserId());
         taskMapper.insert(task);
 
         return task;
@@ -519,6 +521,7 @@ public class ToolExecutor {
 
     private WorkProduct createWorkProduct(Long employeeId, Long taskId, String name, String productType, String status, String fileUrl, String content) {
         WorkProduct product = new WorkProduct();
+        product.setUserId(UserScope.getUserId());
         product.setEmployeeId(employeeId);
         product.setTaskId(taskId);
         product.setName(name);
@@ -635,7 +638,7 @@ public class ToolExecutor {
                     created.setProjectName("AI 员工交付工程");
                     created.setDescription("AI 员工通过 write_file 真实写入并登记的代码产物。");
                     created.setLanguage("mixed");
-                    created.setOwnerId(ownerId);
+                    created.setOwnerId(UserScope.getUserId() == null ? ownerId : UserScope.getUserId());
                     created.setStatus(1);
                     projectMapper.insert(created);
                     return created;
@@ -657,7 +660,7 @@ public class ToolExecutor {
 
     private void notifyUser(String category, String title, String content, String sourceType, Long sourceId, String priority) {
         NotificationMessage notification = new NotificationMessage();
-        notification.setUserId(1L);
+        notification.setUserId(UserScope.getUserId());
         notification.setCategory(category);
         notification.setTitle(title);
         notification.setContent(content);
@@ -670,7 +673,7 @@ public class ToolExecutor {
 
     private void logOperation(String action, String targetType, Long targetId, String detail) {
         OperationLog log = new OperationLog();
-        log.setUserId(1L);
+        log.setUserId(UserScope.getUserId());
         log.setAction(action);
         log.setTargetType(targetType);
         log.setTargetId(targetId);
@@ -754,7 +757,13 @@ public class ToolExecutor {
     }
 
     private Path artifactRoot() {
-        return Paths.get(System.getProperty("user.dir"), "workspace_artifacts").toAbsolutePath().normalize();
+        Long userId = UserScope.getUserId();
+        if (userId == null) {
+            return Paths.get(System.getProperty("user.dir"), "workspace_artifacts").toAbsolutePath().normalize();
+        }
+        return Paths.get(System.getProperty("user.dir"), "workspace_artifacts", "users", String.valueOf(userId))
+                .toAbsolutePath()
+                .normalize();
     }
 
     private Path resolveArtifactPath(String filePath) {

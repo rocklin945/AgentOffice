@@ -411,6 +411,7 @@ public class OfficeService {
 
 
         CompletableFuture.runAsync(() -> {
+            UserScope.setUserId(userId);
 
             try {
 
@@ -480,6 +481,8 @@ public class OfficeService {
 
                 emitter.complete();
 
+            } finally {
+                UserScope.clear();
             }
 
         });
@@ -740,11 +743,20 @@ public class OfficeService {
 
     private List<ReplyHandoff> runReplyRound(SseEmitter emitter, List<Long> employeeIds, String message, Long sessionDbId, String phase) {
 
+        Long scopedUserId = UserScope.getUserId();
+
         List<CompletableFuture<ReplyHandoff>> replyTasks = employeeIds.stream()
 
                 .distinct()
 
-                .map(employeeId -> CompletableFuture.supplyAsync(() -> streamEmployeeReply(emitter, employeeId, message, sessionDbId, phase)))
+                .map(employeeId -> CompletableFuture.supplyAsync(() -> {
+                    UserScope.setUserId(scopedUserId);
+                    try {
+                        return streamEmployeeReply(emitter, employeeId, message, sessionDbId, phase);
+                    } finally {
+                        UserScope.clear();
+                    }
+                }))
 
                 .toList();
 

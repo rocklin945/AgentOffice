@@ -46,8 +46,6 @@ public class DockerDeployService {
     private static final Duration RUN_TIMEOUT = Duration.ofSeconds(45);
 
     private final Path workspaceRoot = Path.of(System.getProperty("user.dir"));
-    private final Path codeRoot = workspaceRoot.resolve("workspace_artifacts").resolve("code").normalize();
-    private final Path deployRoot = workspaceRoot.resolve("workspace_artifacts").resolve("deploy").normalize();
 
     @Autowired
     private DeployServiceMapper deployServiceMapper;
@@ -65,8 +63,9 @@ public class DockerDeployService {
     }
 
     public List<DockerProjectResponse> listProjects() {
-        ensureCodeRoot();
-        try (Stream<Path> paths = Files.list(codeRoot)) {
+        Path root = codeRoot();
+        ensureCodeRoot(root);
+        try (Stream<Path> paths = Files.list(root)) {
             return paths
                     .filter(Files::isDirectory)
                     .sorted(Comparator.comparing(path -> path.getFileName().toString()))
@@ -97,8 +96,9 @@ public class DockerDeployService {
         }
 
         int hostPort = firstPositive(request == null ? null : request.getPort(), findAvailablePort());
-        Path projectDeployDir = deployRoot.resolve(projectName).normalize();
-        ensureInside(deployRoot, projectDeployDir);
+        Path root = deployRoot();
+        Path projectDeployDir = root.resolve(projectName).normalize();
+        ensureInside(root, projectDeployDir);
         try {
             Files.createDirectories(projectDeployDir);
             if (plan.compose()) {
@@ -209,8 +209,9 @@ public class DockerDeployService {
         int lineCount = Math.max(20, Math.min(Optional.ofNullable(lines).orElse(200), 1000));
         StringBuilder logs = new StringBuilder();
 
-        Path buildLog = deployRoot.resolve(projectName).resolve("last-build.log").normalize();
-        if (buildLog.startsWith(deployRoot) && Files.exists(buildLog)) {
+        Path root = deployRoot();
+        Path buildLog = root.resolve(projectName).resolve("last-build.log").normalize();
+        if (buildLog.startsWith(root) && Files.exists(buildLog)) {
             logs.append("===== docker build =====\n");
             try {
                 logs.append(tail(Files.readString(buildLog, StandardCharsets.UTF_8), lineCount));
@@ -324,6 +325,7 @@ public class DockerDeployService {
         DeployService service = deployServiceMapper.findByImage(project.getImageName());
         if (service == null) {
             service = new DeployService();
+            service.setUserId(UserScope.getUserId());
             service.setServiceName(project.getDisplayName());
             service.setImage(project.getImageName());
             service.setVersion("latest");
@@ -331,6 +333,7 @@ public class DockerDeployService {
             service.setPort(project.getPort());
             deployServiceMapper.insert(service);
         } else {
+            service.setUserId(UserScope.getUserId());
             service.setServiceName(project.getDisplayName());
             service.setImage(project.getImageName());
             service.setVersion("latest");
@@ -811,21 +814,38 @@ public class DockerDeployService {
     }
 
     private Path resolveProject(String projectName) {
-        ensureCodeRoot();
+        Path root = codeRoot();
+        ensureCodeRoot(root);
         if (projectName == null || projectName.isBlank()) {
             throw BusinessException.badRequest("Project name is required");
         }
-        Path projectPath = codeRoot.resolve(projectName).normalize();
-        ensureInside(codeRoot, projectPath);
+        Path projectPath = root.resolve(projectName).normalize();
+        ensureInside(root, projectPath);
         if (!Files.isDirectory(projectPath)) {
             throw BusinessException.notFound("Project not found: " + projectName);
         }
         return projectPath;
     }
 
-    private void ensureCodeRoot() {
-        if (!Files.isDirectory(codeRoot)) {
-            throw BusinessException.notFound("Code directory not found: " + codeRoot);
+    private Path codeRoot() {
+        Long userId = UserScope.getUserId();
+        if (userId == null) {
+            return workspaceRoot.resolve("workspace_artifacts").resolve("code").normalize();
+        }
+        return workspaceRoot.resolve("workspace_artifacts").resolve("users").resolve(String.valueOf(userId)).resolve("code").normalize();
+    }
+
+    private Path deployRoot() {
+        Long userId = UserScope.getUserId();
+        if (userId == null) {
+            return workspaceRoot.resolve("workspace_artifacts").resolve("deploy").normalize();
+        }
+        return workspaceRoot.resolve("workspace_artifacts").resolve("users").resolve(String.valueOf(userId)).resolve("deploy").normalize();
+    }
+
+    private void ensureCodeRoot(Path root) {
+        if (!Files.isDirectory(root)) {
+            throw BusinessException.notFound("Code directory not found: " + root);
         }
     }
 
@@ -1061,7 +1081,7 @@ public class DockerDeployService {
     }
 
     private Path composeFile(String projectName) {
-        return deployRoot.resolve(projectName).resolve("docker-compose.yml").normalize();
+        return deployRoot().resolve(projectName).resolve("docker-compose.yml").normalize();
     }
 
     private String escapePath(Path path) {

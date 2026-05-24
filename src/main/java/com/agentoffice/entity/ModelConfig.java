@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 @Data
 public class ModelConfig {
     private Long id;
+    private Long userId;
     private String configName;
     private String provider;
     private String modelName;

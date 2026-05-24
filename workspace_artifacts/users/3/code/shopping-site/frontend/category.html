@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商品分类 - SimpleShop</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <header class="header">
+        <div class="container header-content">
+            <a href="index.html" class="logo">SimpleShop</a>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="搜索商品...">
+                <button onclick="goToSearch()">搜索</button>
+            </div>
+            <nav class="nav-links">
+                <a href="index.html">首页</a>
+                <a href="cart.html" class="cart-link">
+                    购物车
+                    <span class="cart-badge" id="cartBadge">0</span>
+                </a>
+                <a href="login.html" id="userLink">登录</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 主体内容 -->
+    <main class="main-content">
+        <div class="container">
+            <div class="content-wrapper">
+                <!-- 左侧分类导航 -->
+                <aside class="sidebar">
+                    <h3>商品分类</h3>
+                    <ul class="category-list" id="categoryList">
+                        <li><a href="category.html?category=all">全部商品</a></li>
+                        <li><a href="category.html?category=electronics">数码电子</a></li>
+                        <li><a href="category.html?category=clothing">服装鞋帽</a></li>
+                        <li><a href="category.html?category=home">家居生活</a></li>
+                        <li><a href="category.html?category=books">图书音像</a></li>
+                        <li><a href="category.html?category=beauty">美妆护肤</a></li>
+                    </ul>
+                </aside>
+
+                <!-- 右侧分类商品展示 -->
+                <section class="products-section">
+                    <div class="section-title">
+                        <h2 id="categoryTitle">全部分类</h2>
+                    </div>
+                    <div class="sort-options">
+                        <label>排序：</label>
+                        <select id="sortSelect" onchange="sortProducts()">
+                            <option value="default">默认排序</option>
+                            <option value="price-asc">价格从低到高</option>
+                            <option value="price-desc">价格从高到低</option>
+                        </select>
+                    </div>
+                    <div class="products-grid" id="productsGrid">
+                        <!-- 商品将通过 JS 动态渲染 -->
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 SimpleShop. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="js/data.js"></script>
+    <script src="js/cart.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        // 分类页特定逻辑
+        document.addEventListener('DOMContentLoaded', function() {
+            const params = new URLSearchParams(window.location.search);
+            const category = params.get('category') || 'all';
+            
+            const categoryNames = {
+                'all': '全部分类',
+                'electronics': '数码电子',
+                'clothing': '服装鞋帽',
+                'home': '家居生活',
+                'books': '图书音像',
+                'beauty': '美妆护肤'
+            };
+            
+            document.getElementById('categoryTitle').textContent = categoryNames[category] || '全部分类';
+            
+            // 高亮当前分类
+            const categoryLinks = document.querySelectorAll('.category-list a');
+            categoryLinks.forEach(link => {
+                if (link.href.includes('category=' + category)) {
+                    link.classList.add('active');
+                }
+            });
+            
+            // 渲染该分类的商品
+            renderCategoryProducts(category);
+        });
+        
+        function renderCategoryProducts(category) {
+            const productsGrid = document.getElementById('productsGrid');
+            let products = productsData;
+            
+            if (category !== 'all') {
+                products = products.filter(p => p.category === category);
+            }
+            
+            productsGrid.innerHTML = products.map(product => createProductCard(product)).join('');
+        }
+        
+        function sortProducts() {
+            const sortValue = document.getElementById('sortSelect').value;
+            const params = new URLSearchParams(window.location.search);
+            const category = params.get('category') || 'all';
+            
+            let products = productsData;
+            if (category !== 'all') {
+                products = products.filter(p => p.category === category);
+            }
+            
+            switch(sortValue) {
+                case 'price-asc':
+                    products.sort((a, b) => a.price - b.price);
+                    break;
+                case 'price-desc':
+                    products.sort((a, b) => b.price - a.price);
+                    break;
+                default:
+                    // 保持原顺序
+                    break;
+            }
+            
+            const productsGrid = document.getElementById('productsGrid');
+            productsGrid.innerHTML = products.map(product => createProductCard(product)).join('');
+        }
+    </script>
+</body>
+</html>
