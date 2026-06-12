@@ -43,21 +43,39 @@ public class CodeReviewService {
     private static final int MAX_TOTAL_CHARS = 60_000;
     private static final Pattern BACKTICK_PATH = Pattern.compile("`([^`]+)`");
 
-    public Map<String, Object> getReports(Long projectId) {
-        Path projectRoot = findProjectRoot(projectId);
-        Path reviewRoot = reviewRoot(projectRoot);
-        Path legacyReviewRoot = projectRoot.resolve(REVIEW_DIR).normalize();
-        List<Map<String, Object>> reports = new ArrayList<>();
+    public Map<String, Object> getReports(Long userId, Long projectId) {
+        Path projectRoot = findProjectRoot(userId, projectId);
+        Path reviewRoot = reviewRoot(userId, projectRoot);
+        Path legacyProjectReviewRoot = projectRoot.resolve(REVIEW_DIR).normalize();
+        Path legacyTopLevelReviewRoot = Paths.get(System.getProperty("user.dir"), WORKSPACE_ROOT, REVIEW_DIR, projectRoot.getFileName().toString())
+                .toAbsolutePath()
+                .normalize();
 
-        if (Files.isDirectory(reviewRoot) || Files.isDirectory(legacyReviewRoot)) {
-            try (Stream<Path> primaryStream = Files.isDirectory(reviewRoot) ? Files.list(reviewRoot) : Stream.empty();
-                 Stream<Path> legacyStream = Files.isDirectory(legacyReviewRoot) ? Files.list(legacyReviewRoot) : Stream.empty()) {
-                reports = Stream.concat(primaryStream, legacyStream)
-                        .filter(Files::isRegularFile)
-                        .filter(path -> isMarkdown(path.getFileName().toString()))
-                        .sorted(Comparator.comparing(this::lastModified).reversed())
-                        .map(path -> reportMap(projectRoot, path))
-                        .toList();
+        List<Path> roots = new ArrayList<>();
+        if (Files.isDirectory(reviewRoot)) roots.add(reviewRoot);
+        if (Files.isDirectory(legacyProjectReviewRoot)) roots.add(legacyProjectReviewRoot);
+        if (Files.isDirectory(legacyTopLevelReviewRoot)) roots.add(legacyTopLevelReviewRoot);
+
+        List<Map<String, Object>> reports = new ArrayList<>();
+        if (!roots.isEmpty()) {
+            try {
+                for (Path root : roots) {
+                    try (Stream<Path> stream = Files.list(root)) {
+                        List<Path> files = stream
+                                .filter(Files::isRegularFile)
+                                .filter(path -> isMarkdown(path.getFileName().toString()))
+                                .toList();
+                        for (Path path : files) {
+                            String key = artifactRelative(path);
+                            if (reports.stream().noneMatch(item -> key.equals(item.get("filePath")))) {
+                                reports.add(reportMap(projectRoot, path));
+                            }
+                        }
+                    }
+                }
+                reports.sort(Comparator.comparing(
+                        (Map<String, Object> item) -> (String) item.get("reviewedAt"),
+                        Comparator.reverseOrder()));
             } catch (IOException e) {
                 throw new BusinessException(500, "Failed to read review reports: " + e.getMessage());
             }
@@ -70,8 +88,8 @@ public class CodeReviewService {
     }
 
     @SuppressWarnings("unchecked")
-    public Map<String, Object> reviewProjectFiles(Long projectId, Map<String, Object> body) {
-        Path projectRoot = findProjectRoot(projectId);
+    public Map<String, Object> reviewProjectFiles(Long userId, Long projectId, Map<String, Object> body) {
+        Path projectRoot = findProjectRoot(userId, projectId);
         List<String> filePaths = ((List<Object>) body.getOrDefault("filePaths", List.of())).stream()
                 .map(String::valueOf)
                 .filter(item -> item != null && !item.isBlank())
@@ -89,7 +107,7 @@ public class CodeReviewService {
 
         List<FileSnapshot> snapshots = readSnapshots(projectRoot, filePaths);
         String report = callReviewer(modelConfig, projectRoot.getFileName().toString(), snapshots);
-        Path reportPath = writeReport(projectRoot, report, snapshots, modelConfig);
+        Path reportPath = writeReport(userId, projectRoot, report, snapshots, modelConfig);
         return reportMap(projectRoot, reportPath);
     }
 
@@ -153,8 +171,8 @@ public class CodeReviewService {
         return cleanLlmReply(response.getContent());
     }
 
-    private Path writeReport(Path projectRoot, String content, List<FileSnapshot> snapshots, ModelConfig modelConfig) {
-        Path reviewRoot = reviewRoot(projectRoot);
+    private Path writeReport(Long userId, Path projectRoot, String content, List<FileSnapshot> snapshots, ModelConfig modelConfig) {
+        Path reviewRoot = reviewRoot(userId, projectRoot);
         try {
             Files.createDirectories(reviewRoot);
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
@@ -237,15 +255,15 @@ public class CodeReviewService {
                 || normalized.startsWith(projectName + "/");
     }
 
-    private Path findProjectRoot(Long projectId) {
-        return listProjectRoots().stream()
+    private Path findProjectRoot(Long userId, Long projectId) {
+        return listProjectRoots(userId).stream()
                 .filter(path -> stableId(artifactRelative(path)).equals(projectId))
                 .findFirst()
                 .orElseThrow(() -> new BusinessException(404, "Project does not exist"));
     }
 
-    private List<Path> listProjectRoots() {
-        Path root = ensureCodeRoot();
+    private List<Path> listProjectRoots(Long userId) {
+        Path root = ensureCodeRoot(userId);
         try (Stream<Path> stream = Files.list(root)) {
             return stream.filter(Files::isDirectory)
                     .sorted(Comparator.comparing(path -> path.getFileName().toString().toLowerCase()))
@@ -255,8 +273,8 @@ public class CodeReviewService {
         }
     }
 
-    private Path ensureCodeRoot() {
-        Path root = codeRoot();
+    private Path ensureCodeRoot(Long userId) {
+        Path root = codeRoot(userId);
         try {
             Files.createDirectories(root);
         } catch (IOException e) {
@@ -265,16 +283,18 @@ public class CodeReviewService {
         return root;
     }
 
-    private Path codeRoot() {
-        return workspaceRoot().resolve(CODE_DIR).normalize();
+    private Path codeRoot(Long userId) {
+        return workspaceRoot(userId).resolve(CODE_DIR).normalize();
     }
 
-    private Path workspaceRoot() {
-        return Paths.get(System.getProperty("user.dir"), WORKSPACE_ROOT).toAbsolutePath().normalize();
+    private Path workspaceRoot(Long userId) {
+        return Paths.get(System.getProperty("user.dir"), WORKSPACE_ROOT, "users", String.valueOf(userId))
+                .toAbsolutePath()
+                .normalize();
     }
 
-    private Path reviewRoot(Path projectRoot) {
-        return workspaceRoot().resolve(REVIEW_DIR).resolve(projectRoot.getFileName().toString()).normalize();
+    private Path reviewRoot(Long userId, Path projectRoot) {
+        return workspaceRoot(userId).resolve(REVIEW_DIR).resolve(projectRoot.getFileName().toString()).normalize();
     }
 
     private Path resolveProjectPath(Path projectRoot, String filePath) {
@@ -304,9 +324,11 @@ public class CodeReviewService {
 
     private String artifactRelative(Path path) {
         Path normalized = path.toAbsolutePath().normalize();
-        Path root = workspaceRoot();
-        if (normalized.startsWith(root)) {
-            return root.relativize(normalized).toString().replace("\\", "/");
+        for (int i = 0; i < normalized.getNameCount(); i++) {
+            String name = normalized.getName(i).toString();
+            if (CODE_DIR.equals(name) || REVIEW_DIR.equals(name)) {
+                return normalized.subpath(i, normalized.getNameCount()).toString().replace("\\", "/");
+            }
         }
         return normalized.toString().replace("\\", "/");
     }
