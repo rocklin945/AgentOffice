@@ -36,6 +36,7 @@ CREATE TABLE sys_user (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
 CREATE TABLE model_config (
+    user_id BIGINT DEFAULT NULL COMMENT '用户ID',
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
     config_name VARCHAR(80) NOT NULL COMMENT '配置名称',
     provider VARCHAR(80) DEFAULT 'OpenAI Compatible' COMMENT '模型供应商',
@@ -48,10 +49,12 @@ CREATE TABLE model_config (
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     KEY idx_default (is_default),
-    KEY idx_enabled (enabled)
+    KEY idx_enabled (enabled),
+    KEY idx_user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='模型配置表';
 
 CREATE TABLE agent_employee (
+    user_id BIGINT DEFAULT NULL COMMENT '用户ID',
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
     name VARCHAR(50) NOT NULL COMMENT '员工姓名',
     avatar VARCHAR(255) DEFAULT NULL COMMENT '头像 URL',
@@ -65,7 +68,8 @@ CREATE TABLE agent_employee (
     KEY idx_status (status),
     KEY idx_role (role),
     KEY idx_desk_id (desk_id),
-    KEY idx_model_config_id (model_config_id)
+    KEY idx_model_config_id (model_config_id),
+    KEY idx_user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='员工表';
 
 CREATE TABLE employee_permission (
@@ -91,12 +95,14 @@ CREATE TABLE task_info (
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     end_time DATETIME DEFAULT NULL COMMENT '结束时间',
     KEY idx_executor_id (executor_id),
+    KEY idx_create_user (create_user),
     KEY idx_status (status),
     KEY idx_priority (priority)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务表';
 
 
 CREATE TABLE work_product (
+    user_id BIGINT DEFAULT NULL COMMENT '用户ID',
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
     employee_id BIGINT NOT NULL COMMENT '员工 ID',
     task_id BIGINT DEFAULT NULL COMMENT '任务 ID',
@@ -107,10 +113,12 @@ CREATE TABLE work_product (
     content LONGTEXT COMMENT '产物正文',
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     KEY idx_employee_id (employee_id),
-    KEY idx_task_id (task_id)
+    KEY idx_task_id (task_id),
+    KEY idx_user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='工作产物表';
 
 CREATE TABLE deploy_service (
+    user_id BIGINT DEFAULT NULL COMMENT '用户ID',
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
     service_name VARCHAR(100) NOT NULL COMMENT '服务名称',
     image VARCHAR(255) DEFAULT NULL COMMENT '镜像',
@@ -123,7 +131,8 @@ CREATE TABLE deploy_service (
     running_time BIGINT DEFAULT 0 COMMENT '运行时长',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    KEY idx_status (status)
+    KEY idx_status (status),
+    KEY idx_user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='部署服务表';
 
 CREATE TABLE operation_log (
